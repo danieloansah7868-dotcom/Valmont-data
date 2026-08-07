@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Why Does My Data Bundle Sometimes Delay? | Valmont Data Blog</title>
+  <meta name="description" content="Why data bundle delivery in Ghana sometimes takes hours instead of minutes — network queues, provider load, and what we do about it.">
+  <link rel="icon" type="image/svg+xml" href="../assets/img/favicon.svg">
+  <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-page="blog.html">
+
+  <div data-nav></div>
+
+  <main>
+    <section>
+      <div class="wrap article">
+        <div class="k">Delivery</div>
+        <h1>Why does my data bundle sometimes delay?</h1>
+        <div class="byline">By the Valmont Data team · Jul 28, 2026 · 4 min read</div>
+
+        <p>You paid at 12:23 pm. The order said "standard queue ≈ 4h". It landed at 4:24 pm. That's exactly what the notice promised — but we know it can still feel slow. Here's the honest engineering behind delays.</p>
+
+        <h2>Bundles move through network queues, not magic</h2>
+        <p>Every data bundle is delivered through the telecom network's own fulfilment systems. On busy days — month-end, public holidays, school reopenings — those queues fill up. Your order is one of thousands waiting in line, and the network processes them in batches.</p>
+
+        <h2>Provider load varies hour to hour</h2>
+        <p>We route through whichever wholesale provider currently scores best on speed, success and price. A provider that's instant at 9 am can be congested at 9 pm. Our routing engine responds in real time, but it can't create capacity that doesn't exist.</p>
+
+        <h2>Why we show the wait before you pay</h2>
+        <p>We display the current fast-lane and standard-queue estimates on every buy page — <b>before</b> you pay. If the network is congested, you'll see it and can decide. That's the transparency we promise, even when it costs us sales.</p>
+
+        <h2>What never happens</h2>
+        <ul>
+          <li>We never hide delays from you after payment.</li>
+          <li>We never keep your money on a failed order — refunds are automatic and instant to your wallet.</li>
+          <li>We never process duplicate orders for the same number silently (the second one is rejected — so never order the same number twice).</li>
+        </ul>
+
+        <h2>What you can do to get faster delivery</h2>
+        <ol>
+          <li>Order during off-peak hours (late evening to early morning) when queues are shortest.</li>
+          <li>Use one order per number — duplicates waste a queue slot.</li>
+          <li>If it's urgent, dial the network's own shortcode (e.g. <b>*138#</b> on MTN) and buy a standard bundle at full price.</li>
+        </ol>
+
+        <p><a href="become-data-agent-ghana.html">Next: How to become a data agent in Ghana →</a></p>
+      </div>
+    </section>
+  </main>
+
+  <div data-footer></div>
+
+  <div class="modal-back" id="buyModal"></div>
+  <script src="../assets/js/data.js"></script>
+  <script src="../assets/js/app.js"></script>
+</body>
+</html>

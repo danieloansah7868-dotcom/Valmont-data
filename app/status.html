@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Track Order — Valmont Data</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" type="image/svg+xml" href="assets/img/favicon.svg">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+  <header class="nav">
+    <div class="wrap nav-inner">
+      <a class="brand" href="/">
+        <span class="logo">◈</span>
+        <span>VALMONT<b style="color:var(--orange)">DATA</b><small>by Valmont Group · Accra</small></span>
+      </a>
+      <nav class="nav-links">
+        <a href="/">Buy Data</a>
+        <a href="status.html" class="active">Track Order</a>
+        <a href="admin.html">Admin</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <div class="wrap" style="max-width:720px">
+        <div class="k">Order Tracking</div>
+        <h1 class="t" style="margin:8px 0 12px">Track your order</h1>
+        <p class="lead">Enter the reference from your checkout (e.g. <b>VD-260806-4831</b>). No login needed.</p>
+
+        <form class="inp-group" id="trackForm" style="margin-top:22px">
+          <input class="inp" id="trackRef" placeholder="Reference, e.g. VD-260806-4831" autocomplete="off">
+          <button class="btn btn-orange" type="submit">Track →</button>
+        </form>
+
+        <div id="result"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap">
+      <div class="footer-grid">
+        <div>
+          <a class="brand" href="/"><span class="logo">◈</span><span>VALMONT<b style="color:var(--orange)">DATA</b></span></a>
+          <p class="about-txt">Ghana's data bundle marketplace — MTN, Telecel &amp; AirtelTigo. A subsidiary of Valmont Group of Companies, Accra.</p>
+        </div>
+        <div>
+          <h4>Platform</h4>
+          <ul>
+            <li><a href="/">Buy Data</a></li>
+            <li><a href="status.html">Track Order</a></li>
+            <li><a href="admin.html">Admin Console</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Company</h4>
+          <ul>
+            <li><a href="../index.html" target="_blank" rel="noopener">Valmont Group →</a></li>
+            <li><a href="https://wa.me/233542451578" target="_blank" rel="noopener">WhatsApp Support</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="bottom">
+        <span>© 2026 Valmont Data (Valmont Group of Companies). All rights reserved.</span>
+        <span>Payments powered by Valmont-Pay</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="assets/js/status.js"></script>
+</body>
+</html>

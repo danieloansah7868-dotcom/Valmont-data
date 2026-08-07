@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Console — Valmont Data</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" type="image/svg+xml" href="assets/img/favicon.svg">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+  <header class="nav">
+    <div class="wrap nav-inner">
+      <a class="brand" href="/">
+        <span class="logo">◈</span>
+        <span>VALMONT<b style="color:var(--orange)">DATA</b><small>Admin</small></span>
+      </a>
+      <nav class="nav-links">
+        <a href="/">Storefront</a>
+        <a href="status.html">Track</a>
+        <a href="admin.html" class="active">Admin</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <div class="wrap">
+
+        <!-- login -->
+        <div id="loginView" style="max-width:420px;margin:0 auto">
+          <div class="k">Restricted</div>
+          <h1 class="t" style="font-size:26px;margin:8px 0 18px">Admin sign in</h1>
+          <form id="loginForm">
+            <div class="field">
+              <input class="inp" type="password" id="loginPass" placeholder="Admin password" autocomplete="current-password">
+            </div>
+            <button class="btn btn-orange btn-block" type="submit">Sign in →</button>
+          </form>
+          <div id="loginErr"></div>
+        </div>
+
+        <!-- dashboard -->
+        <div id="dashView" style="display:none">
+          <div class="toolbar">
+            <h2>Valmont Data — Admin</h2>
+            <button class="btn btn-ghost btn-sm" id="logoutBtn">Sign out</button>
+          </div>
+
+          <div class="admin-tabs">
+            <button class="admin-tab on" data-tab="float">Float</button>
+            <button class="admin-tab" data-tab="orders">Orders</button>
+            <button class="admin-tab" data-tab="pl">P&amp;L</button>
+            <button class="admin-tab" data-tab="webhooks">Webhook log</button>
+          </div>
+
+          <!-- FLOAT -->
+          <div id="tab-float">
+            <div class="stat-cards" id="floatCards"></div>
+            <div class="card" style="background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:20px;margin-top:18px;max-width:520px">
+              <h3 style="color:#fff;font-size:16px;margin-bottom:12px">Float top-up</h3>
+              <form id="topupForm" class="inp-group" style="flex-wrap:wrap">
+                <select class="inp" id="topupNet" style="flex:1;min-width:140px">
+                  <option value="mtn">MTN</option>
+                  <option value="telecel">Telecel</option>
+                  <option value="airteltigo">AirtelTigo</option>
+                </select>
+                <input class="inp" id="topupAmount" type="number" min="1" placeholder="Amount (GH₵)" style="flex:1">
+                <button class="btn btn-orange" type="submit">Top up</button>
+              </form>
+              <p style="font-size:12px;color:var(--muted);margin-top:10px">Record the money you've sent to the supplier here — this is your float ledger.</p>
+            </div>
+            <h3 style="color:#fff;font-size:15px;margin-top:26px">Recent ledger</h3>
+            <div class="table-wrap"><table><thead><tr><th>When</th><th>Network</th><th>Direction</th><th>Amount</th><th>Balance</th><th>Note</th></tr></thead><tbody id="ledgerBody"></tbody></table></div>
+          </div>
+
+          <!-- ORDERS -->
+          <div id="tab-orders" style="display:none">
+            <form id="orderFilters" class="filters">
+              <div class="field"><label>Status</label>
+                <select class="inp" id="fStatus">
+                  <option value="all">All</option>
+                  <option>pending</option><option>paid</option><option>delivering</option>
+                  <option>delivered</option><option>failed</option><option>refunded</option>
+                </select>
+              </div>
+              <div class="field"><label>Network</label>
+                <select class="inp" id="fNetwork">
+                  <option value="all">All</option>
+                  <option value="mtn">MTN</option><option value="telecel">Telecel</option><option value="airteltigo">AirtelTigo</option>
+                </select>
+              </div>
+              <button class="btn btn-ghost btn-sm" type="submit">Filter</button>
+            </form>
+            <div class="table-wrap"><table>
+              <thead><tr><th>Reference</th><th>Phone</th><th>Bundle</th><th>Amount</th><th>Cost</th><th>Margin</th><th>Status</th><th>Attempts</th><th>Supplier</th><th></th></tr></thead>
+              <tbody id="ordersBody"></tbody>
+            </table></div>
+          </div>
+
+          <!-- P&L -->
+          <div id="tab-pl" style="display:none">
+            <div class="filters">
+              <button class="btn btn-ghost btn-sm" data-days="7">Last 7 days</button>
+              <button class="btn btn-orange btn-sm" data-days="30">Last 30 days</button>
+            </div>
+            <div class="table-wrap"><table>
+              <thead><tr><th>Day</th><th>Network</th><th>Orders</th><th>Revenue</th><th>Cost</th><th>Margin</th></tr></thead>
+              <tbody id="plBody"></tbody>
+            </table></div>
+          </div>
+
+          <!-- WEBHOOKS -->
+          <div id="tab-webhooks" style="display:none">
+            <div class="table-wrap"><table>
+              <thead><tr><th>When</th><th>Signature</th><th>Handled</th><th>Error</th><th>Payload</th></tr></thead>
+              <tbody id="webhooksBody"></tbody>
+            </table></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="assets/js/admin.js"></script>
+</body>
+</html>

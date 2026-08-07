@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Deposit Funds — Add Money to Your Wallet via MoMo | Valmont Data</title>
+  <meta name="description" content="Deposit money into your Valmont Data wallet via MTN Mobile Money, Telecel Cash or AirtelTigo Money. Pay once, spend from balance on every order.">
+  <link rel="icon" type="image/svg+xml" href="assets/img/favicon.svg">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body data-page="deposit.html">
+
+  <div data-nav></div>
+
+  <main>
+    <section>
+      <div class="wrap" style="max-width:820px">
+        <div class="k">Wallet</div>
+        <h1 class="t" style="margin:8px 0 12px">Deposit Funds</h1>
+        <p class="lead">Add money to your wallet via Mobile Money — then pay for bundles with one tap, no MoMo prompt on every order.</p>
+
+        <div class="card" style="margin-top:26px;padding:30px">
+          <div id="depRequiresLogin">
+            <div class="notice">You need to be <b>logged in</b> to make a deposit.</div>
+            <div style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap">
+              <a class="btn btn-green" href="signin.html?next=deposit.html">Sign In</a>
+              <a class="btn btn-ghost" href="signup.html?next=deposit.html">Create Free Account</a>
+            </div>
+          </div>
+          <form id="depositForm" style="display:none">
+            <div class="field">
+              <label for="depAmount">Amount (GHS)</label>
+              <input class="inp" id="depAmount" type="number" min="1" step="0.01" placeholder="e.g. 50" required>
+              <div class="hint">Minimum GH₵1 · credited instantly after MoMo approval</div>
+            </div>
+            <div class="field">
+              <label for="depPhone">Mobile Money Number</label>
+              <input class="inp" id="depPhone" inputmode="tel" placeholder="e.g. 024 000 0000" required>
+            </div>
+            <div class="field">
+              <label for="depNet">Mobile Network</label>
+              <select class="inp" id="depNet">
+                <option value="MTN Mobile Money">MTN Mobile Money</option>
+                <option value="Telecel Cash">Telecel Cash</option>
+                <option value="AirtelTigo Money">AirtelTigo Money</option>
+              </select>
+            </div>
+            <button class="btn btn-green btn-block" type="submit">Deposit Now →</button>
+            <p style="font-size:12.5px;color:var(--muted);margin-top:12px;text-align:center">Step 1 of 3 (amount → MoMo approval → wallet credited). Support: support@valmontdata.com</p>
+          </form>
+        </div>
+
+        <div class="grid-3" style="margin-top:26px">
+          <div class="card"><div class="ic">🔒</div><h3>Regulated payments</h3><p>All MoMo payments go through licensed Ghanaian payment processors. We never see your MoMo PIN.</p></div>
+          <div class="card"><div class="ic">↩️</div><h3>Auto refunds</h3><p>Failed bundle deliveries are refunded to your wallet automatically — no need to ask.</p></div>
+          <div class="card"><div class="ic">🕐</div><h3>Instant credit</h3><p>Wallet balance updates the moment you approve the MoMo prompt.</p></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div data-footer></div>
+
+  <div class="modal-back" id="depositModal"></div>
+  <div class="modal-back" id="buyModal"></div>
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/app.js"></script>
+</body>
+</html>

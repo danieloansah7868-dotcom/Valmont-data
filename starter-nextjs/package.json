@@ -1,0 +1,34 @@
+{
+  "name": "valmont-data-app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Valmont Data \u2014 production app (Next.js 15 + PostgreSQL + Paystack MoMo). Starter scaffolded from the interactive prototype.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "db:migrate": "node --env-file-if-exists=.env.local scripts/migrate.js",
+    "dev:mem": "cross-env MEMORY_DB=1 next dev",
+    "smoke": "bash scripts/smoke.sh"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "jose": "^5.9.6",
+    "next": "^15.3.4",
+    "pg": "^8.13.1",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^22.13.4",
+    "@types/pg": "^8.11.10",
+    "@types/react": "^19.0.8",
+    "@types/react-dom": "^19.0.3",
+    "cross-env": "^10.1.0",
+    "pg-mem": "^3.0.14",
+    "typescript": "^5.7.3"
+  }
+}

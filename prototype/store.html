@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Open a Reseller Store — Start Your Data Business | Valmont Data</title>
+  <meta name="description" content="Start a data reselling business in Ghana. Open your own storefront with your own markup, share it on WhatsApp, and earn on every bundle.">
+  <link rel="icon" type="image/svg+xml" href="assets/img/favicon.svg">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body data-page="store.html">
+
+  <div data-nav></div>
+
+  <main>
+    <section>
+      <div class="wrap">
+        <div class="k">Reseller Program</div>
+        <h1 class="t" style="margin:8px 0 12px">Start a data business in minutes</h1>
+        <p class="lead">Open a free storefront, set your own markup on wholesale bundles, and share your link on WhatsApp. Thousands of Ghanaians resell data every day — this is the cheapest way in.</p>
+
+        <div class="grid-3" style="margin-top:28px">
+          <div class="card"><div class="ic">⚡</div><h3>Wholesale pricing</h3><p>Members buy at reseller rates on every bundle. Your margin is built into the markup you set.</p></div>
+          <div class="card"><div class="ic">🔗</div><h3>Your own link</h3><p>Every store gets a personal storefront URL you can share anywhere — WhatsApp, Instagram, in person.</p></div>
+          <div class="card"><div class="ic">💰</div><h3>Keep your margin</h3><p>No subscription fees. Your earnings are the difference between the member price and your selling price.</p></div>
+        </div>
+
+        <!-- store builder -->
+        <div class="grid-3" style="margin-top:40px;align-items:start">
+          <div class="card" style="grid-column:span 2">
+            <h3 style="font-size:19px">Design your store</h3>
+            <form id="storeForm" style="margin-top:18px">
+              <div class="field">
+                <label for="stName">Store name</label>
+                <input class="inp" id="stName" placeholder="e.g. Ama's Data Hub" required>
+              </div>
+              <div class="field">
+                <label for="stTag">Tagline</label>
+                <input class="inp" id="stTag" placeholder="e.g. Cheapest data in Kumasi — 24/7 delivery">
+              </div>
+              <div class="field">
+                <label for="stMarkup">Your markup on bundles</label>
+                <div class="range-row">
+                  <input type="range" id="stMarkup" min="0" max="50" step="1" value="10">
+                  <output id="stMarkupOut"></output>
+                </div>
+                <div class="hint">Example: 10% on a GH₵40.50 10GB MTN bundle = you sell at GH₵44.55, keeping GH₵4.05.</div>
+              </div>
+              <button class="btn btn-green" type="submit">🚀 Open My Store</button>
+              <div class="demo-note" style="margin-top:14px">Prototype: stores are saved in your browser. In production a store lives at <b>valmontdata.com/store/your-name</b> with its own order queue.</div>
+            </form>
+          </div>
+          <div>
+            <div class="k" style="margin-bottom:12px">Live preview</div>
+            <div class="store-preview">
+              <div class="sp-head">
+                <div class="sp-logo">◈</div>
+                <div><div class="sp-name" id="pvName">Your Store Name</div><div class="sp-tag" id="pvTag">Cheap data bundles, delivered fast</div></div>
+              </div>
+              <div style="font-size:11px;font-weight:900;letter-spacing:0.1em;color:var(--muted)">SELLING PRICES · MTN</div>
+              <div id="pvPrices"></div>
+              <div style="font-size:12px;color:var(--muted);margin-top:14px">Powered by <b style="color:var(--green)">Valmont Data</b> · instant auto-delivery</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div data-footer></div>
+
+  <div class="modal-back" id="buyModal"></div>
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Valmont Data Developer API — Integrate Data Bundle Purchases | API Docs</title>
+  <meta name="description" content="Valmont Data API: purchase MTN, Telecel and AirtelTigo data bundles programmatically. Webhooks, bulk purchase, delivery trackers, balance checks. Reseller, dealer and wholesaler tiers.">
+  <link rel="icon" type="image/svg+xml" href="assets/img/favicon.svg">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body data-page="api-doc.html">
+
+  <div data-nav></div>
+
+  <main>
+    <section>
+      <div class="wrap">
+        <div class="k">Developer API</div>
+        <h1 class="t" style="margin:8px 0 12px">ValmontDataAPI</h1>
+        <p class="lead">Integrate data bundle purchases into your application. Get an API key, make your first purchase in minutes.</p>
+
+        <div class="grid-4" style="margin-top:26px">
+          <div class="card"><div class="ic">🚀</div><h3>Quick setup</h3><p>Get your API key and make your first purchase in minutes.</p></div>
+          <div class="card"><div class="ic">📨</div><h3>Real-time webhooks</h3><p>Instant order status updates delivered to your server.</p></div>
+          <div class="card"><div class="ic">🌐</div><h3>All networks</h3><p>MTN, Telecel, AirtelTigo — all supported.</p></div>
+          <div class="card"><div class="ic">🏷️</div><h3>Best prices</h3><p>Reseller, Dealer and Wholesaler pricing tiers.</p></div>
+        </div>
+
+        <div class="card" style="margin-top:28px">
+          <h3 style="font-size:15px;color:var(--muted)">BASE URL</h3>
+          <div class="code-block"><span class="c"># Base URL (production)</span>
+https://api.valmontdata.com/api/developer</div>
+          <div class="demo-note">Prototype note: this is the planned contract for the full-stack build. The simulated environment mirrors the real endpoints 1:1.</div>
+        </div>
+
+        <h2 class="t" style="font-size:24px;margin:36px 0 6px">Authentication</h2>
+        <p style="font-size:14.5px;color:var(--soft);max-width:760px">All requests require your API key in the <code style="background:rgba(255,255,255,0.08);padding:2px 7px;border-radius:6px">Authorization</code> header. Keys are issued per pricing tier and scoped to your account.</p>
+        <div class="code-block"><span class="k">Authorization</span>: Bearer <span class="s">vd_live_xxxxxxxxxxxxxxxx</span>
+<span class="k">Content-Type</span>: application/json</div>
+
+        <h2 class="t" style="font-size:24px;margin:36px 0 6px">Endpoints</h2>
+
+        <h3 style="color:var(--white);margin:22px 0 8px">1 · Verify Number</h3>
+        <div class="endpoint"><span class="method post">POST</span><code>/api/developer/verify</code></div>
+        <div class="code-block"><span class="c">// Confirm a number is valid on its network before ordering</span>
+{
+  <span class="k">"network"</span>: <span class="s">"mtn"</span>,
+  <span class="k">"number"</span>: <span class="s">"0241234567"</span>
+}</div>
+
+        <h3 style="color:var(--white);margin:22px 0 8px">2 · Purchase Data</h3>
+        <div class="endpoint"><span class="method post">POST</span><code>/api/developer/purchase</code></div>
+        <div class="code-block"><span class="c">// Place a single bundle order</span>
+{
+  <span class="k">"network"</span>: <span class="s">"mtn"</span>,
+  <span class="k">"bundle_gb"</span>: <span class="s">10</span>,
+  <span class="k">"number"</span>: <span class="s">"0241234567"</span>,
+  <span class="k">"reference"</span>: <span class="s">"order-20260802-001"</span>
+}
+
+<span class="c">// → 201 Created</span>
+{
+  <span class="k">"order_id"</span>: <span class="s">"VD-260802-4821"</span>,
+  <span class="k">"status"</span>: <span class="s">"processing"</span>,
+  <span class="k">"price"</span>: <span class="s">40.50</span>,
+  <span class="k">"eta"</span>: <span class="s">"1h 52m"</span>
+}</div>
+
+        <h3 style="color:var(--white);margin:22px 0 8px">3 · Bulk Purchase</h3>
+        <div class="endpoint"><span class="method post">POST</span><code>/api/developer/bulk</code></div>
+        <div class="code-block"><span class="c">// Up to 200 orders in one call — max 1 per unique number</span>
+{
+  <span class="k">"orders"</span>: [
+    { <span class="k">"network"</span>: <span class="s">"mtn"</span>, <span class="k">"bundle_gb"</span>: 5, <span class="k">"number"</span>: <span class="s">"0241234567"</span> },
+    { <span class="k">"network"</span>: <span class="s">"telecel"</span>, <span class="k">"bundle_gb"</span>: 20, <span class="k">"number"</span>: <span class="s">"0207654321"</span> }
+  ]
+}</div>
+
+        <h3 style="color:var(--white);margin:22px 0 8px">4 · Order Status</h3>
+        <div class="endpoint"><span class="method get">GET</span><code>/api/developer/order/&#123;order_id&#125;</code></div>
+        <div class="code-block"><span class="c">// Status: processing → delivered | failed (auto-refunded)</span>
+{
+  <span class="k">"order_id"</span>: <span class="s">"VD-260802-4821"</span>,
+  <span class="k">"status"</span>: <span class="s">"delivered"</span>,
+  <span class="k">"delivered_at"</span>: <span class="s">"2026-08-02T16:35:00Z"</span>
+}</div>
+
+        <h3 style="color:var(--white);margin:22px 0 8px">5 · Delivery Tracker</h3>
+        <div class="endpoint"><span class="method get">GET</span><code>/api/developer/tracker/&#123;order_id&#125;</code></div>
+        <div class="code-block"><span class="c">// Full event timeline for your tracking UI</span>
+{
+  <span class="k">"events"</span>: [
+    { <span class="k">"ts"</span>: <span class="s">"14:02"</span>, <span class="k">"status"</span>: <span class="s">"paid"</span> },
+    { <span class="k">"ts"</span>: <span class="s">"14:03"</span>, <span class="k">"status"</span>: <span class="s">"queued"</span> },
+    { <span class="k">"ts"</span>: <span class="s">"15:55"</span>, <span class="k">"status"</span>: <span class="s">"delivered"</span> }
+  ]
+}</div>
+
+        <h3 style="color:var(--white);margin:22px 0 8px">6 · Data Packages</h3>
+        <div class="endpoint"><span class="method get">GET</span><code>/api/developer/packages?network=mtn</code></div>
+        <div class="code-block"><span class="c">// Live bundle catalogue with your tier's prices</span>
+{
+  <span class="k">"network"</span>: <span class="s">"mtn"</span>,
+  <span class="k">"packages"</span>: [
+    { <span class="k">"gb"</span>: 10, <span class="k">"price"</span>: 40.50, <span class="k">"expiry"</span>: <span class="s">"none"</span> }
+  ]
+}</div>
+
+        <h3 style="color:var(--white);margin:22px 0 8px">7 · Balance & Result Checkers</h3>
+        <div class="endpoint"><span class="method get">GET</span><code>/api/developer/balance</code></div>
+        <div class="endpoint"><span class="method post">POST</span><code>/api/developer/check-result</code></div>
+        <div class="code-block"><span class="c">// Check wallet balance or verify a completed delivery (SMS/result checker)</span></div>
+
+        <h3 style="color:var(--white);margin:22px 0 8px">8 · Withdrawal & Transactions</h3>
+        <div class="endpoint"><span class="method post">POST</span><code>/api/developer/withdraw</code></div>
+        <div class="endpoint"><span class="method get">GET</span><code>/api/developer/transactions</code></div>
+        <div class="endpoint"><span class="method get">GET</span><code>/api/developer/usage-stats</code></div>
+
+        <h3 style="color:var(--white);margin:22px 0 8px">9 · Webhooks</h3>
+        <div class="endpoint"><span class="method post">POST</span><code>your-server.com/webhooks/vd</code> <span style="color:var(--muted);font-size:12px">(we call you)</span></div>
+        <div class="code-block"><span class="c">// Registered via dashboard → webhook URL. Signed with HMAC-SHA256.</span>
+{
+  <span class="k">"event"</span>: <span class="s">"order.delivered"</span>,
+  <span class="k">"order_id"</span>: <span class="s">"VD-260802-4821"</span>,
+  <span class="k">"network"</span>: <span class="s">"mtn"</span>,
+  <span class="k">"number"</span>: <span class="s">"0241234567"</span>,
+  <span class="k">"ts"</span>: <span class="s">"2026-08-02T15:55:00Z"</span>
+}</div>
+
+        <h2 class="t" style="font-size:24px;margin:36px 0 6px">Code sample (JavaScript)</h2>
+        <div class="code-block"><span class="k">const</span> res = await fetch(<span class="s">"https://api.valmontdata.com/api/developer/purchase"</span>, {
+  method: <span class="s">"POST"</span>,
+  headers: { <span class="s">"Authorization"</span>: <span class="s">"Bearer vd_live_xxx"</span>, <span class="s">"Content-Type"</span>: <span class="s">"application/json"</span> },
+  body: JSON.stringify({ network: <span class="s">"mtn"</span>, bundle_gb: 10, number: <span class="s">"0241234567"</span> })
+});
+<span class="k">const</span> order = await res.json(); <span class="c">// { order_id, status, price, eta }</span></div>
+
+        <div class="cta-band" style="margin-top:40px">
+          <h2 class="t">Want API access?</h2>
+          <p class="lead">API keys are issued to reseller-tier accounts. Sign up, open a store, and request a key from your dashboard.</p>
+          <a class="btn btn-green" href="signup.html">Create Free Account</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div data-footer></div>
+
+  <div class="modal-back" id="buyModal"></div>
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/app.js"></script>
+</body>
+</html>

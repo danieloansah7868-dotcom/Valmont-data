@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>How Valmont Data Delivers Data Fast — Technical Breakdown | Valmont Data Blog</title>
+  <meta name="description" content="How Valmont Data routes your MTN, Telecel and AirtelTigo orders through multiple wholesale providers with automatic failover for fast delivery.">
+  <link rel="icon" type="image/svg+xml" href="../assets/img/favicon.svg">
+  <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-page="blog.html">
+
+  <div data-nav></div>
+
+  <main>
+    <section>
+      <div class="wrap article">
+        <div class="k">Inside Valmont Data</div>
+        <h1>How Valmont Data delivers data fast — the full technical breakdown</h1>
+        <div class="byline">By the Valmont Data team · Aug 2, 2026 · 5 min read</div>
+
+        <p>Customers often ask us one question: <b>"How is your data cheaper and still delivered?"</b> The answer is the routing engine underneath the Valmont Data platform — the same engine this prototype is designed to mirror.</p>
+
+        <h2>1. We work with multiple wholesale providers per network</h2>
+        <p>For each of the three major Ghana networks — MTN, Telecel and AirtelTigo — we maintain contracts with several licensed wholesale data providers. No single provider is fast all the time. Network load, provider capacity and time of day all shift which one performs best.</p>
+
+        <h2>2. Smart routing picks the best provider per order</h2>
+        <p>When you place an order, our system scores every active provider on three live signals:</p>
+        <ul>
+          <li><b>Speed</b> — rolling average delivery time over the last 30 minutes</li>
+          <li><b>Success rate</b> — percentage of orders delivered on the first attempt</li>
+          <li><b>Price</b> — current wholesale cost at your reseller tier</li>
+        </ul>
+        <p>The best-scoring provider receives your order. That's why you sometimes see a "fast lane ≈ 1h 52m" notice on the buy page — that number is computed from real, recent queue data, shown <b>before you pay</b>.</p>
+
+        <h2>3. Automatic failover</h2>
+        <p>If a provider stalls or rejects an order, the engine automatically retries through the next-best provider — without you doing anything. Only if every provider fails does the order flip to <b>failed</b>, and our system instantly refunds the amount to your wallet. No arguments, no waiting.</p>
+
+        <h2>4. The delivery pipeline</h2>
+        <p>Every order moves through the same pipeline:</p>
+        <ol>
+          <li><b>Placed</b> — payment confirmed via MoMo or wallet</li>
+          <li><b>Queued</b> — routed to the winning provider's queue</li>
+          <li><b>Delivered</b> — the network credits the recipient number</li>
+          <li><b>Verified</b> — a result checker confirms the bundle landed; otherwise the refund path starts automatically</li>
+        </ol>
+
+        <h2>5. Why "instant" isn't always true</h2>
+        <p>Truly instant bundles exist, but they cost more and are limited. Our non-expiry bundles travel through the cheapest available queues, which means waits of minutes to a few hours depending on load. We'd rather show you the truth before you pay than surprise you after.</p>
+
+        <p><a href="why-do-bundles-delay.html">Next: Why does my data bundle sometimes delay? →</a></p>
+      </div>
+    </section>
+  </main>
+
+  <div data-footer></div>
+
+  <div class="modal-back" id="buyModal"></div>
+  <script src="../assets/js/data.js"></script>
+  <script src="../assets/js/app.js"></script>
+</body>
+</html>

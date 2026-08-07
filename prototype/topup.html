@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Airtime Top-Up Ghana — All Networks at Member Prices | Valmont Data</title>
+  <meta name="description" content="Buy cheap airtime top-up for MTN, Telecel and AirtelTigo in Ghana. Instant delivery from your Valmont Data wallet. Member prices from GH₵0.98.">
+  <link rel="icon" type="image/svg+xml" href="assets/img/favicon.svg">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body data-page="topup.html">
+
+  <div data-nav></div>
+
+  <main>
+    <section>
+      <div class="wrap">
+        <div class="k">Airtime Top-Up</div>
+        <h1 class="t" style="margin:8px 0 12px">Buy Airtime at Member Prices</h1>
+        <p class="lead">Instant airtime top-up for MTN, Telecel and AirtelTigo — paid from your Valmont Data wallet. From <b>GH₵0.98</b> for GH₵1 credit.</p>
+
+        <!-- login wall -->
+        <div id="airtimeWall" style="display:none">
+          <div class="cta-band" style="margin-top:26px">
+            <h2 class="t">Airtime top-up requires an account</h2>
+            <p class="lead">Sign in to buy airtime with member pricing and wallet payment. It takes 30 seconds.</p>
+            <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+              <a class="btn btn-green" href="signin.html?next=topup.html">Sign In</a>
+              <a class="btn btn-lime" href="signup.html?next=topup.html">Create Free Account</a>
+            </div>
+          </div>
+        </div>
+
+        <div id="airtimeShop" style="display:none">
+          <div class="notice info">⚡ <b>Instant delivery</b> — airtime lands in seconds, 24/7. Wallet balance is charged immediately.</div>
+          <div class="bundle-grid" id="airtimeGrid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr))"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div data-footer></div>
+
+  <div class="modal-back" id="buyModal"></div>
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/app.js"></script>
+</body>
+</html>

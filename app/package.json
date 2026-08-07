@@ -1,0 +1,11 @@
+{
+  "name": "valmont-data",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Valmont Data — Ghana data bundle marketplace (static storefront + Supabase + Valmont-Pay). Tenant #3 on Valmont-Pay.",
+  "scripts": {
+    "dev": "node scripts/dev-server.js",
+    "sim:webhook": "node scripts/sim-webhook.js",
+    "test": "bash scripts/test.sh"
+  }
+}

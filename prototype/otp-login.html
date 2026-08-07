@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign In with OTP — No Password | Valmont Data</title>
+  <meta name="description" content="Sign in to Valmont Data with a one-time password (OTP) sent to your phone. No password needed.">
+  <link rel="icon" type="image/svg+xml" href="assets/img/favicon.svg">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body data-page="signin.html">
+
+  <div data-nav></div>
+
+  <main>
+    <section>
+      <div class="wrap" style="max-width:520px">
+        <div class="auth-box" style="margin:0 auto">
+          <h1>Sign in with OTP</h1>
+          <div class="sub">We'll text a one-time code to your phone — no password needed.</div>
+          <form id="otpForm">
+            <div class="field">
+              <label for="otpPhone">Mobile number</label>
+              <input class="inp" id="otpPhone" inputmode="tel" placeholder="e.g. 024 000 0000" required>
+              <div class="hint">Must match the number on your Valmont Data account</div>
+            </div>
+            <button class="btn btn-green btn-block" type="submit">Send OTP →</button>
+          </form>
+          <div class="divider">or</div>
+          <a class="btn btn-ghost btn-block" href="signin.html">Back to password sign in</a>
+          <p style="text-align:center;font-size:13.5px;color:var(--muted);margin-top:18px">New here? <a href="signup.html"><b>Sign Up Free</b></a></p>
+          <div class="demo-note" style="margin-top:16px">Prototype: OTP delivery is simulated — the code step is skipped and you are signed in.</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div data-footer></div>
+
+  <div class="modal-back" id="buyModal"></div>
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/app.js"></script>
+</body>
+</html>

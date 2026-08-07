@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contact Us — Support 24/7 | Valmont Data</title>
+  <meta name="description" content="Contact Valmont Data support: WhatsApp, email and the inquiry form. 24/7 service for data bundles, deposits, reseller stores and API access.">
+  <link rel="icon" type="image/svg+xml" href="assets/img/favicon.svg">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body data-page="contact.html">
+
+  <div data-nav></div>
+
+  <main>
+    <section>
+      <div class="wrap" style="max-width:900px">
+        <div class="k">Contact</div>
+        <h1 class="t" style="margin:8px 0 12px">We're here 24/7</h1>
+        <p class="lead">Orders are automated, but humans answer questions around the clock.</p>
+
+        <div class="grid-3" style="margin-top:28px">
+          <a class="card" href="https://wa.me/233542451578" target="_blank" rel="noopener" style="color:inherit">
+            <div class="ic">💬</div><h3>WhatsApp Support</h3><p>Fastest response — chat with us directly.</p>
+            <div style="font-size:13.5px;font-weight:800;color:var(--green);margin-top:10px">+233 54 245 1578 →</div>
+          </a>
+          <a class="card" href="mailto:support@valmontdata.com" style="color:inherit">
+            <div class="ic">📧</div><h3>Email</h3><p>For documents, disputes and press.</p>
+            <div style="font-size:13.5px;font-weight:800;color:var(--green);margin-top:10px">support@valmontdata.com →</div>
+          </a>
+          <div class="card">
+            <div class="ic">📍</div><h3>Headquarters</h3><p>Valmont Group of Companies, Greater Accra, Ghana.</p>
+            <div style="font-size:13.5px;color:var(--muted);margin-top:10px">Physical visits by appointment</div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:28px;padding:30px">
+          <h3 style="font-size:19px">Send a message</h3>
+          <form id="contactForm" style="margin-top:18px">
+            <div class="inp-group">
+              <div class="field" style="flex:1"><label for="ctName">Name</label><input class="inp" id="ctName" placeholder="Your name" required></div>
+              <div class="field" style="flex:1"><label for="ctPhone">Phone / WhatsApp</label><input class="inp" id="ctPhone" placeholder="024 000 0000" required></div>
+            </div>
+            <div class="field">
+              <label for="ctTopic">Topic</label>
+              <select class="inp" id="ctTopic">
+                <option>Order / delivery issue</option>
+                <option>Deposit / wallet</option>
+                <option>Reseller store</option>
+                <option>Developer API</option>
+                <option>Other</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="ctMsg">Message</label>
+              <textarea class="inp" id="ctMsg" rows="4" placeholder="How can we help?" required></textarea>
+            </div>
+            <button class="btn btn-green" type="submit">Send via WhatsApp →</button>
+            <p style="font-size:12.5px;color:var(--muted);margin-top:10px">Your message opens in WhatsApp pre-filled — no form backend needed in the prototype.</p>
+          </form>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div data-footer></div>
+
+  <div class="modal-back" id="buyModal"></div>
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      var f = document.getElementById("contactForm");
+      if (f) f.addEventListener("submit", function (e) {
+        e.preventDefault();
+        var name = document.getElementById("ctName").value;
+        var phone = document.getElementById("ctPhone").value;
+        var topic = document.getElementById("ctTopic").value;
+        var msg = document.getElementById("ctMsg").value;
+        var text = encodeURIComponent("Valmont Data — " + topic + "\n\nName: " + name + "\nPhone: " + phone + "\n\n" + msg);
+        window.open("https://wa.me/233542451578?text=" + text, "_blank");
+      });
+    });
+  </script>
+</body>
+</html>

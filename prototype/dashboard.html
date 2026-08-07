@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Dashboard — Wallet, Orders & Store | Valmont Data</title>
+  <meta name="description" content="Your Valmont Data dashboard: wallet balance, order history, transactions and reseller status.">
+  <link rel="icon" type="image/svg+xml" href="assets/img/favicon.svg">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body data-page="dashboard.html">
+
+  <div data-nav></div>
+
+  <main>
+    <section>
+      <div class="wrap">
+        <div class="k">Account</div>
+        <h1 class="t" id="dashGreeting" style="margin:8px 0 22px">Hello 👋</h1>
+
+        <!-- wallet -->
+        <div class="wallet-hero">
+          <div>
+            <div class="bal-label">Wallet Balance</div>
+            <div class="bal"><span id="dashWallet">GH₵0.00</span></div>
+            <div style="font-size:13px;color:var(--muted);margin-top:4px">Tier: <b id="dashTier" style="color:var(--lime)">Member</b> · <span id="dashTierNote" style="color:var(--muted)"></span></div>
+          </div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap">
+            <a class="btn btn-green" href="deposit.html">+ Deposit Funds</a>
+            <a class="btn btn-ghost" href="buy.html">Buy Data</a>
+          </div>
+        </div>
+
+        <!-- quick actions -->
+        <div class="grid-4" style="margin-top:26px">
+          <a class="card" href="buy.html" style="color:inherit"><div class="ic">📶</div><h3>Buy Data</h3><p>MTN, Telecel, AirtelTigo at member prices.</p></a>
+          <a class="card" href="topup.html" style="color:inherit"><div class="ic">📞</div><h3>Airtime Top-Up</h3><p>Instant credit for any network.</p></a>
+          <a class="card" href="store.html" style="color:inherit"><div class="ic">🏪</div><h3>My Store</h3><p>Open or manage your reseller store.</p></a>
+          <a class="card" href="api-doc.html" style="color:inherit"><div class="ic">⚙️</div><h3>API Keys</h3><p>Developer access to the platform.</p></a>
+        </div>
+
+        <!-- orders -->
+        <h2 class="t" style="font-size:22px;margin:38px 0 14px">Recent Orders</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Order ID</th><th>Bundle</th><th>Number</th><th>Amount</th><th>Status</th></tr></thead>
+            <tbody id="ordersTableBody"></tbody>
+          </table>
+        </div>
+
+        <!-- transactions -->
+        <h2 class="t" style="font-size:22px;margin:38px 0 14px">Wallet Transactions</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Description</th><th>Date</th><th>Amount</th></tr></thead>
+            <tbody id="txTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div data-footer></div>
+
+  <div class="modal-back" id="buyModal"></div>
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/app.js"></script>
+</body>
+</html>

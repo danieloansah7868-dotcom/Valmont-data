@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Track Your Data Order — Live Delivery Status | Valmont Data</title>
+  <meta name="description" content="Track your Valmont Data bundle order by order ID. Live delivery timeline: payment received, fast-lane queue, data delivered.">
+  <link rel="icon" type="image/svg+xml" href="assets/img/favicon.svg">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body data-page="track.html">
+
+  <div data-nav></div>
+
+  <main>
+    <section>
+      <div class="wrap" style="max-width:760px">
+        <div class="k">Order Tracking</div>
+        <h1 class="t" style="margin:8px 0 12px">Track Your Order</h1>
+        <p class="lead">Enter the order ID from your confirmation (e.g. <b>VD-260802-4821</b>) to see live delivery status.</p>
+
+        <form id="trackForm" class="inp-group" style="margin-top:24px">
+          <input class="inp" id="trackId" placeholder="Order ID, e.g. VD-260802-4821" autocomplete="off">
+          <button class="btn btn-green" type="submit">Track →</button>
+        </form>
+
+        <div id="trackResult"></div>
+
+        <div class="grid-3" style="margin-top:30px">
+          <div class="card"><div class="ic">🔁</div><h3>Auto refunds</h3><p>If a delivery fails, the amount is refunded to your wallet automatically.</p></div>
+          <div class="card"><div class="ic">📲</div><h3>SMS + WhatsApp updates</h3><p>Order confirmations arrive by SMS and can be linked to WhatsApp.</p></div>
+          <div class="card"><div class="ic">🕐</div><h3>Live queues</h3><p>Fast lane and standard queue statuses are shown before you even pay.</p></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div data-footer></div>
+
+  <div class="modal-back" id="buyModal"></div>
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/app.js"></script>
+</body>
+</html>
