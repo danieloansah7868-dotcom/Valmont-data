@@ -1,9 +1,9 @@
 > ## ⚠️ SUPERSEDED
 > This Next.js + Paystack starter was the first attempt. The **canonical build**
 > is now the static storefront + Supabase + Valmont-Pay architecture in
-> [`../app/`](../valmont-data/) (per the Valmont Data build brief).
+> [`../app/`](../app/) (per the Valmont Data build brief).
 > Kept for reference — especially `src/lib/providers/remadata.ts` and the
-> pricing/pipeline ideas, which were ported into `valmont-data/lib/`.
+> pricing/pipeline ideas, which were ported into `app/lib/`.
 
 # Valmont Data — Production App Starter (Next.js 15 + PostgreSQL + Paystack)
 
@@ -13,7 +13,7 @@ repo and build the real thing on top of it.
 
 ```
 ┌────────────────────────────────────────────────────────────┐
-│  Prototype (valmont-data/)   = design spec + UI library    │
+│  Prototype (`prototype/`)    = design spec + UI library    │
 │  This app (valmont-data-app/) = runnable product skeleton  │
 └────────────────────────────────────────────────────────────┘
 ```
@@ -27,7 +27,7 @@ repo and build the real thing on top of it.
 | Auth (JWT cookie, bcrypt) | `src/lib/auth.ts` + `src/app/api/auth/*` |
 | Pricing tiers (guest/member/reseller/dealer/wholesaler) | `src/lib/pricing.ts` |
 | MoMo payments (Paystack) | `src/lib/paystack.ts`, `src/app/api/deposits`, `src/app/api/webhooks/paystack` |
-| Orders + delivery pipeline | `src/lib/orders.ts`, `src/lib/provider.ts`, `src/app/api/orders/*` |
+| Orders + delivery pipeline | `src/lib/orders.ts`, `src/lib/providers/`, `src/app/api/orders/*` |
 | Wallet ledger | `src/app/api/wallet` |
 | UI (ported design system) | `src/app/*`, `src/components/*` |
 
@@ -101,4 +101,4 @@ processing → delivered pipeline, validation errors, and every page route.
 ## Roadmap mapping
 
 The detailed architecture, schema rationale and "hard-won rules" are in
-`../valmont-data/README.md` (the blueprint). Keep that doc in sync with this app.
+`../prototype/README.md` (the blueprint). Keep that doc in sync with this app.

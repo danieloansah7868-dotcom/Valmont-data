@@ -85,9 +85,8 @@ for p in / /buy /signup /signin /deposit /track /api-doc; do
   code=$(curl -s -o /dev/null -w '%{http_code}' "$B$p")
   ckc "page $p" "$code" "200"
 done
+ckc "page /dashboard (logged in)" "$(curl -s -o /dev/null -w '%{http_code}' -b /tmp/vd-cookies.txt "$B/dashboard")" "200"
 
 echo ""
-echo "SMOKE: $P passed, $FAIL failed"
+echo "SMOKE: $PASS passed, $FAIL failed"
 [ $FAIL -eq 0 ]
-
-ckc "page /dashboard (logged in)" "$(curl -s -o /dev/null -w '%{http_code}' -b /tmp/vd-cookies.txt "$B/dashboard")" "200"

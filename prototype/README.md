@@ -2,7 +2,7 @@
 
 > **This folder is the interactive design prototype** (simulated payments/auth,
 > localStorage). The **production build** (static + Supabase + Valmont-Pay)
-> lives in [`../app/`](../valmont-data/). Prices and flows here are
+> lives in [`../app/`](../app/). Prices and flows here are
 > the design reference; the live app reads prices from the database.
 
 # Valmont Data — Prototype & Full-Stack Blueprint
@@ -143,7 +143,7 @@ Webhooks out (HMAC-signed): order.placed / order.delivered / order.failed
 
 ```bash
 npx serve .          # or: python3 -m http.server 8000
-# open http://localhost:8000/valmont-data/ (or repo root → valmont-data/)
+# open http://localhost:8000/prototype/ (or repo root → prototype/)
 ```
 
 ## 4 · Production starter code

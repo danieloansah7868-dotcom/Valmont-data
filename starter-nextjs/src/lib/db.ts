@@ -23,7 +23,13 @@ async function createPool(): Promise<Pool> {
   });
 }
 
-export const pool: Pool = await createPool();
+// Cache the pool on globalThis, not just module scope: Next.js dev mode can
+// evaluate route modules in separate graphs, and without the cache each graph
+// would create its OWN pool. Harmless with real Postgres (same server behind
+// it), but fatal with MEMORY_DB=1 — every route would get its own private
+// in-memory database (signup in one, orders in another) and smoke.sh fails
+// cold with inexplicable 404/401s.
+export const pool: Pool = globalForDb.__vdPool ?? (await createPool());
 
 if (process.env.NODE_ENV !== "production") globalForDb.__vdPool = pool;
 
