@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Valmont Data — Cheapest Data Bundles Ghana | MTN, Telecel, AirtelTigo</title>
-  <meta name="description" content="Buy MTN, Telecel and AirtelTigo non-expiry data bundles in Ghana. Pay with Mobile Money or card via Valmont-Pay. Instant auto-delivery. A Valmont Group company.">
+  <meta name="description" content="Buy MTN, Telecel and AirtelTigo non-expiry data bundles in Ghana. Free customer account to save numbers & repeat orders. Pay with Mobile Money or card via Valmont-Pay. Instant auto-delivery. A Valmont Group company.">
   <meta name="robots" content="index, follow">
   <link rel="icon" type="image/svg+xml" href="assets/img/favicon.svg">
   <link rel="stylesheet" href="assets/css/style.css">
@@ -21,6 +21,9 @@
         <a href="/" class="active">Buy Data</a>
         <a href="status.html">Track Order</a>
         <a href="admin.html">Admin</a>
+        <span id="navAuthArea">
+          <button class="btn btn-ghost btn-sm" id="btnOpenAuth">Sign in →</button>
+        </span>
       </nav>
     </div>
   </header>
@@ -32,10 +35,10 @@
           <div class="hero-badges">
             <span class="chip live">● Auto delivery on payment</span>
             <span class="chip">🔒 Secure checkout by Valmont-Pay</span>
-            <span class="chip">📱 No account needed</span>
+            <span class="chip">📱 Free customer account</span>
           </div>
           <h1 class="t">Cheapest data bundles in Ghana. <em>No expiry.</em></h1>
-          <p class="lead">MTN, Telecel and AirtelTigo non-expiry bundles — pay with Mobile Money or card, and the data lands on the number automatically. No account, no waiting for "confirmation".</p>
+          <p class="lead">MTN, Telecel and AirtelTigo non-expiry bundles — pay with Mobile Money or card, and data lands automatically. Free account to save your lines &amp; repeat orders in one tap.</p>
           <div style="display:flex;gap:12px;flex-wrap:wrap">
             <a class="btn btn-orange" href="#buy">Buy Data Now</a>
             <a class="btn btn-ghost" href="status.html">Track an Order</a>
@@ -54,7 +57,7 @@
       <div class="wrap">
         <div class="k">Buy Data</div>
         <h1 class="t" style="margin:8px 0 4px">Pick a bundle</h1>
-        <p class="lead">Choose your network, tap a bundle, enter the number, confirm — then pay.</p>
+        <p class="lead">Choose your network, tap a bundle, enter the recipient line, confirm — then pay.</p>
 
         <div id="floatNotice"></div>
 
@@ -69,7 +72,7 @@
         <h2 class="t" style="margin:8px 0 0">Under a minute, end to end</h2>
         <div class="steps">
           <div class="step"><h4>Choose your bundle</h4><p>MTN, Telecel or AirtelTigo — 1GB to 100GB, non-expiry or 60-day rollover.</p></div>
-          <div class="step"><h4>Enter the number</h4><p>We check the prefix against the network and warn you on mismatches.</p></div>
+          <div class="step"><h4>Enter the number</h4><p>Pick from your saved numbers or enter a new one. Prefix checked instantly.</p></div>
           <div class="step"><h4>Pay securely</h4><p>Valmont-Pay checkout — MTN MoMo, Telecel Cash, AT Money or card.</p></div>
           <div class="step"><h4>Data arrives</h4><p>Delivery starts the moment payment confirms — track every order live.</p></div>
         </div>
@@ -109,6 +112,12 @@
 
   <!-- buy modal -->
   <div class="modal-back" id="buyModal"></div>
+
+  <!-- customer auth modal -->
+  <div class="modal-back" id="authModal"></div>
+
+  <!-- customer account panel -->
+  <div class="modal-back" id="accountModal"></div>
 
   <script src="assets/js/storefront.js"></script>
 </body>

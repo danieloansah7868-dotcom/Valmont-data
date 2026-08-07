@@ -46,7 +46,7 @@ async function addFloatEntry(networkId, direction, amount, orderId, note) {
 }
 
 /* ---------- create ---------- */
-async function createOrder(bundle, phone, networkId) {
+async function createOrder(bundle, phone, networkId, customerId = null) {
   const reference = genReference();
   await db.insert("orders", {
     reference,
@@ -56,6 +56,7 @@ async function createOrder(bundle, phone, networkId) {
     amount: bundle.sell_price,
     cost_price: bundle.cost_price,
     status: "pending",
+    customer_id: customerId || null,
   });
   return findOrderByReference(reference);
 }

@@ -45,10 +45,12 @@ const mockState = {
     { id: 3, code: "airteltigo", name: "AirtelTigo", is_active: true },
   ],
   bundles: [],
+  customers: [],
+  saved_numbers: [],
   orders: [],
   float_ledger: [],
   webhook_log: [],
-  _seq: { bundles: 0, orders: 0, float_ledger: 0, webhook_log: 0 },
+  _seq: { bundles: 0, customers: 0, saved_numbers: 0, orders: 0, float_ledger: 0, webhook_log: 0 },
 };
 
 // Seed bundles mirroring supabase/schema.sql
@@ -94,43 +96,73 @@ function parseFilter(key, value) {
 }
 
 function mockSelect({ from, where = {}, order, limit }) {
-  let rows = [...mockState[from]];
+  let rows = [...(mockState[from] || [])];
   for (const [k, v] of Object.entries(where)) rows = rows.filter(parseFilter(k, v));
   if (order) {
     const [col, dir] = order.split(".");
-    rows.sort((a, b) => (dir === "desc" ? String(b[col]).localeCompare(String(a[col])) : String(a[col]).localeCompare(String(b[col]))));
+    rows.sort((a, b) => (dir === "desc" ? String(b[col] || "").localeCompare(String(a[col] || "")) : String(a[col] || "").localeCompare(String(b[col] || ""))));
   }
   if (limit) rows = rows.slice(0, limit);
   return rows.map((r) => ({ ...r }));
 }
 
 function mockInsert(from, row) {
+  if (from === "customers") {
+    if (row.phone && mockState.customers.some((c) => c.phone === row.phone)) {
+      const err = new Error("duplicate key value violates unique constraint on phone");
+      err.status = 409;
+      throw err;
+    }
+    if (row.email && mockState.customers.some((c) => c.email && c.email.toLowerCase() === row.email.toLowerCase())) {
+      const err = new Error("duplicate key value violates unique constraint on email");
+      err.status = 409;
+      throw err;
+    }
+  }
+  if (from === "saved_numbers") {
+    if (mockState.saved_numbers.some((s) => s.customer_id === row.customer_id && s.kind === row.kind && s.phone === row.phone)) {
+      const err = new Error("duplicate key value violates unique constraint on saved_numbers");
+      err.status = 409;
+      throw err;
+    }
+  }
   for (const uniq of ["reference", "provider_reference"]) {
-    if (row[uniq] != null && mockState[from].some((r) => r[uniq] === row[uniq])) {
+    if (row[uniq] != null && (mockState[from] || []).some((r) => r[uniq] === row[uniq])) {
       const err = new Error(`duplicate key value violates unique constraint on ${uniq}`);
       err.status = 409;
       throw err;
     }
   }
-  mockState._seq[from] += 1;
+  mockState._seq[from] = (mockState._seq[from] || 0) + 1;
   const created = {
     ...row,
     id: mockState._seq[from],
     created_at: row.created_at || new Date().toISOString(),
   };
+  mockState[from] = mockState[from] || [];
   mockState[from].push(created);
   return [{ ...created }];
 }
 
 function mockUpdate(from, fields, where) {
   let matched = [];
-  mockState[from] = mockState[from].map((r) => {
+  mockState[from] = (mockState[from] || []).map((r) => {
     const hit = Object.entries(where).every(([k, v]) => parseFilter(k, v)(r));
     if (!hit) return r;
     matched.push({ ...r, ...fields });
     return { ...r, ...fields };
   });
   return matched;
+}
+
+function mockDelete(from, where) {
+  let deleted = [];
+  mockState[from] = (mockState[from] || []).filter((r) => {
+    const hit = Object.entries(where).every(([k, v]) => parseFilter(k, v)(r));
+    if (hit) deleted.push({ ...r });
+    return !hit;
+  });
+  return deleted;
 }
 
 function mockRpc(name, args = {}) {
@@ -202,6 +234,14 @@ const db = {
     return rest(`/rest/v1/${from}?${qs}`, {
       method: "PATCH",
       body: fields,
+      headers: { Prefer: "return=representation" },
+    });
+  },
+  async delete(from, where) {
+    if (MOCK) return mockDelete(from, where);
+    const qs = new URLSearchParams(where);
+    return rest(`/rest/v1/${from}?${qs}`, {
+      method: "DELETE",
       headers: { Prefer: "return=representation" },
     });
   },

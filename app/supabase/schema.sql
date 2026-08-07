@@ -36,6 +36,30 @@ create or replace view public.v_bundles as
   join public.networks n on n.id = b.network_id
   where b.is_active and n.is_active;
 
+-- ---------- CUSTOMERS ----------
+create table if not exists public.customers (
+  id          bigint generated always as identity primary key,
+  phone       text unique check (phone is null or phone ~ '^0[0-9]{9}$'),
+  email       text unique,
+  name        text,
+  pin_hash    text not null,
+  created_at  timestamptz not null default now()
+);
+create index if not exists customers_phone_idx on public.customers(phone);
+create index if not exists customers_email_idx on public.customers(email);
+
+-- ---------- SAVED NUMBERS (data lines + momo numbers per customer) ----------
+create table if not exists public.saved_numbers (
+  id          bigint generated always as identity primary key,
+  customer_id bigint not null references public.customers(id) on delete cascade,
+  kind        text not null check (kind in ('data','momo')),
+  phone       text not null check (phone ~ '^0[0-9]{9}$'),
+  label       text,
+  created_at  timestamptz not null default now(),
+  unique (customer_id, kind, phone)
+);
+create index if not exists saved_numbers_customer_idx on public.saved_numbers(customer_id, kind);
+
 -- ---------- ORDERS ----------
 create table if not exists public.orders (
   id                  bigint generated always as identity primary key,
@@ -51,13 +75,14 @@ create table if not exists public.orders (
   supplier_ref        text,
   supplier_response   jsonb,                            -- full supplier reply for dispute settling
   attempts            integer not null default 0,
-  customer_id         bigint,                           -- reserved for customer accounts (optional feature)
+  customer_id         bigint references public.customers(id),
   created_at          timestamptz not null default now(),
   delivered_at        timestamptz
 );
 create index if not exists orders_status_idx      on public.orders(status);
 create index if not exists orders_created_idx    on public.orders(created_at desc);
 create index if not exists orders_provider_ref_idx on public.orders(provider_reference);
+create index if not exists orders_customer_idx   on public.orders(customer_id);
 
 -- ---------- FLOAT LEDGER (every cedi of prepaid float, per network) ----------
 create table if not exists public.float_ledger (
@@ -133,11 +158,13 @@ $$;
 -- ============================================================================
 -- RLS
 -- ============================================================================
-alter table public.networks     enable row level security;
-alter table public.bundles      enable row level security;
-alter table public.orders       enable row level security;
-alter table public.float_ledger enable row level security;
-alter table public.webhook_log  enable row level security;
+alter table public.networks      enable row level security;
+alter table public.bundles       enable row level security;
+alter table public.customers     enable row level security;
+alter table public.saved_numbers enable row level security;
+alter table public.orders        enable row level security;
+alter table public.float_ledger  enable row level security;
+alter table public.webhook_log   enable row level security;
 
 -- anon: read active networks only
 drop policy if exists networks_anon_read on public.networks;
@@ -145,6 +172,10 @@ create policy networks_anon_read on public.networks for select to anon using (is
 
 -- anon: NO direct access to bundles (cost_price lives there) — v_bundles only
 revoke all on public.bundles from anon;
+
+-- anon: no access to customer accounts or saved numbers
+revoke all on public.customers from anon;
+revoke all on public.saved_numbers from anon;
 
 -- anon: may insert a pending order; may read only their own by reference
 -- (the reference IS the secret — same model as order tracking on the other sites)
