@@ -6,6 +6,8 @@
   <title>Track Order — Valmont Data</title>
   <meta name="robots" content="noindex">
   <link rel="icon" type="image/svg+xml" href="assets/img/favicon.svg">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0b1a38">
   <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
@@ -13,13 +15,12 @@
   <header class="nav">
     <div class="wrap nav-inner">
       <a class="brand" href="/">
-        <span class="logo">◈</span>
-        <span>VALMONT<b style="color:var(--orange)">DATA</b><small>by Valmont Group · Accra</small></span>
+        <img src="assets/img/favicon.svg" alt="Logo" class="logo">
+        <div class="text-col" style="font-size:20px; font-weight:800;">VALMONT<span style="color:var(--orange)">DATA</span><small style="text-transform:none; letter-spacing:0; font-size:11px; font-weight:500; color:var(--soft);">By Valmont Group · Accra</small></div>
       </a>
       <nav class="nav-links">
         <a href="/">Buy Data</a>
         <a href="status.html" class="active">Track Order</a>
-        <a href="admin.html">Admin</a>
       </nav>
     </div>
   </header>
@@ -45,7 +46,7 @@
     <div class="wrap">
       <div class="footer-grid">
         <div>
-          <a class="brand" href="/"><span class="logo">◈</span><span>VALMONT<b style="color:var(--orange)">DATA</b></span></a>
+          <a class="brand" href="/"><span class="logo">◈</span><div class="text-col">VALMONTDATA</div></a>
           <p class="about-txt">Ghana's data bundle marketplace — MTN, Telecel &amp; AirtelTigo. A subsidiary of Valmont Group of Companies, Accra.</p>
         </div>
         <div>
@@ -53,7 +54,6 @@
           <ul>
             <li><a href="/">Buy Data</a></li>
             <li><a href="status.html">Track Order</a></li>
-            <li><a href="admin.html">Admin Console</a></li>
           </ul>
         </div>
         <div>
@@ -72,5 +72,6 @@
   </footer>
 
   <script src="assets/js/status.js"></script>
+  <script src="assets/js/pwa.js"></script>
 </body>
 </html>

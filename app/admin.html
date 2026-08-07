@@ -6,6 +6,8 @@
   <title>Admin Console — Valmont Data</title>
   <meta name="robots" content="noindex">
   <link rel="icon" type="image/svg+xml" href="assets/img/favicon.svg">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0b1a38">
   <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
@@ -13,8 +15,8 @@
   <header class="nav">
     <div class="wrap nav-inner">
       <a class="brand" href="/">
-        <span class="logo">◈</span>
-        <span>VALMONT<b style="color:var(--orange)">DATA</b><small>Admin</small></span>
+        <img src="assets/img/favicon.svg" alt="Logo" class="logo">
+        <div class="text-col" style="font-size:20px; font-weight:800;">VALMONT<span style="color:var(--orange)">DATA</span><small style="text-transform:none; letter-spacing:0; font-size:11px; font-weight:500; color:var(--soft);">Admin</small></div>
       </a>
       <nav class="nav-links">
         <a href="/">Storefront</a>
@@ -124,5 +126,6 @@
   </main>
 
   <script src="assets/js/admin.js"></script>
+  <script src="assets/js/pwa.js"></script>
 </body>
 </html>

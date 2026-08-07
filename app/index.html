@@ -7,6 +7,8 @@
   <meta name="description" content="Buy MTN, Telecel and AirtelTigo non-expiry data bundles in Ghana. Free customer account to save numbers & repeat orders. Pay with Mobile Money or card via Valmont-Pay. Instant auto-delivery. A Valmont Group company.">
   <meta name="robots" content="index, follow">
   <link rel="icon" type="image/svg+xml" href="assets/img/favicon.svg">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0b1a38">
   <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
@@ -14,13 +16,12 @@
   <header class="nav">
     <div class="wrap nav-inner">
       <a class="brand" href="/">
-        <span class="logo">◈</span>
-        <span>VALMONT<b style="color:var(--orange)">DATA</b><small>by Valmont Group · Accra</small></span>
+        <img src="assets/img/favicon.svg" alt="Logo" class="logo">
+        <div class="text-col" style="font-size:20px; font-weight:800;">VALMONT<span style="color:var(--orange)">DATA</span><small style="text-transform:none; letter-spacing:0; font-size:11px; font-weight:500; color:var(--soft);">By Valmont Group · Accra</small></div>
       </a>
       <nav class="nav-links">
         <a href="/" class="active">Buy Data</a>
         <a href="status.html">Track Order</a>
-        <a href="admin.html">Admin</a>
         <span id="navAuthArea">
           <button class="btn btn-ghost btn-sm" id="btnOpenAuth">Sign in →</button>
         </span>
@@ -29,27 +30,22 @@
   </header>
 
   <main>
-    <section class="hero">
-      <div class="wrap hero-grid">
-        <div>
-          <div class="hero-badges">
+    <section class="hero" style="text-align: center; padding-top: 60px;">
+      <div class="wrap" style="max-width: 860px; margin: 0 auto;">
+        <div style="display: flex; justify-content: center; margin-bottom: 20px;">
+          <div class="hero-badges" style="margin-bottom: 0;">
             <span class="chip live">● Auto delivery on payment</span>
             <span class="chip">🔒 Secure checkout by Valmont-Pay</span>
-            <span class="chip">📱 Free customer account</span>
+            <span class="chip">📱 No account needed</span>
           </div>
-          <h1 class="t">Cheapest data bundles in Ghana. <em>No expiry.</em></h1>
-          <p class="lead">MTN, Telecel and AirtelTigo non-expiry bundles — pay with Mobile Money or card, and data lands automatically. Free account to save your lines &amp; repeat orders in one tap.</p>
-          <div style="display:flex;gap:12px;flex-wrap:wrap">
-            <a class="btn btn-orange" href="#buy">Buy Data Now</a>
-            <a class="btn btn-ghost" href="status.html">Track an Order</a>
-          </div>
-          <p style="margin-top:14px;font-size:13px;color:var(--muted)">Wrong numbers are not refundable — double-check before paying.</p>
         </div>
-        <div class="hero-panel">
-          <h3>Live Bundle Prices</h3>
-          <div class="sub">Member-agnostic retail prices · delivered automatically</div>
-          <div id="heroPrices"><p style="color:var(--muted);font-size:13px">Loading…</p></div>
+        <h1 class="t" style="font-size: 48px; line-height: 1.1; margin-bottom: 16px;">Cheapest data bundles in Ghana. <br><em>No expiry.</em></h1>
+        <p class="lead" style="font-size: 18px; margin-bottom: 30px;">MTN, Telecel and AirtelTigo non-expiry bundles — pay with Mobile Money or card, and data lands automatically. Free account to save your lines &amp; repeat orders in one tap.</p>
+        <div style="display:flex; gap:16px; justify-content:center; flex-wrap:wrap; margin-bottom: 16px;">
+          <a class="btn btn-orange" href="#buy" style="font-size: 16px; padding: 14px 28px;">Buy Data Now</a>
+          <a class="btn btn-ghost" href="status.html" style="font-size: 16px; padding: 14px 28px;">Track an Order</a>
         </div>
+        <p style="font-size:13.5px; color:var(--muted)">Wrong numbers are not refundable — double-check before paying.</p>
       </div>
     </section>
 
@@ -84,7 +80,7 @@
     <div class="wrap">
       <div class="footer-grid">
         <div>
-          <a class="brand" href="/"><span class="logo">◈</span><span>VALMONT<b style="color:var(--orange)">DATA</b></span></a>
+          <a class="brand" href="/"><span class="logo">◈</span><div class="text-col">VALMONTDATA</div></a>
           <p class="about-txt">Ghana's data bundle marketplace — MTN, Telecel &amp; AirtelTigo. A subsidiary of Valmont Group of Companies, Accra.</p>
         </div>
         <div>
@@ -92,7 +88,6 @@
           <ul>
             <li><a href="/">Buy Data</a></li>
             <li><a href="status.html">Track Order</a></li>
-            <li><a href="admin.html">Admin Console</a></li>
           </ul>
         </div>
         <div>
@@ -120,5 +115,6 @@
   <div class="modal-back" id="accountModal"></div>
 
   <script src="assets/js/storefront.js"></script>
+  <script src="assets/js/pwa.js"></script>
 </body>
 </html>

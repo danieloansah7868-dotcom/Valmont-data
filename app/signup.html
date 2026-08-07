@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Account — Valmont Data</title>
+  <meta name="description" content="Create a free Valmont Data customer account to save numbers and track orders.">
+  <link rel="icon" type="image/svg+xml" href="assets/img/favicon.svg">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0b1a38">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <style>
+    body {
+      background: var(--navy);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding-bottom: 40px;
+    }
+    .top-banner {
+      width: 100%;
+      background: rgba(255, 140, 0, 0.1);
+      color: var(--orange);
+      text-align: center;
+      padding: 10px 20px;
+      font-size: 13px;
+      font-weight: 500;
+      border-bottom: 1px solid rgba(255, 140, 0, 0.2);
+    }
+    .brand-header {
+      margin: 40px 0 30px;
+      text-align: center;
+    }
+    .brand-header .logo {
+      color: var(--orange);
+      font-size: 28px;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+    .brand-header .title {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--white);
+      letter-spacing: -0.5px;
+    }
+    .brand-header .subtitle {
+      color: var(--muted);
+      font-size: 14px;
+      margin-top: 4px;
+    }
+    
+    .skip-card {
+      width: 100%;
+      max-width: 440px;
+      border: 1px solid var(--green);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 24px;
+      text-decoration: none;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(47, 230, 143, 0.05);
+      transition: var(--transition);
+    }
+    .skip-card:hover {
+      background: rgba(47, 230, 143, 0.1);
+    }
+    .skip-card .left h4 {
+      color: var(--white);
+      margin: 0 0 2px 0;
+      font-size: 15px;
+    }
+    .skip-card .left p {
+      color: var(--green);
+      margin: 0;
+      font-size: 13.5px;
+    }
+    .skip-card .arrow {
+      color: var(--green);
+      font-weight: bold;
+    }
+
+    .signup-card {
+      width: 100%;
+      max-width: 440px;
+      background: var(--panel);
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+      border: 1px solid var(--line-strong);
+    }
+    .signup-card h1 {
+      color: var(--white);
+      font-size: 24px;
+      margin: 0 0 6px 0;
+    }
+    .signup-card .sub {
+      color: var(--muted);
+      font-size: 14px;
+      margin-bottom: 24px;
+    }
+    
+    .btn-google {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--line-strong);
+      color: var(--white);
+      font-size: 14.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      margin-bottom: 24px;
+    }
+    .btn-google:hover {
+      background: rgba(255,255,255,0.1);
+    }
+    
+    .divider {
+      position: relative;
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    .divider::before {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 0;
+      right: 0;
+      border-top: 1px solid var(--line-strong);
+      z-index: 0;
+    }
+    .divider span {
+      background: var(--panel);
+      padding: 0 12px;
+      color: var(--muted);
+      font-size: 13px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .field { margin-bottom: 16px; }
+    .field label {
+      display: block;
+      color: var(--soft);
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .inp {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--line-strong);
+      background: rgba(0,0,0,0.2);
+      color: var(--white);
+      font-size: 15px;
+      transition: var(--transition);
+      font-family: inherit;
+    }
+    .inp:focus {
+      outline: none;
+      border-color: var(--orange);
+      background: rgba(0,0,0,0.4);
+    }
+    
+    .bottom-links {
+      margin-top: 20px;
+      text-align: center;
+      font-size: 13.5px;
+      color: var(--muted);
+    }
+    .bottom-links a {
+      color: var(--orange);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .bottom-links a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <div class="top-banner">
+    ⚠️ New MTN orders are temporarily paused while we clear pending deliveries. Existing orders are still being processed.
+  </div>
+
+  <div class="brand-header">
+    <div class="title" style="display:flex; justify-content:center; align-items:center; gap:10px;">
+      <img src="assets/img/favicon.svg" alt="Logo" style="width:40px;height:40px;">
+      <div style="text-align:left; font-size:22px; font-weight:800; color:var(--white);">VALMONT<span style="color:var(--orange)">DATA</span></div>
+    </div>
+    <div class="subtitle">By Valmont Group · Accra</div>
+  </div>
+
+  <a href="/" class="skip-card">
+    <div class="left">
+      <h4>Want to buy now?</h4>
+      <p>Skip signup and purchase directly</p>
+    </div>
+    <div class="arrow">→</div>
+  </a>
+
+  <div class="signup-card">
+    <div style="text-align: center; margin-bottom: 20px;">
+      <img src="assets/img/signup-illust.svg" alt="Create Account" style="height: 120px; margin: 0 auto;">
+    </div>
+    
+    <h1>Create account</h1>
+    <div class="sub">Join thousands of resellers</div>
+
+    <button class="btn-google" type="button" onclick="alert('Google Sign-In coming soon! Use email below.')">
+      <img src="assets/img/google.svg" width="20" height="20" alt="Google"> Continue with Google
+    </button>
+
+    <div class="divider"><span>or</span></div>
+
+    <form id="signupForm">
+      <div class="field">
+        <label for="suName">Full name</label>
+        <input class="inp" id="suName" placeholder="e.g. Ama Owusu" autocomplete="name" required>
+      </div>
+      <div class="field">
+        <label for="suEmail">Email address</label>
+        <input class="inp" type="email" id="suEmail" placeholder="you@example.com" autocomplete="email" required>
+      </div>
+      <div class="field">
+        <label for="suPhone">Mobile number</label>
+        <input class="inp" id="suPhone" inputmode="tel" placeholder="e.g. 024 000 0000" autocomplete="tel" required>
+      </div>
+      <div class="field">
+        <label for="suPass">Password</label>
+        <input class="inp" type="password" id="suPass" placeholder="Min 4 characters" autocomplete="new-password" required minlength="4">
+      </div>
+      
+      <div id="signupErr"></div>
+      
+      <button class="btn btn-orange btn-block" type="submit" id="suSubmit" style="margin-top: 12px; padding: 14px; font-size:16px;">
+        Create Account →
+      </button>
+    </form>
+
+    <div class="bottom-links">
+      Already have an account? <a href="/signin.html">Sign In</a>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById("signupForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById("suSubmit");
+      const errBox = document.getElementById("signupErr");
+      
+      btn.disabled = true;
+      btn.textContent = "Creating...";
+      errBox.innerHTML = "";
+      
+      const payload = {
+        name: document.getElementById("suName").value.trim(),
+        email: document.getElementById("suEmail").value.trim(),
+        phone: document.getElementById("suPhone").value.trim(),
+        password: document.getElementById("suPass").value
+      };
+      
+      try {
+        const res = await fetch("/api/auth/customer/signup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        
+        if (!res.ok) {
+          errBox.innerHTML = `<div class="notice err" style="margin-bottom:12px;">${data.error || "Failed to create account"}</div>`;
+          btn.disabled = false;
+          btn.textContent = "Create Account →";
+          return;
+        }
+        
+        // Save token and info
+        localStorage.setItem("vd_customer_token", data.token);
+        if (data.customer) {
+          localStorage.setItem("vd_customer_info", JSON.stringify(data.customer));
+        }
+        
+        // Redirect to homepage to buy data
+        window.location.href = "dashboard.html";
+        
+      } catch (err) {
+        errBox.innerHTML = `<div class="notice err" style="margin-bottom:12px;">Network error. Please try again.</div>`;
+        btn.disabled = false;
+        btn.textContent = "Create Account →";
+      }
+    });
+  </script>
+  <script src="assets/js/pwa.js"></script>
+</body>
+</html>
