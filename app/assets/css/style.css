@@ -65,10 +65,10 @@ section { padding: 48px 0; }
 /* ---------- nav ---------- */
 .nav { position: sticky; top: 0; z-index: 50; background: rgba(11, 26, 56, 0.88); backdrop-filter: blur(14px); border-bottom: 1px solid var(--line); }
 .nav-inner { display: flex; align-items: center; gap: 24px; height: 64px; }
-.brand { display: flex; align-items: center; gap: 10px; font-weight: 900; font-size: 18px; color: var(--white); letter-spacing: -0.3px; }
-.brand:hover { color: var(--white); }
-.brand .logo { width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, var(--orange), #ffd000); display: grid; place-items: center; color: #2b1a00; font-size: 18px; font-weight: 900; flex: none; }
-.brand small { display: block; font-size: 10px; font-weight: 700; color: var(--muted); letter-spacing: 0.14em; text-transform: uppercase; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 900; font-size: 18px; color: var(--white); letter-spacing: -0.3px; text-decoration: none; }
+.brand .text-col { display: flex; flex-direction: column; justify-content: center; }
+.brand .logo { width: 40px; height: 40px; border-radius: 8px; background: #ffcb05; display: grid; place-items: center; color: var(--navy); font-size: 24px; font-weight: 900; flex: none; }
+.brand small { font-size: 10px; font-weight: 700; color: var(--muted); letter-spacing: 0.14em; text-transform: uppercase; margin-top: 1px; }
 .nav-links { display: flex; gap: 4px; margin-left: auto; align-items: center; }
 .nav-links a { color: var(--soft); font-weight: 700; font-size: 14px; padding: 9px 13px; border-radius: 10px; }
 .nav-links a:hover { color: var(--white); background: rgba(255,255,255,0.06); }
