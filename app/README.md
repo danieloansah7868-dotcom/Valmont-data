@@ -72,7 +72,7 @@ MOCK_FAIL_FIRST=1 npm run dev                              # delivery fails → 
 ## Deploy (Vercel + Supabase)
 
 1. **Supabase**: create project → SQL editor → paste `supabase/schema.sql` → run. (Tables + RLS + functions + seeds.)
-2. **Vercel**: import this repo, set **Root Directory = `valmont-data`** → add env vars from `.env.example` → deploy. (`vercel.json` wires the 15-minute cron + security headers.)
+2. **Vercel**: import this repo, set **Root Directory = `app`** → add env vars from `.env.example` → deploy. (`vercel.json` wires the 15-minute cron + security headers.)
 3. **Valmont-Pay**: request tenant #3 onboarding → set `VALMONTPAY_API_URL/API_KEY/WEBHOOK_SECRET` → register webhook URL `https://<your-domain>/api/valmontpay/webhook` in the gateway dashboard.
 4. **Supplier**: see `GET-STARTED.md` at repo root — create a RemaData account, set `SUPPLIER_DRIVER=remadata`, `REMADATA_API_KEY`, `REMADATA_PLANS`.
 

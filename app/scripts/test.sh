@@ -1,7 +1,11 @@
 #!/bin/bash
 # ============================================================================
-# Valmont Data — end-to-end test (run against a dev server started with:
-#   SUPABASE_MOCK=1 MOCK_FAIL_FIRST=1 npm run dev   →  http://localhost:8787)
+# Valmont Data — end-to-end test (26 checks). Start the dev server first:
+#   npm run dev   →  http://localhost:8787   (default mock DB)
+# The retry path is exercised deterministically via the built-in convention:
+# numbers ending 0000 fail their first delivery attempt (see lib/supplier.js).
+# MOCK_FAIL_FIRST=1 is for MANUAL runs — it makes §3 fail by design, so the
+# suite expects a plain dev server.
 # ============================================================================
 B="${B:-http://localhost:8787}"
 J="Content-Type: application/json"
@@ -64,7 +68,7 @@ echo "── 6. phone validation ──"
 CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/orders" -H "$J" -d '{"bundle_id":1,"phone":"12345"}')
 ck "invalid phone rejected" "$CODE" "400"
 
-echo "── 7. retry path (MOCK_FAIL_FIRST=1 → attempt 1 fails, retry succeeds) ──"
+echo "── 7. retry path (…0000 numbers fail attempt 1 → retry succeeds) ──"
 R=$(curl -s -X POST "$B/api/orders" -H "$J" -d '{"bundle_id":1,"phone":"0551110000"}')  # 1GB MTN
 REF3=$(echo "$R" | jqget "['reference']")
 sim --ref "$REF3" --amount 4.20 >/dev/null
