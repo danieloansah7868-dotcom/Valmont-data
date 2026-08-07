@@ -1,4 +1,4 @@
-const CACHE_NAME = 'datamartgh-v1';
+const CACHE_NAME = 'valmontdata-v1';
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();
