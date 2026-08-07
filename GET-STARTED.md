@@ -33,12 +33,13 @@ npm run dev                     # → http://localhost:8787 (in-memory DB, SUPAB
 In a second terminal (with the dev server still running):
 
 ```bash
-npm test                        # 26-check end-to-end suite — must be 26/26
+npm test                        # 37-check end-to-end suite — must be 37/37
 ```
 
 Then click through the business manually:
 
-1. Storefront → pick a bundle → enter a number (e.g. `0241112222`) → confirm →
+1. Storefront → create a free customer account (or sign in with email/password) →
+   pick a bundle → pick or enter a number (e.g. `0241112222`) → confirm →
    order created. Dev mode prints the order reference (`VD-YYMMDD-NNNN`).
 2. Simulate the payment:
    ```bash
@@ -47,6 +48,9 @@ Then click through the business manually:
 3. Watch `status.html?reference=VD-...` flip to **Delivered**.
 4. Admin console at `/admin.html` (dev password `admin123`): top up float,
    watch the ledger, P&L and webhook audit.
+5. Customer account: view saved data lines, saved MoMo numbers, recent delivery numbers,
+   personalized time greeting ("Good morning, Kofi" / "Good afternoon, Kofi"),
+   and order history.
 
 Exercise the failure paths — each is a non-negotiable guarantee:
 
@@ -57,7 +61,7 @@ node scripts/sim-webhook.js --ref VD-... --wrong-amount    # auto-refund
 MOCK_FAIL_FIRST=1 npm run dev                              # delivery fails → retry via admin/cron
 ```
 
-**Do not proceed until `npm test` is green and you have seen all four failure
+**Do not proceed until `npm test` is green (37/37) and you have seen all failure
 paths behave as documented.**
 
 ---
@@ -68,13 +72,14 @@ paths behave as documented.**
    **New project** (any region close to Ghana; note the DB password).
 2. Open **SQL Editor** → paste the whole of
    [`app/supabase/schema.sql`](app/supabase/schema.sql) → **Run**.
-   It is idempotent: tables (`networks`, `bundles`, `orders`, `float_ledger`,
-   `webhook_log`), the advisory-locked `add_float_entry()` function,
-   `current_float()`, `daily_pnl()`, the public `v_bundles` view, RLS policies
-   and seed bundles (cost + sell prices) are all created in one go.
+   It is idempotent: tables (`networks`, `bundles`, `customers`, `saved_numbers`,
+   `orders`, `float_ledger`, `webhook_log`), the advisory-locked `add_float_entry()`
+   function, `current_float()`, `daily_pnl()`, the public `v_bundles` view, RLS policies
+   and seed bundles (cost + sell prices) are all created in one go. If upgrading an existing
+   database, running the script safely adds the new `customers` and `saved_numbers` tables.
 3. Sanity-check RLS: the **anon** role may only read `networks` + `v_bundles`,
    insert a `pending` order and read its own order by reference. There is **no
-   anon path to `cost_price`, float or webhooks**. The app talks to PostgREST
+   anon path to `cost_price`, float, customer data or webhooks**. The app talks to PostgREST
    with the **service-role key, server-side only**.
 4. Capture two values (**Project Settings → API**):
    - `SUPABASE_URL` — `https://<project-ref>.supabase.co`
@@ -120,8 +125,9 @@ purchase time so historical P&L stays accurate.
 1. **Import** this repo into Vercel.
 2. **Root Directory = `app`** ← the one setting everyone gets wrong.
 3. No framework preset / build command needed — static files + `/api` functions.
-   (`app/vercel.json` wires the every-15-minutes `/api/cron/retry` cron and the
-   security headers.)
+   - `app/vercel.json` sets the cron schedule to daily `0 7 * * *` (07:00 UTC = 07:00 Ghana) for compatibility with Vercel Hobby accounts.
+   - The optional GitHub Actions workflow (`.github/workflows/cron-retry.yml`) restores the 15-minute retry cadence for free: ping `$SITE_URL/api/cron/retry` automatically once `SITE_URL` is configured under GitHub **Settings → Secrets and variables → Actions → Variables**.
+   - Pro Vercel accounts can instead change `0 7 * * *` back to `*/15 * * * *` in `vercel.json` if preferred.
 4. Add **all** environment variables from [`app/.env.example`](app/.env.example):
 
    | Var | Value |
@@ -130,7 +136,7 @@ purchase time so historical P&L stays accurate.
    | `VALMONTPAY_API_URL` / `VALMONTPAY_API_KEY` / `VALMONTPAY_WEBHOOK_SECRET` | from step 3 |
    | `SITE_URL` | `https://<your-domain>` |
    | `ADMIN_PASSWORD` | strong password for `/admin.html` |
-   | `AUTH_SECRET` | long random string (admin session tokens) |
+   | `AUTH_SECRET` | long random string (session & customer auth tokens) |
    | `SUPPLIER_DRIVER` | `mock` until step 5, then `remadata` |
    | `REMADATA_API_KEY` / `REMADATA_PLANS` | from step 5 |
    | `LOW_FLOAT_THRESHOLD` | e.g. `50` |
@@ -176,8 +182,8 @@ purchase time so historical P&L stays accurate.
 
 Do this with a small bundle (1 GB) and your own number, before announcing:
 
-1. Buy a bundle on the live site → you are redirected to the Valmont-Pay
-   checkout.
+1. Sign in or create a customer account on the live site → buy a bundle →
+   you are redirected to the Valmont-Pay checkout.
 2. Pay with real MoMo/card.
 3. Confirm in `/admin.html`:
    - order flips **pending → delivering → delivered** (else check the webhook
@@ -211,8 +217,8 @@ an order — the race-condition path must **auto-refund** and mark the webhook
 
 ## 8 · Go-live checklist
 
-- [ ] `npm test` green locally (26/26)
-- [ ] `schema.sql` run in Supabase; RLS sanity-checked
+- [ ] `npm test` green locally (37/37)
+- [ ] `schema.sql` run in Supabase; RLS sanity-checked (customers & saved_numbers tables added)
 - [ ] All env vars set in Vercel; `SUPABASE_MOCK` **not** set
 - [ ] Valmont-Pay webhook registered + signature verified end-to-end
 - [ ] `SUPPLIER_DRIVER=remadata` + `REMADATA_PLANS` covers every active bundle

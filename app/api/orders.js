@@ -1,17 +1,29 @@
 /* ============================================================================
-   Orders API (public)
-     POST /api/orders  { bundle_id, phone }  → creates pending order, checks
-                            float, creates Valmont-Pay checkout, returns
+   Orders API (customer-authenticated)
+     POST /api/orders  { bundle_id, phone }  → requires customer token (401),
+                            checks float, creates order with customer_id,
+                            creates Valmont-Pay checkout, returns
                             { reference, checkout_url }
      GET  /api/orders?reference=VD-...       → public order status (no login)
    ============================================================================ */
 
 const { json, readRawBody, wrap } = require("../lib/http");
+const { requireCustomer } = require("../lib/auth");
 const valmontpay = require("../lib/valmontpay");
 const phones = require("../lib/phones");
 const orders = require("../lib/orders");
 
 async function post(req, res) {
+  let customer;
+  try {
+    customer = requireCustomer(req);
+  } catch (e) {
+    return json(res, 401, {
+      error: "Please sign in or create an account to place an order",
+      code: "AUTH_REQUIRED",
+    });
+  }
+
   const body = await readRawBody(req).then((b) => {
     try { return JSON.parse(b); } catch { return null; }
   });
@@ -19,8 +31,7 @@ async function post(req, res) {
 
   const { bundle_id, phone } = body;
 
-  // Phone validation — Ghana format + known prefix. Wrong-network orders are
-  // the #1 support burden; we warn (server echoes the warning, UI blocks on it).
+  // Phone validation — Ghana format + known prefix.
   const check = phones.validate(phone);
   if (!check.valid) return json(res, 400, { error: check.reason });
   const networkCheck = phones.checkAgainstNetwork(check.normalized, null);
@@ -35,7 +46,7 @@ async function post(req, res) {
     return json(res, 422, { error: "This bundle is temporarily unavailable — restocking soon" });
   }
 
-  const order = await orders.createOrder(bundle, check.normalized, bundle.network_id);
+  const order = await orders.createOrder(bundle, check.normalized, bundle.network_id, customer.id);
 
   const siteUrl = (process.env.SITE_URL || "").replace(/\/$/, "");
   let checkout;
