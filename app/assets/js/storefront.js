@@ -182,6 +182,7 @@
 
   function renderTabs() {
     const host = $("#netTabs");
+    if (!host) return;
     host.innerHTML = state.networks
       .map((n) => `<button class="net-tab" data-net="${n.code}">${n.name}</button>`)
       .join("");
@@ -202,6 +203,7 @@
 
   function renderGrid() {
     const grid = $("#bundleGrid");
+    if (!grid) return;
     const list = state.bundles.filter((b) => b.network === state.currentNet);
     if (!list.length) {
       grid.innerHTML = '<p style="color:var(--muted)">No bundles for this network yet.</p>';
@@ -226,15 +228,18 @@
   }
 
   function renderHeroPrices() {
+    const host = $("#heroPrices");
+    if (!host) return;
     const rows = state.bundles
       .filter((b) => [1024, 10240, 20480].includes(b.size_mb))
       .map((b) => `<div class="row ${b.network}"><span class="net">${NETWORK_NAMES[b.network]} ${b.size_mb / 1024}GB</span><b>${fmt(b.price)}</b></div>`)
       .join("");
-    $("#heroPrices").innerHTML = rows || "<p style='color:var(--muted);font-size:13px'>—</p>";
+    host.innerHTML = rows || "<p style='color:var(--muted);font-size:13px'>—</p>";
   }
 
   function renderFloatNotice() {
     const host = $("#floatNotice");
+    if (!host) return;
     const low = Object.entries(state.lowFloat).filter(([, v]) => v);
     if (!low.length) { host.innerHTML = ""; return; }
     host.innerHTML = `<div class="notice warn"><b>Heads up:</b> ${low.map(([n]) => NETWORK_NAMES[n]).join(", ")} is running low on stock — some bundles are paused while we restock. Other networks are unaffected.</div>`;
@@ -701,6 +706,14 @@
   }
 
   loadBundles().catch((e) => {
-    $("#bundleGrid").innerHTML = `<div class="notice">Failed to load bundles: ${e.message}</div>`;
+    if ($("#bundleGrid")) {
+      $("#bundleGrid").innerHTML = `<div class="notice">Failed to load bundles: ${e.message}</div>`;
+    }
   });
+
+  if (window.location.pathname.includes("dashboard.html")) {
+    if (!state.customerToken) {
+      window.location.href = "signin.html";
+    }
+  }
 })();
