@@ -67,7 +67,7 @@ section { padding: 48px 0; }
 .nav-inner { display: flex; align-items: center; gap: 24px; height: 64px; }
 .brand { display: flex; align-items: center; gap: 10px; font-weight: 900; font-size: 18px; color: var(--white); letter-spacing: -0.3px; text-decoration: none; }
 .brand .text-col { display: flex; flex-direction: column; justify-content: center; }
-.brand .logo { width: 40px; height: 40px; border-radius: 8px; background: #ffcb05; display: grid; place-items: center; color: var(--navy); font-size: 24px; font-weight: 900; flex: none; }
+.brand .logo { width: 40px; height: 40px; display: grid; place-items: center; flex: none; }
 .brand small { font-size: 10px; font-weight: 700; color: var(--muted); letter-spacing: 0.14em; text-transform: uppercase; margin-top: 1px; }
 .nav-links { display: flex; gap: 4px; margin-left: auto; align-items: center; }
 .nav-links a { color: var(--soft); font-weight: 700; font-size: 14px; padding: 9px 13px; border-radius: 10px; }
