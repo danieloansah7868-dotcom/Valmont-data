@@ -1,0 +1,16 @@
+{
+  "name": "DatamartGH",
+  "short_name": "Datamart",
+  "description": "Cheapest data bundles in Ghana. MTN, Telecel, and AirtelTigo.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b1a38",
+  "theme_color": "#0b1a38",
+  "icons": [
+    {
+      "src": "/assets/img/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

@@ -262,4 +262,19 @@ td .err { color: #ff9d92; font-size: 12px; }
 .toast-wrap { position: fixed; bottom: 22px; right: 22px; z-index: 200; display: grid; gap: 10px; }
 .toast { background: var(--navy-3); border: 1px solid var(--line-strong); border-left: 4px solid var(--orange); color: var(--soft); font-size: 14px; padding: 13px 16px; border-radius: 12px; max-width: 330px; box-shadow: 0 16px 40px rgba(0,0,0,0.45); animation: slideIn 0.3s cubic-bezier(0.16,1,0.3,1); }
 .toast.err { border-left-color: var(--red); }
+
+/* ---------- Hamburger Drawer ---------- */
+.btn-hamburger { width: 40px; height: 40px; border-radius: 8px; background: #ffcb05; color: var(--navy-2); border: none; display: grid; place-items: center; cursor: pointer; transition: transform 0.2s; flex: none; }
+.btn-hamburger:active { transform: scale(0.95); }
+
+.side-drawer {
+  position: absolute; right: 0; top: 0; bottom: 0; width: 280px; background: var(--navy-2);
+  box-shadow: -4px 0 24px rgba(0,0,0,0.5); padding: 24px; display: flex; flex-direction: column;
+  transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.modal-back.open .side-drawer { transform: translateX(0); }
+.drawer-head { font-size: 20px; font-weight: 800; color: var(--white); margin-bottom: 24px; padding-bottom: 12px; border-bottom: 1px solid var(--line); margin-top: 12px; }
+.drawer-menu { display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.menu-item { display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px; background: transparent; border: none; color: var(--soft); font-size: 15px; font-weight: 600; text-align: left; cursor: pointer; border-radius: 8px; transition: var(--transition); font-family: inherit; }
+.menu-item:hover { background: rgba(255,255,255,0.05); color: var(--white); }
 @keyframes slideIn { from { transform: translateX(30px); opacity: 0; } to { transform: none; opacity: 1; } }

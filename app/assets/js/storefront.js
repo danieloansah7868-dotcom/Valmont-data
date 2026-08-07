@@ -122,17 +122,62 @@
     if (state.customerToken && state.customerInfo) {
       const g = getGreeting(state.customerInfo.name, state.customerInfo.email);
       host.innerHTML = `
-        <button class="greeting-chip" id="btnOpenAccount" title="Open account">${g.icon} ${g.text}</button>
-        <button class="btn btn-ghost btn-sm" id="btnNavLogout" style="margin-left:4px">Sign out</button>
+        <div style="display:flex; align-items:center; gap:12px;">
+          <button class="greeting-chip" id="btnOpenAccount" title="Open account">${g.icon} ${g.text}</button>
+          <button id="btnHamburger" class="btn-hamburger" title="Menu">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="6" x2="20" y2="6"></line><line x1="4" y1="18" x2="20" y2="18"></line></svg>
+          </button>
+        </div>
       `;
       $("#btnOpenAccount")?.addEventListener("click", openAccountModal);
-      $("#btnNavLogout")?.addEventListener("click", logout);
+      $("#btnHamburger")?.addEventListener("click", openHamburgerMenu);
     } else {
       host.innerHTML = `
         <a class="btn btn-ghost btn-sm" href="signin.html">Sign in</a>
         <a class="btn btn-orange btn-sm" href="signup.html" style="margin-left:4px">Sign Up</a>
       `;
     }
+  }
+
+  function openHamburgerMenu() {
+    let m = $("#hamburgerModal");
+    if (!m) {
+      m = document.createElement("div");
+      m.id = "hamburgerModal";
+      m.className = "modal-back";
+      document.body.appendChild(m);
+    }
+    m.innerHTML = `
+      <div class="side-drawer" onclick="event.stopPropagation()">
+        <button class="m-close" data-close aria-label="Close" style="top:16px; right:16px;">×</button>
+        <div class="drawer-head">Menu</div>
+        <div class="drawer-menu">
+          <button class="menu-item" id="hmTransactions">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+            Transaction History
+          </button>
+          <div style="flex:1"></div>
+          <button class="menu-item" id="hmSignOut" style="color: var(--red);">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+            Sign Out
+          </button>
+        </div>
+      </div>
+    `;
+    m.classList.add("open");
+
+    m.addEventListener("click", () => m.classList.remove("open"));
+    $("[data-close]", m).addEventListener("click", () => m.classList.remove("open"));
+    
+    $("#hmTransactions", m).addEventListener("click", () => {
+      m.classList.remove("open");
+      openAccountModal(); 
+    });
+    
+    $("#hmSignOut", m).addEventListener("click", () => {
+      m.classList.remove("open");
+      logout();
+    });
   }
 
   function renderTabs() {
