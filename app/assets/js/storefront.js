@@ -128,8 +128,10 @@
       $("#btnOpenAccount")?.addEventListener("click", openAccountModal);
       $("#btnNavLogout")?.addEventListener("click", logout);
     } else {
-      host.innerHTML = `<button class="btn btn-ghost btn-sm" id="btnOpenAuth">Sign in →</button>`;
-      $("#btnOpenAuth")?.addEventListener("click", () => openAuthModal());
+      host.innerHTML = `
+        <a class="btn btn-ghost btn-sm" href="signin.html">Sign in</a>
+        <a class="btn btn-orange btn-sm" href="signup.html" style="margin-left:4px">Sign Up</a>
+      `;
     }
   }
 
@@ -479,9 +481,9 @@
     state.selected = bundle;
     state.pendingBundle = bundle;
 
-    // Compulsory customer account gate: if not signed in, open Auth modal first!
+    // Compulsory customer account gate: if not signed in, redirect to Sign Up!
     if (!state.customerToken) {
-      openAuthModal(() => openBuy(bundleId));
+      window.location.href = "signup.html";
       return;
     }
 
