@@ -3,10 +3,13 @@
 (function () {
   "use strict";
 
-  const $ = (s) => document.querySelector(s);
+  const $ = (s, r) => (r || document).querySelector(s);
+  const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
   const TOKEN_KEY = "vd_admin_token";
   const fmt = (n) => "GH₵" + Number(n).toFixed(2);
   const NET_NAMES = { mtn: "MTN", telecel: "Telecel", airteltigo: "AirtelTigo" };
+
+  let activePlDays = 7;
 
   function token() { return sessionStorage.getItem(TOKEN_KEY) || ""; }
 
@@ -30,7 +33,7 @@
   }
 
   /* ---------- login ---------- */
-  $("#loginForm").addEventListener("submit", async (e) => {
+  $("#loginForm")?.addEventListener("submit", async (e) => {
     e.preventDefault();
     $("#loginErr").innerHTML = "";
     try {
@@ -49,16 +52,18 @@
   });
 
   function enter() {
-    $("#loginView").style.display = "none";
-    $("#dashView").style.display = "block";
+    const lv = $("#loginView");
+    const dv = $("#dashView");
+    if (lv) lv.style.display = "none";
+    if (dv) dv.style.display = "block";
     loadFloat();
     loadOrders();
-    loadPl(7);
+    loadPl(activePlDays);
     loadWebhooks();
   }
   if (token()) enter();
 
-  $("#logoutBtn").addEventListener("click", () => {
+  $("#logoutBtn")?.addEventListener("click", () => {
     sessionStorage.removeItem(TOKEN_KEY);
     location.reload();
   });
@@ -92,44 +97,60 @@
     t.addEventListener("click", () => {
       $$(".admin-tab").forEach((x) => x.classList.remove("on"));
       t.classList.add("on");
+      const activeTab = t.dataset.tab;
       ["float", "orders", "pl", "webhooks"].forEach((k) => {
-        $("#tab-" + k).style.display = k === t.dataset.tab ? "block" : "none";
+        const panel = $("#tab-" + k);
+        if (panel) panel.style.display = k === activeTab ? "block" : "none";
       });
+      if (activeTab === "float") loadFloat();
+      else if (activeTab === "orders") loadOrders();
+      else if (activeTab === "pl") loadPl(activePlDays);
+      else if (activeTab === "webhooks") loadWebhooks();
     })
   );
 
   /* ---------- float ---------- */
   async function loadFloat() {
-    const d = await api("/api/admin/float");
-    $("#floatCards").innerHTML = d.balances
-      .map(
-        (b) => `<div class="stat-card">
-          <div class="label">${NET_NAMES[b.code] || b.code} float</div>
-          <div class="value ${b.low ? "low" : "ok"}">${fmt(b.balance)}</div>
-          <div class="sub">${b.low ? "⚠ LOW — below " + fmt(b.threshold) : "healthy"}</div>
-        </div>`
-      )
-      .join("");
-    $("#ledgerBody").innerHTML = d.ledger.length
-      ? d.ledger
+    try {
+      const d = await api("/api/admin/float");
+      const cards = $("#floatCards");
+      if (cards && d.balances) {
+        cards.innerHTML = d.balances
           .map(
-            (l) => `<tr>
-              <td>${new Date(l.created_at).toLocaleString("en-GH")}</td>
-              <td>${NET_NAMES[l.network] || l.network}</td>
-              <td>${l.direction}</td>
-              <td>${l.direction === "debit" ? "−" : "+"}${fmt(l.amount)}</td>
-              <td><b style="color:#fff">${fmt(l.balance_after)}</b></td>
-              <td>${l.note || ""}</td>
-            </tr>`
+            (b) => `<div class="stat-card stat-card-${b.code}">
+              <div class="label"><span class="net-chip ${b.code}">${NET_NAMES[b.code] || b.code}</span> float</div>
+              <div class="value ${b.low ? "low" : "ok"}">${fmt(b.balance)}</div>
+              <div class="sub">${b.low ? "⚠ LOW — below " + fmt(b.threshold) : "healthy"}</div>
+            </div>`
           )
-          .join("")
-      : `<tr><td colspan="6" class="empty">No ledger entries yet — top up float to start.</td></tr>`;
+          .join("");
+      }
+      const ledger = $("#ledgerBody");
+      if (ledger) {
+        ledger.innerHTML = d.ledger && d.ledger.length
+          ? d.ledger
+              .map(
+                (l) => `<tr>
+                  <td>${new Date(l.created_at).toLocaleString("en-GH")}</td>
+                  <td><span class="net-chip ${l.network}">${NET_NAMES[l.network] || l.network}</span></td>
+                  <td>${l.direction}</td>
+                  <td>${l.direction === "debit" ? "−" : "+"}${fmt(l.amount)}</td>
+                  <td><b style="color:#fff">${fmt(l.balance_after)}</b></td>
+                  <td>${l.note || ""}</td>
+                </tr>`
+              )
+              .join("")
+          : `<tr><td colspan="6" class="empty">No float ledger entries yet — top up float or seed initial float above to start.</td></tr>`;
+      }
+    } catch {
+      // Handled by api()
+    }
   }
 
-  $("#topupForm").addEventListener("submit", async (e) => {
+  $("#topupForm")?.addEventListener("submit", async (e) => {
     e.preventDefault();
     try {
-      const d = await api("/api/admin/float/topup", {
+      await api("/api/admin/float/topup", {
         method: "POST",
         body: JSON.stringify({ network: $("#topupNet").value, amount: Number($("#topupAmount").value) }),
       });
@@ -142,99 +163,132 @@
 
   /* ---------- orders ---------- */
   async function loadOrders() {
-    const status = $("#fStatus").value;
-    const network = $("#fNetwork").value;
-    const d = await api(`/api/admin/orders?status=${status}&network=${network}&limit=60`);
-    $("#ordersBody").innerHTML = d.orders.length
-      ? d.orders
-          .map(
-            (o) => `<tr>
-              <td><b style="color:#fff">${o.reference}</b></td>
-              <td>${o.phone}</td>
-              <td>${o.bundle} ${NET_NAMES[o.network] || ""}</td>
-              <td>${fmt(o.amount)}</td>
-              <td style="color:var(--muted)">${fmt(o.cost)}</td>
-              <td>${fmt(o.margin)}</td>
-              <td><span class="pill ${o.status}">${o.status}</span></td>
-              <td>${o.attempts}</td>
-              <td>${o.supplier_error ? `<span class="err">${o.supplier_error}</span>` : o.supplier_ref || "—"}</td>
-              <td>${o.retryable ? `<button class="btn btn-ghost btn-sm" data-retry="${o.reference}">Retry</button>` : ""}</td>
-            </tr>`
-          )
-          .join("")
-      : `<tr><td colspan="10" class="empty">No orders match.</td></tr>`;
+    try {
+      const status = $("#fStatus")?.value || "all";
+      const network = $("#fNetwork")?.value || "all";
+      const isFiltered = status !== "all" || network !== "all";
+      const d = await api(`/api/admin/orders?status=${status}&network=${network}&limit=60`);
+      const body = $("#ordersBody");
+      if (!body) return;
+      body.innerHTML = d.orders && d.orders.length
+        ? d.orders
+            .map(
+              (o) => `<tr>
+                <td><b style="color:#fff">${o.reference}</b></td>
+                <td>${o.phone}</td>
+                <td>${o.bundle} <span class="net-chip ${o.network}">${NET_NAMES[o.network] || ""}</span></td>
+                <td>${fmt(o.amount)}</td>
+                <td style="color:var(--muted)">${fmt(o.cost)}</td>
+                <td>${fmt(o.margin)}</td>
+                <td><span class="pill ${o.status}">${o.status}</span></td>
+                <td>${o.attempts}</td>
+                <td>${o.supplier_error ? `<span class="err">${o.supplier_error}</span>` : o.supplier_ref || "—"}</td>
+                <td>${o.retryable ? `<button class="btn btn-ghost btn-sm" data-retry="${o.reference}">Retry</button>` : ""}</td>
+              </tr>`
+            )
+            .join("")
+        : `<tr><td colspan="10" class="empty">${isFiltered ? "No orders match the selected filters." : "No orders yet — they'll appear here after your first sale."}</td></tr>`;
 
-    $$("[data-retry]").forEach((b) =>
-      b.addEventListener("click", async () => {
-        b.disabled = true;
-        try {
-          const r = await api("/api/admin/orders/retry", {
-            method: "POST",
-            body: JSON.stringify({ reference: b.dataset.retry }),
-          });
-          alert(`${b.dataset.retry}: retried → ${r.ok ? "delivered" : r.reason || "failed"}`);
-          loadOrders();
-        } catch (err) {
-          alert(err.message);
-          b.disabled = false;
-        }
-      })
-    );
+      $$("[data-retry]").forEach((b) =>
+        b.addEventListener("click", async () => {
+          b.disabled = true;
+          try {
+            const r = await api("/api/admin/orders/retry", {
+              method: "POST",
+              body: JSON.stringify({ reference: b.dataset.retry }),
+            });
+            alert(`${b.dataset.retry}: retried → ${r.ok ? "delivered" : r.reason || "failed"}`);
+            loadOrders();
+          } catch (err) {
+            alert(err.message);
+            b.disabled = false;
+          }
+        })
+      );
+    } catch {
+      // Handled by api()
+    }
   }
-  $("#orderFilters").addEventListener("submit", (e) => {
+
+  $("#orderFilters")?.addEventListener("submit", (e) => {
     e.preventDefault();
     loadOrders();
   });
 
   /* ---------- P&L ---------- */
   async function loadPl(days) {
-    const d = await api(`/api/admin/pl?days=${days}`);
-    let total = { orders: 0, revenue: 0, cost: 0, margin: 0 };
-    $("#plBody").innerHTML = d.rows.length
-      ? d.rows
-          .map((r) => {
-            total.orders += Number(r.orders);
-            total.revenue += Number(r.revenue);
-            total.cost += Number(r.cost);
-            total.margin += Number(r.margin);
-            return `<tr>
-              <td>${r.day}</td>
-              <td>${NET_NAMES[r.network] || r.network}</td>
-              <td>${r.orders}</td>
-              <td>${fmt(r.revenue)}</td>
-              <td style="color:var(--muted)">${fmt(r.cost)}</td>
-              <td><b style="color:var(--green)">${fmt(r.margin)}</b></td>
-            </tr>`;
-          })
-          .join("") +
-        `<tr style="border-top:2px solid var(--line-strong)">
-          <td><b style="color:#fff">Total</b></td><td></td>
-          <td><b style="color:#fff">${total.orders}</b></td>
-          <td><b style="color:#fff">${fmt(total.revenue)}</b></td>
-          <td><b style="color:#fff">${fmt(total.cost)}</b></td>
-          <td><b style="color:var(--green)">${fmt(total.margin)}</b></td>
-        </tr>`
-      : `<tr><td colspan="6" class="empty">No paid orders in this window.</td></tr>`;
+    try {
+      activePlDays = days;
+      const d = await api(`/api/admin/pl?days=${days}`);
+      const body = $("#plBody");
+      if (!body) return;
+      let total = { orders: 0, revenue: 0, cost: 0, margin: 0 };
+      body.innerHTML = d.rows && d.rows.length
+        ? d.rows
+            .map((r) => {
+              total.orders += Number(r.orders);
+              total.revenue += Number(r.revenue);
+              total.cost += Number(r.cost);
+              total.margin += Number(r.margin);
+              return `<tr>
+                <td>${r.day}</td>
+                <td><span class="net-chip ${r.network}">${NET_NAMES[r.network] || r.network}</span></td>
+                <td>${r.orders}</td>
+                <td>${fmt(r.revenue)}</td>
+                <td style="color:var(--muted)">${fmt(r.cost)}</td>
+                <td><b style="color:var(--green)">${fmt(r.margin)}</b></td>
+              </tr>`;
+            })
+            .join("") +
+          `<tr style="border-top:2px solid var(--line-strong)">
+            <td><b style="color:#fff">Total</b></td><td></td>
+            <td><b style="color:#fff">${total.orders}</b></td>
+            <td><b style="color:#fff">${fmt(total.revenue)}</b></td>
+            <td><b style="color:#fff">${fmt(total.cost)}</b></td>
+            <td><b style="color:var(--green)">${fmt(total.margin)}</b></td>
+          </tr>`
+        : `<tr><td colspan="6" class="empty">No sales data yet — revenue and margin breakdown will appear here after orders are paid and delivered.</td></tr>`;
+    } catch {
+      // Handled by api()
+    }
   }
+
   $$("[data-days]").forEach((b) =>
-    b.addEventListener("click", () => loadPl(Number(b.dataset.days)))
+    b.addEventListener("click", () => {
+      const days = Number(b.dataset.days);
+      activePlDays = days;
+      $$("[data-days]").forEach((btn) => {
+        if (Number(btn.dataset.days) === activePlDays) {
+          btn.className = "btn btn-orange btn-sm";
+        } else {
+          btn.className = "btn btn-ghost btn-sm";
+        }
+      });
+      loadPl(days);
+    })
   );
 
   /* ---------- webhooks ---------- */
   async function loadWebhooks() {
-    const d = await api("/api/admin/webhooks?limit=25");
-    $("#webhooksBody").innerHTML = d.webhooks.length
-      ? d.webhooks
-          .map(
-            (w) => `<tr>
-              <td>${new Date(w.created_at).toLocaleString("en-GH")}</td>
-              <td>${w.signature_valid ? '<b style="color:var(--green)">✓ valid</b>' : '<b style="color:var(--red)">✗ INVALID</b>'}</td>
-              <td>${w.handled ? "✓" : "—"}</td>
-              <td>${w.error ? `<span class="err">${w.error}</span>` : "—"}</td>
-              <td style="font-size:11px;color:var(--muted);max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${JSON.stringify(w.payload).slice(0, 160)}</td>
-            </tr>`
-          )
-          .join("")
-      : `<tr><td colspan="5" class="empty">No webhook calls yet.</td></tr>`;
+    try {
+      const d = await api("/api/admin/webhooks?limit=25");
+      const body = $("#webhooksBody");
+      if (!body) return;
+      body.innerHTML = d.webhooks && d.webhooks.length
+        ? d.webhooks
+            .map(
+              (w) => `<tr>
+                <td>${new Date(w.created_at).toLocaleString("en-GH")}</td>
+                <td>${w.signature_valid ? '<b style="color:var(--green)">✓ valid</b>' : '<b style="color:var(--red)">✗ INVALID</b>'}</td>
+                <td>${w.handled ? "✓" : "—"}</td>
+                <td>${w.error ? `<span class="err">${w.error}</span>` : "—"}</td>
+                <td style="font-size:11px;color:var(--muted);max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${JSON.stringify(w.payload).slice(0, 160)}</td>
+              </tr>`
+            )
+            .join("")
+        : `<tr><td colspan="5" class="empty">No webhook events yet — they appear after the first payment.</td></tr>`;
+    } catch {
+      // Handled by api()
+    }
   }
 })();

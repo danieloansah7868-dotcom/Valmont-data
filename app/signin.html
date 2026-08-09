@@ -78,6 +78,7 @@
     .inp:focus {
       outline: none;
       border-color: var(--orange);
+      box-shadow: 0 0 0 4px var(--orange-glow);
       background: rgba(0,0,0,0.4);
     }
     
@@ -92,15 +93,16 @@
       text-decoration: none;
       font-weight: 600;
     }
-    .bottom-links a:hover { text-decoration: underline; }
+    .bottom-links a:hover { text-decoration: underline; color: var(--orange-2); }
   </style>
 </head>
 <body>
 
   <div class="brand-header">
-    <div class="title" style="display:flex; justify-content:center; align-items:center; gap:10px;">
-      <img src="assets/img/brand-logo.png" alt="Valmont Data" style="width:240px;height:auto;">
-      <div style="text-align:left; font-size:22px; font-weight:800; color:var(--white);">VALMONT<span style="color:var(--orange)">DATA</span></div>
+    <div class="title" style="display:flex; justify-content:center; align-items:center;">
+      <a href="/" title="Valmont Data — Home">
+        <img src="assets/img/brand-logo.png" alt="Valmont Data" class="brand-banner" style="height:44px;width:auto;">
+      </a>
     </div>
   </div>
 

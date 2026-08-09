@@ -206,14 +206,14 @@
     if (!grid) return;
     const list = state.bundles.filter((b) => b.network === state.currentNet);
     if (!list.length) {
-      grid.innerHTML = '<p style="color:var(--muted)">No bundles for this network yet.</p>';
+      grid.innerHTML = '<p style="color:var(--muted);padding:20px">No bundles for this network yet.</p>';
       return;
     }
     grid.innerHTML = list
       .map((b) => {
         const disabled = !b.available ? "disabled" : "";
         const tag = b.available ? "" : '<span class="soldout soft">Back soon</span>';
-        return `<button class="bundle ${disabled}" data-bundle="${b.id}" ${disabled ? "disabled" : ""}>
+        return `<button class="bundle ${b.network} ${disabled}" data-bundle="${b.id}" ${disabled ? "disabled" : ""}>
           ${tag}
           <div class="net ${b.network}">${NETWORK_NAMES[b.network]}</div>
           <div class="gb">${(b.size_mb / 1024)}${b.size_mb >= 1024 ? "GB" : "MB"}</div>
@@ -548,7 +548,7 @@
         <h3>Buy ${bundle.size_mb / 1024}GB — ${NETWORK_NAMES[bundle.network]}</h3>
         <div class="m-sub">${validityLabel(bundle.validity_days)} · auto delivery</div>
         <div class="order-summary">
-          <div class="row"><span>Bundle</span><b>${bundle.size_mb / 1024}GB ${NETWORK_NAMES[bundle.network]} Data</b></div>
+          <div class="row"><span>Bundle</span><b>${bundle.size_mb / 1024}GB <span class="net-chip ${bundle.network}">${NETWORK_NAMES[bundle.network]}</span> Data</b></div>
           <div class="row total"><span>Total</span><b>${fmt(bundle.price)}</b></div>
         </div>
 
@@ -636,7 +636,7 @@
         <h3>Confirm your order</h3>
         <div class="m-sub">Check the number twice — misdials are unrecoverable.</div>
         <div class="order-summary">
-          <div class="row"><span>Bundle</span><b>${b.size_mb / 1024}GB ${NETWORK_NAMES[b.network]}</b></div>
+          <div class="row"><span>Bundle</span><b>${b.size_mb / 1024}GB <span class="net-chip ${b.network}">${NETWORK_NAMES[b.network]}</span></b></div>
           <div class="row"><span>Validity</span><b>${validityLabel(b.validity_days)}</b></div>
           <div class="row total"><span>Total</span><b>${fmt(b.price)}</b></div>
         </div>

@@ -54,7 +54,7 @@
       width: 56px;
       height: 56px;
       border-radius: 16px;
-      background: rgba(255, 140, 0, 0.1);
+      background: rgba(245, 140, 20, 0.1);
       color: var(--orange);
       display: grid;
       place-items: center;
@@ -62,14 +62,15 @@
     }
     .action-icon.filled {
       background: var(--orange);
-      color: var(--navy);
+      color: #1a0f00;
     }
     .action-item:hover .action-icon {
       transform: translateY(-2px);
-      background: rgba(255, 140, 0, 0.2);
+      background: rgba(245, 140, 20, 0.2);
     }
     .action-item:hover .action-icon.filled {
       background: var(--orange-2);
+      color: #1a0f00;
     }
 
     .footer-dark {
@@ -163,10 +164,15 @@
       border-radius: 50%;
       display: grid;
       place-items: center;
-      color: white;
-      box-shadow: 0 4px 12px rgba(255, 140, 0, 0.4);
+      color: #1a0f00;
+      box-shadow: 0 4px 12px rgba(245, 140, 20, 0.4);
       z-index: 100;
       cursor: pointer;
+      transition: var(--transition);
+    }
+    .chat-float:hover {
+      background: var(--orange-2);
+      transform: translateY(-2px);
     }
     .chat-float svg { width: 28px; height: 28px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
     .chat-bubble {
@@ -216,7 +222,7 @@
     <div class="quick-actions">
       <h2>Quick Actions</h2>
       <div class="action-grid">
-        <a href="#order" class="action-item">
+        <a href="/" class="action-item">
           <div class="action-icon">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
           </div>
@@ -228,7 +234,7 @@
           </div>
           Reports
         </a>
-        <a href="#data" class="action-item">
+        <a href="/" class="action-item">
           <div class="action-icon">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>
           </div>
@@ -252,7 +258,7 @@
           </div>
           Report
         </a>
-        <a href="#store" class="action-item">
+        <a href="/" class="action-item">
           <div class="action-icon">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
           </div>
@@ -290,7 +296,7 @@
         <ul>
           <li><a href="/">MTN UP2U</a></li>
           <li><a href="/">AirtelTigo iShare</a></li>
-          <li><a href="/">Telecel Bundle <span style="background:var(--orange);color:#000;padding:2px 6px;border-radius:12px;font-size:10px;font-weight:800;margin-left:4px;">NEW</span></a></li>
+          <li><a href="/">Telecel Bundle <span style="background:var(--orange);color:#1a0f00;padding:2px 6px;border-radius:12px;font-size:10px;font-weight:800;margin-left:4px;">NEW</span></a></li>
         </ul>
       </div>
       <div>
