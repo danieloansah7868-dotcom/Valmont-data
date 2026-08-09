@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# Valmont Data — end-to-end test (37 checks). Start the dev server first:
+# Valmont Data — end-to-end test (40 checks). Start the dev server first:
 #   npm run dev   →  http://localhost:8787   (default mock DB)
 # The retry path is exercised deterministically via the built-in convention:
 # numbers ending 0000 fail their first delivery attempt (see lib/supplier.js).
@@ -141,6 +141,13 @@ for p in / /status.html /admin.html; do
   ck "page $p" "$CODE" "200"
 done
 
+echo "── 12. seed initial float (networks already funded → no-op, safe) ──"
+R=$(curl -s -X POST "$B/api/admin/float/seed" -H "$J" -H "Authorization: Bearer $TOK" -d '{}')
+ck "seed returns results for 3 networks" "$(echo "$R" | python3 -c "import sys,json;print(len(json.load(sys.stdin)['results']))")" "3"
+ck "already-funded networks are not re-seeded" "$(echo "$R" | python3 -c "import sys,json;print(json.load(sys.stdin)['seeded'])")" "0"
+CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/admin/float/seed" -H "$J" -d '{}')
+ck "seed without admin token → 401" "$CODE" "401"
+
 echo ""
 echo "RESULT: $PASS passed, $FAIL failed"
-[ "$FAIL" -eq 0 ] && [ "$PASS" -eq 37 ]
+[ "$FAIL" -eq 0 ] && [ "$PASS" -eq 40 ]

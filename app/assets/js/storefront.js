@@ -212,13 +212,14 @@
     grid.innerHTML = list
       .map((b) => {
         const disabled = !b.available ? "disabled" : "";
-        const tag = b.available ? "" : '<span class="soldout">RESTOCKING</span>';
+        const tag = b.available ? "" : '<span class="soldout soft">Back soon</span>';
         return `<button class="bundle ${disabled}" data-bundle="${b.id}" ${disabled ? "disabled" : ""}>
           ${tag}
           <div class="net ${b.network}">${NETWORK_NAMES[b.network]}</div>
           <div class="gb">${(b.size_mb / 1024)}${b.size_mb >= 1024 ? "GB" : "MB"}</div>
           <div class="price">${fmt(b.price)} <small>${validityLabel(b.validity_days)}</small></div>
           <div class="meta"><span>⚡ Auto delivery</span><span>MoMo / card</span></div>
+          ${b.available ? "" : '<div class="restock-note">Restocking — check back shortly</div>'}
         </button>`;
       })
       .join("");
