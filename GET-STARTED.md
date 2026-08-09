@@ -172,6 +172,12 @@ purchase time so historical P&L stays accurate.
 6. Set `LOW_FLOAT_THRESHOLD` — the cron job alerts you (via
    `NOTIFY_WEBHOOK_URL`) when float drops below it. **Never run float dry.**
 
+> **Fresh deploy showing everything "RESTOCKING"?** That's the float guard, not
+> an empty shop. In the admin console (Float → **Seed initial float**) one
+> click tops up every network that has GH₵0 balance (GH₵500 each by default,
+> set `INITIAL_FLOAT` to change) — the whole storefront lights up. Safe to
+> re-run; it never overwrites existing float.
+
 > Buying and confirming wholesale price changes is a business task: when the
 > supplier price moves, update `bundles.cost_price` (and `sell_price` to hold
 > margin). `cost_price` is snapshotted per order, so old P&L rows never shift.

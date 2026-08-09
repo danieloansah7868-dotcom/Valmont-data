@@ -6,6 +6,8 @@
   <title>Admin Console — Valmont Data</title>
   <meta name="robots" content="noindex">
   <link rel="icon" type="image/svg+xml" href="assets/img/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png">
+  <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0b1a38">
   <link rel="stylesheet" href="assets/css/style.css">
@@ -14,9 +16,8 @@
 
   <header class="nav">
     <div class="wrap nav-inner">
-      <a class="brand" href="/">
-        <img src="assets/img/favicon.svg" alt="Logo" class="logo">
-        <div class="text-col" style="font-size:20px; font-weight:800;">VALMONT<span style="color:var(--orange)">DATA</span><small style="text-transform:none; letter-spacing:0; font-size:11px; font-weight:500; color:var(--soft);">Admin</small></div>
+      <a class="brand" href="/" title="Valmont Data — Home">
+        <img src="assets/img/brand-logo.png" alt="Valmont Data" class="brand-banner">
       </a>
       <nav class="nav-links">
         <a href="/">Storefront</a>
@@ -72,6 +73,12 @@
                 <button class="btn btn-orange" type="submit">Top up</button>
               </form>
               <p style="font-size:12px;color:var(--muted);margin-top:10px">Record the money you've sent to the supplier here — this is your float ledger.</p>
+              <hr style="border:none;border-top:1px solid var(--line);margin:14px 0">
+              <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                <button class="btn btn-ghost btn-sm" id="seedFloatBtn" type="button">Seed initial float (GH₵500 / network)</button>
+                <span id="seedFloatMsg" style="font-size:12px;color:var(--muted)"></span>
+              </div>
+              <p style="font-size:12px;color:var(--muted);margin-top:8px">Fresh deploy showing everything "RESTOCKING"? One click seeds GH₵500 of float for each network that has none — the shop lights up. Safe to re-run.</p>
             </div>
             <h3 style="color:#fff;font-size:15px;margin-top:26px">Recent ledger</h3>
             <div class="table-wrap"><table><thead><tr><th>When</th><th>Network</th><th>Direction</th><th>Amount</th><th>Balance</th><th>Note</th></tr></thead><tbody id="ledgerBody"></tbody></table></div>

@@ -8,6 +8,7 @@
    ============================================================================ */
 
 const MOCK = process.env.SUPABASE_MOCK === "1";
+const { buildDemo } = require("./demo-data");
 
 /* ---------------- real PostgREST ---------------- */
 async function rest(path, { method = "GET", body, headers = {} } = {}) {
@@ -100,7 +101,17 @@ function mockSelect({ from, where = {}, order, limit }) {
   for (const [k, v] of Object.entries(where)) rows = rows.filter(parseFilter(k, v));
   if (order) {
     const [col, dir] = order.split(".");
-    rows.sort((a, b) => (dir === "desc" ? String(b[col] || "").localeCompare(String(a[col] || "")) : String(a[col] || "").localeCompare(String(b[col] || ""))));
+    rows.sort((a, b) => {
+      const av = a[col];
+      const bv = b[col];
+      const an = Number(av);
+      const bn = Number(bv);
+      // numeric columns sort numerically (ids, balances…); anything else lexicographically
+      let cmp;
+      if (av != null && bv != null && av !== "" && bv !== "" && !Number.isNaN(an) && !Number.isNaN(bn)) cmp = an - bn;
+      else cmp = String(av || "").localeCompare(String(bv || ""));
+      return dir === "desc" ? -cmp : cmp;
+    });
   }
   if (limit) rows = rows.slice(0, limit);
   return rows.map((r) => ({ ...r }));
@@ -209,6 +220,112 @@ function mockRpc(name, args = {}) {
   throw new Error("unknown rpc: " + name);
 }
 
+/* ---------------- demo seed (SEED_DEMO=1) ----------------
+   Populates the in-memory store with realistic demo data (customers, saved
+   numbers, orders, float ledger, webhook log). Mock-mode only; callers:
+   scripts/dev-server.js (SEED_DEMO=1) and scripts/seed-demo.js. */
+function seedDemo(now = new Date()) {
+  if (!MOCK) {
+    const err = new Error("seedDemo() only works with SUPABASE_MOCK=1 (in-memory DB)");
+    err.status = 500;
+    throw err;
+  }
+  if (mockState.orders.length) {
+    return { skipped: true, reason: "orders already present — demo seed runs once per process" };
+  }
+
+  const data = buildDemo({ now });
+
+  const customerIdByPhone = {};
+  for (const c of data.customers) {
+    mockState._seq.customers += 1;
+    const id = mockState._seq.customers;
+    customerIdByPhone[c.phone] = id;
+    mockState.customers.push({ id, phone: c.phone, email: c.email, name: c.name, pin_hash: c.pin_hash, created_at: c.created_at });
+  }
+
+  for (const s of data.saved_numbers) {
+    mockState._seq.saved_numbers += 1;
+    mockState.saved_numbers.push({
+      id: mockState._seq.saved_numbers,
+      customer_id: customerIdByPhone[s.customer_phone],
+      kind: s.kind,
+      phone: s.phone,
+      label: s.label,
+      created_at: s.created_at,
+    });
+  }
+
+  const networkIdByCode = {};
+  for (const n of mockState.networks) networkIdByCode[n.code] = n.id;
+  const bundleIdByKey = {};
+  for (const b of mockState.bundles) {
+    const net = mockState.networks.find((n) => n.id === b.network_id);
+    bundleIdByKey[`${net.code}:${b.size_mb}`] = b.id;
+  }
+
+  const orderIdByRef = {};
+  for (const o of data.orders) {
+    mockState._seq.orders += 1;
+    const id = mockState._seq.orders;
+    orderIdByRef[o.reference] = id;
+    mockState.orders.push({
+      id,
+      reference: o.reference,
+      phone: o.phone,
+      bundle_id: bundleIdByKey[`${o.network}:${o.size_mb}`],
+      network_id: networkIdByCode[o.network],
+      amount: o.amount,
+      cost_price: o.cost_price,
+      status: o.status,
+      provider_reference: o.provider_reference,
+      supplier_ref: o.supplier_ref,
+      supplier_response: o.supplier_response,
+      attempts: o.attempts,
+      customer_id: o.customer_phone ? customerIdByPhone[o.customer_phone] : null,
+      created_at: o.created_at,
+      delivered_at: o.delivered_at,
+    });
+  }
+
+  for (const f of data.float_ledger) {
+    mockState._seq.float_ledger += 1;
+    mockState.float_ledger.push({
+      id: mockState._seq.float_ledger,
+      network_id: networkIdByCode[f.network],
+      direction: f.direction,
+      amount: f.amount,
+      balance_after: f.balance_after,
+      order_id: f.order_reference ? orderIdByRef[f.order_reference] : null,
+      note: f.note,
+      created_at: f.created_at,
+    });
+  }
+
+  for (const w of data.webhook_log) {
+    mockState._seq.webhook_log += 1;
+    mockState.webhook_log.push({
+      id: mockState._seq.webhook_log,
+      signature_valid: w.signature_valid,
+      payload: w.payload,
+      handled: w.handled,
+      error: w.error,
+      created_at: w.created_at,
+    });
+  }
+
+  return {
+    skipped: false,
+    counts: {
+      customers: data.customers.length,
+      saved_numbers: data.saved_numbers.length,
+      orders: data.orders.length,
+      float_ledger: data.float_ledger.length,
+      webhook_log: data.webhook_log.length,
+    },
+  };
+}
+
 /* ---------------- exported db API ---------------- */
 const db = {
   async select(opts) {
@@ -251,4 +368,4 @@ const db = {
   },
 };
 
-module.exports = { db, MOCK };
+module.exports = { db, MOCK, seedDemo };

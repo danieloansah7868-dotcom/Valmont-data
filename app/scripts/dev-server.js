@@ -21,6 +21,14 @@ const path = require("path");
 const PORT = Number(process.env.PORT || "8787");
 const ROOT = path.join(__dirname, "..");
 
+/* Optional demo data: SEED_DEMO=1 → realistic customers/orders/float/webhook
+   log in the in-memory DB (see lib/demo-data.js). Off by default so the
+   test suite (scripts/test.sh) starts from a clean slate. */
+let demoSeed = null;
+if (process.env.SEED_DEMO === "1") {
+  demoSeed = require("../lib/supabase").seedDemo();
+}
+
 /* route → handler module (mirrors Vercel's /api folder) */
 const routes = {
   "GET /api/bundles": require("../api/bundles.js"),
@@ -38,6 +46,7 @@ const routes = {
   "POST /api/admin/login": require("../api/admin/login.js"),
   "GET /api/admin/float": require("../api/admin/float.js"),
   "POST /api/admin/float/topup": require("../api/admin/float.js"),
+  "POST /api/admin/float/seed": require("../api/admin/float.js"),
   "GET /api/admin/orders": require("../api/admin/orders.js"),
   "POST /api/admin/orders/retry": require("../api/admin/orders.js"),
   "GET /api/admin/pl": require("../api/admin/pl.js"),
@@ -102,5 +111,8 @@ server.listen(PORT, () => {
   console.log(`  Status     : http://localhost:${PORT}/status.html`);
   console.log(`  Admin      : http://localhost:${PORT}/admin.html  (password: ${process.env.ADMIN_PASSWORD})`);
   console.log(`  Mock DB    : ${process.env.SUPABASE_MOCK === "1" ? "in-memory (SUPABASE_MOCK=1)" : "Supabase"}`);
-  console.log(`  Sim payment: node scripts/sim-webhook.js --ref <reference>\n`);
+  console.log(`  Sim payment: node scripts/sim-webhook.js --ref <reference>`);
+  if (demoSeed && demoSeed.skipped) console.log(`  Demo seed  : present (skipped — orders already loaded)`);
+  else if (demoSeed) console.log(`  Demo seed  : ${demoSeed.counts.orders} orders, ${demoSeed.counts.customers} customers, ${demoSeed.counts.float_ledger} float entries (SEED_DEMO=1)`);
+  console.log("");
 });

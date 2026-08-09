@@ -36,6 +36,12 @@ for the full tour, including how to simulate payments
 (`node scripts/sim-webhook.js --ref VD-260806-XXXX`) and exercise every
 failure path (duplicate webhook, bad signature, wrong amount, retry).
 
+Want a pre-populated storefront instead of an empty one?
+`cd app && SEED_DEMO=1 npm run dev` — loads ~50 realistic demo orders, 5 demo
+customer accounts (PINs in `app/README.md`), a consistent float ledger and the
+webhook audit log. `node scripts/seed-demo.js --sql` regenerates the demo seed
+for a DEMO/staging Supabase (`app/supabase/seed-demo.sql`).
+
 ## The five non-negotiables
 
 1. **Idempotency** — `orders.provider_reference` is UNIQUE and claimed with a

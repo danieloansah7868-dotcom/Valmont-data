@@ -63,6 +63,30 @@
     location.reload();
   });
 
+  /* ---------- seed initial float (one click, fresh deploy) ---------- */
+  const seedBtn = $("#seedFloatBtn");
+  if (seedBtn) {
+    seedBtn.addEventListener("click", async () => {
+      seedBtn.disabled = true;
+      seedBtn.textContent = "Seeding…";
+      try {
+        const d = await api("/api/admin/float/seed", { method: "POST", body: "{}" });
+        const msg = $("#seedFloatMsg");
+        if (msg) {
+          msg.textContent = d.message + " · " + d.results
+            .map((r) => `${NET_NAMES[r.code] || r.code}: ${r.seeded ? "seeded " + fmt(d.seed_amount) : "already has " + fmt(r.balance)}`)
+            .join(" · ");
+        }
+        loadFloat();
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        seedBtn.disabled = false;
+        seedBtn.textContent = "Seed initial float (GH₵500 / network)";
+      }
+    });
+  }
+
   /* ---------- tabs ---------- */
   $$(".admin-tab").forEach((t) =>
     t.addEventListener("click", () => {
