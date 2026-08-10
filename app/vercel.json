@@ -2,8 +2,13 @@
   "crons": [
     {
       "path": "/api/cron/retry",
-     "schedule": "0 7 * * *"
+      "schedule": "0 7 * * *"
     }
+  ],
+  "rewrites": [
+    { "source": "/api/admin/:path*", "destination": "/api/admin" },
+    { "source": "/api/account/:path*", "destination": "/api/account" },
+    { "source": "/api/auth/customer/:path*", "destination": "/api/auth/customer" }
   ],
   "headers": [
     {

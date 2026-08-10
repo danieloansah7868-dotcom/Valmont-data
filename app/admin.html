@@ -53,6 +53,7 @@
 
           <div class="admin-tabs">
             <button class="admin-tab on" data-tab="float">Float</button>
+            <button class="admin-tab" data-tab="prices">Prices &amp; Sync</button>
             <button class="admin-tab" data-tab="orders">Orders</button>
             <button class="admin-tab" data-tab="pl">P&amp;L</button>
             <button class="admin-tab" data-tab="webhooks">Webhook log</button>
@@ -84,6 +85,69 @@
             <div class="table-wrap"><table><thead><tr><th>When</th><th>Network</th><th>Direction</th><th>Amount</th><th>Balance</th><th>Note</th></tr></thead><tbody id="ledgerBody"></tbody></table></div>
           </div>
 
+          <!-- PRICES & SYNC -->
+          <div id="tab-prices" style="display:none">
+            <div class="card" style="background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:24px;margin-bottom:20px">
+              <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px">
+                <div>
+                  <h3 style="color:#fff;font-size:18px;margin-bottom:4px">RemaData Price Sync</h3>
+                  <p style="font-size:13.5px;color:var(--muted)">Fetch real-time wholesale bundle costs from RemaData, review margins, and update catalogue prices safely.</p>
+                </div>
+                <button class="btn btn-orange btn-sm" id="btnSyncPrices">⚡ Sync prices from RemaData</button>
+              </div>
+              <div id="syncStatusMsg" style="margin-top:12px;font-size:13px"></div>
+            </div>
+
+            <div id="priceReviewArea" style="display:none">
+              <div class="toolbar" style="margin-top:0;margin-bottom:12px">
+                <h3 style="color:#fff;font-size:16px">Price Update Review</h3>
+                <div style="display:flex;gap:10px">
+                  <button class="btn btn-orange btn-sm" id="btnApplyPrices">Apply confirmed updates</button>
+                  <button class="btn btn-ghost btn-sm" id="btnCancelPrices">Cancel</button>
+                </div>
+              </div>
+              <p style="font-size:12.5px;color:var(--muted);margin-bottom:12px">Review cost changes before applying. Bundles marked in red are selling at or below cost price. Suggested sell price is <b>cost × 1.15</b> rounded to GH₵0.10.</p>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Network</th>
+                      <th>Size</th>
+                      <th>Current Cost</th>
+                      <th>New Wholesale Cost</th>
+                      <th>Current Sell</th>
+                      <th>Current Margin</th>
+                      <th>Suggested Sell (+15%)</th>
+                      <th>New Margin</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="priceReviewBody"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Current Bundles Catalog -->
+            <div id="currentCatalogArea">
+              <h3 style="color:#fff;font-size:15px;margin-top:18px;margin-bottom:12px">Current Active Bundles</h3>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Network</th>
+                      <th>Size</th>
+                      <th>Validity</th>
+                      <th>Cost Price</th>
+                      <th>Sell Price</th>
+                      <th>Gross Margin</th>
+                    </tr>
+                  </thead>
+                  <tbody id="catalogBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
           <!-- ORDERS -->
           <div id="tab-orders" style="display:none">
             <form id="orderFilters" class="filters">
@@ -111,8 +175,8 @@
           <!-- P&L -->
           <div id="tab-pl" style="display:none">
             <div class="filters">
-              <button class="btn btn-ghost btn-sm" data-days="7">Last 7 days</button>
-              <button class="btn btn-orange btn-sm" data-days="30">Last 30 days</button>
+              <button class="btn btn-orange btn-sm" data-days="7">Last 7 days</button>
+              <button class="btn btn-ghost btn-sm" data-days="30">Last 30 days</button>
             </div>
             <div class="table-wrap"><table>
               <thead><tr><th>Day</th><th>Network</th><th>Orders</th><th>Revenue</th><th>Cost</th><th>Margin</th></tr></thead>

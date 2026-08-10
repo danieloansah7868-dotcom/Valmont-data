@@ -326,10 +326,14 @@ function seedDemo(now = new Date()) {
   };
 }
 
+function isConfigured() {
+  return Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
+}
+
 /* ---------------- exported db API ---------------- */
 const db = {
   async select(opts) {
-    if (MOCK) return mockSelect(opts);
+    if (MOCK || !isConfigured()) return mockSelect(opts);
     const qs = new URLSearchParams();
     if (opts.select) qs.set("select", opts.select);
     for (const [k, v] of Object.entries(opts.where || {})) qs.append(k, v);
@@ -338,7 +342,7 @@ const db = {
     return rest(`/rest/v1/${opts.from}?${qs}`);
   },
   async insert(from, row, { returning = true } = {}) {
-    if (MOCK) return mockInsert(from, row);
+    if (MOCK || !isConfigured()) return mockInsert(from, row);
     return rest(`/rest/v1/${from}`, {
       method: "POST",
       body: row,
@@ -346,7 +350,7 @@ const db = {
     });
   },
   async update(from, fields, where) {
-    if (MOCK) return mockUpdate(from, fields, where);
+    if (MOCK || !isConfigured()) return mockUpdate(from, fields, where);
     const qs = new URLSearchParams(where);
     return rest(`/rest/v1/${from}?${qs}`, {
       method: "PATCH",
@@ -355,7 +359,7 @@ const db = {
     });
   },
   async delete(from, where) {
-    if (MOCK) return mockDelete(from, where);
+    if (MOCK || !isConfigured()) return mockDelete(from, where);
     const qs = new URLSearchParams(where);
     return rest(`/rest/v1/${from}?${qs}`, {
       method: "DELETE",
@@ -363,9 +367,9 @@ const db = {
     });
   },
   async rpc(name, args = {}) {
-    if (MOCK) return mockRpc(name, args);
+    if (MOCK || !isConfigured()) return mockRpc(name, args);
     return rest(`/rest/v1/rpc/${name}`, { method: "POST", body: args });
   },
 };
 
-module.exports = { db, MOCK, seedDemo };
+module.exports = { db, MOCK, isConfigured, seedDemo };

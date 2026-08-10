@@ -22,34 +22,22 @@
     }
     .top-banner {
       width: 100%;
-      background: rgba(255, 140, 0, 0.1);
+      background: rgba(245, 140, 20, 0.1);
       color: var(--orange);
       text-align: center;
       padding: 10px 20px;
       font-size: 13px;
-      font-weight: 500;
-      border-bottom: 1px solid rgba(255, 140, 0, 0.2);
+      font-weight: 600;
+      border-bottom: 1px solid rgba(245, 140, 20, 0.25);
     }
     .brand-header {
       margin: 40px 0 30px;
       text-align: center;
     }
-    .brand-header .logo {
-      color: var(--orange);
-      font-size: 28px;
-      vertical-align: middle;
-      margin-right: 8px;
-    }
-    .brand-header .title {
-      font-size: 22px;
-      font-weight: 800;
-      color: var(--white);
-      letter-spacing: -0.5px;
-    }
     .brand-header .subtitle {
       color: var(--muted);
-      font-size: 14px;
-      margin-top: 4px;
+      font-size: 13.5px;
+      margin-top: 6px;
     }
     
     .skip-card {
@@ -170,6 +158,7 @@
     .inp:focus {
       outline: none;
       border-color: var(--orange);
+      box-shadow: 0 0 0 4px var(--orange-glow);
       background: rgba(0,0,0,0.4);
     }
     
@@ -184,7 +173,7 @@
       text-decoration: none;
       font-weight: 600;
     }
-    .bottom-links a:hover { text-decoration: underline; }
+    .bottom-links a:hover { text-decoration: underline; color: var(--orange-2); }
   </style>
 </head>
 <body>
@@ -194,9 +183,10 @@
   </div>
 
   <div class="brand-header">
-    <div class="title" style="display:flex; justify-content:center; align-items:center; gap:10px;">
-      <img src="assets/img/brand-logo.png" alt="Valmont Data" style="width:240px;height:auto;">
-      <div style="text-align:left; font-size:22px; font-weight:800; color:var(--white);">VALMONT<span style="color:var(--orange)">DATA</span></div>
+    <div class="title" style="display:flex; justify-content:center; align-items:center;">
+      <a href="/" title="Valmont Data — Home">
+        <img src="assets/img/brand-logo.png" alt="Valmont Data" class="brand-banner" style="height:44px;width:auto;">
+      </a>
     </div>
     <div class="subtitle">By Valmont Group · Accra</div>
   </div>

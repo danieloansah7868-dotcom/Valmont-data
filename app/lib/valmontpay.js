@@ -1,75 +1,104 @@
 /* ============================================================================
    Valmont-Pay client (tenant #3) + webhook signature verification.
 
-   Valmont-Pay is our own multi-tenant gateway:
-   - per-tenant API key → Authorization: Bearer <VALMONTPAY_API_KEY>
-   - webhooks signed with HMAC-SHA512 → header `x-valmontpay-signature`
-   - key rotation supported: webhook secret is read from env at call time
-
-   The exact checkout/refund endpoint paths follow the gateway's REST
-   convention — adjust createCheckout()/refund() if the live API differs
-   (ask the Valmont-Pay team for the tenant onboarding pack).
+   Live Valmont-Pay gateway contract (tenant: valmontdata):
+   - POST {VALMONTPAY_API_URL}/transaction/initialize with Bearer token
+   - Amounts in GHS cedis (major units, JSON number e.g. 23.50, never pesewas)
+   - Webhooks delivered with event `charge.success`
+   - Signed with HMAC-SHA512 in header `x-valmontpay-signature`
+   - Key rotation supported: webhook secret is read from env at call time
    ============================================================================ */
 
 const crypto = require("crypto");
 
-const VP_BASE = () => (process.env.VALMONTPAY_API_URL || "").replace(/\/$/, "");
+const VP_BASE = () => (process.env.VALMONTPAY_API_URL || "https://valmontpay.app/api").replace(/\/$/, "");
 const VP_KEY = () => process.env.VALMONTPAY_API_KEY || "";
 const VP_SECRET = () => process.env.VALMONTPAY_WEBHOOK_SECRET || "";
 
 function configured() {
-  return !!(VP_BASE() && VP_KEY() && VP_SECRET());
+  return !!(VP_KEY() && VP_SECRET());
 }
 
-/** Create a checkout session. Returns { checkout_url, ... } or throws. */
-async function createCheckout({ reference, amount, phone, description, returnUrl, webhookUrl }) {
+function getEndpoint(path) {
+  const base = VP_BASE();
+  const cleanPath = path.startsWith("/") ? path : `/${path}`;
+  if (base.endsWith("/api")) {
+    return `${base}${cleanPath}`;
+  }
+  return `${base}/api${cleanPath}`;
+}
+
+/** Create a checkout session on the live Valmont-Pay gateway. Returns { checkout_url, ... } or throws. */
+async function createCheckout({ reference, amount, phone, email, description, returnUrl, webhookUrl }) {
   if (!configured()) {
-    // Dev mode: no gateway yet — the caller shows a "simulate payment" path.
+    // Dev mode: no gateway configured — the caller shows a "simulate payment" path.
     return { checkout_url: null, dev: true };
   }
-  const res = await fetch(`${VP_BASE()}/checkouts`, {
+
+  // Amount must strictly be a JSON number in cedis (major units)
+  const numAmount = Number(Number(amount).toFixed(2));
+  const customerEmail = (email && email.includes("@"))
+    ? email.trim()
+    : (phone ? `${String(phone).replace(/\D/g, "")}@valmontdata.com` : "customer@valmontdata.com");
+  const callbackUrl = returnUrl || "";
+
+  const payload = {
+    amount: numAmount,
+    reference,
+    email: customerEmail,
+    phone: phone || "",
+    callback_url: callbackUrl,
+    currency: "GHS"
+  };
+
+  const endpoint = getEndpoint("/transaction/initialize");
+  const res = await fetch(endpoint, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${VP_KEY()}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      reference,                    // our order reference — echoed back in the webhook
-      amount,
-      currency: "GHS",
-      customer_phone: phone,
-      description,
-      return_url: returnUrl,
-      webhook_url: webhookUrl,
-    }),
+    body: JSON.stringify(payload),
   });
+
   const data = await res.json().catch(() => ({}));
-  if (!res.ok || !data.checkout_url) {
-    const err = new Error("Valmont-Pay checkout failed: " + (data.message || `HTTP ${res.status}`));
-    err.status = 502;
+  const respData = (data && data.data) ? data.data : data;
+  const targetUrl = (respData && (respData.checkout_url || respData.pay_url || respData.payment_url)) || null;
+
+  if (!res.ok || !targetUrl) {
+    const msg = (data && (data.message || data.error)) || `HTTP ${res.status}`;
+    const err = new Error("Valmont-Pay checkout failed: " + msg);
+    err.status = res.status || 502;
     throw err;
   }
-  return data;
+
+  return {
+    ...respData,
+    checkout_url: targetUrl,
+    pay_url: (respData && respData.pay_url) || targetUrl,
+    access_code: (respData && respData.access_code) || null,
+    reference: (respData && respData.reference) || reference,
+  };
 }
 
 /** Verify x-valmontpay-signature: HMAC-SHA512 of the raw body with our tenant secret. */
 function verifySignature(rawBody, signature) {
-  if (!VP_SECRET() || !signature) return false;
-  const expected = crypto.createHmac("sha512", VP_SECRET()).update(rawBody).digest("hex");
-  const provided = String(signature).trim();
-  if (expected.length !== provided.length) return false;
-  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(provided));
+  if (!VP_SECRET() || !signature || !rawBody) return false;
+  try {
+    const expected = crypto.createHmac("sha512", VP_SECRET()).update(rawBody).digest("hex");
+    const provided = String(signature).trim().toLowerCase();
+    if (expected.length !== provided.length) return false;
+    return crypto.timingSafeEqual(Buffer.from(expected, "utf8"), Buffer.from(provided, "utf8"));
+  } catch {
+    return false;
+  }
 }
 
-/** Refund a payment (used by the auto-refund path). */
+/** Refund a payment (live Valmont-Pay gateway does not expose automated refunds; requires manual handling). */
 async function refund(providerReference) {
   if (!configured()) return { dev: true };
-  const res = await fetch(`${VP_BASE()}/refunds`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${VP_KEY()}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ provider_reference: providerReference }),
-  });
-  return res.json().catch(() => ({}));
+  console.warn(`[VALMONTPAY] Manual refund required for provider reference: ${providerReference} (automated refund endpoint not supported by gateway)`);
+  throw new Error(`Valmont-Pay manual refund required: automated refund endpoint not supported for reference ${providerReference}`);
 }
 
 module.exports = { configured, createCheckout, verifySignature, refund };

@@ -206,14 +206,14 @@
     if (!grid) return;
     const list = state.bundles.filter((b) => b.network === state.currentNet);
     if (!list.length) {
-      grid.innerHTML = '<p style="color:var(--muted)">No bundles for this network yet.</p>';
+      grid.innerHTML = '<p style="color:var(--muted);padding:20px">No bundles for this network yet.</p>';
       return;
     }
     grid.innerHTML = list
       .map((b) => {
         const disabled = !b.available ? "disabled" : "";
         const tag = b.available ? "" : '<span class="soldout soft">Back soon</span>';
-        return `<button class="bundle ${disabled}" data-bundle="${b.id}" ${disabled ? "disabled" : ""}>
+        return `<button class="bundle ${b.network} ${disabled}" data-bundle="${b.id}" ${disabled ? "disabled" : ""}>
           ${tag}
           <div class="net ${b.network}">${NETWORK_NAMES[b.network]}</div>
           <div class="gb">${(b.size_mb / 1024)}${b.size_mb >= 1024 ? "GB" : "MB"}</div>
@@ -548,7 +548,7 @@
         <h3>Buy ${bundle.size_mb / 1024}GB — ${NETWORK_NAMES[bundle.network]}</h3>
         <div class="m-sub">${validityLabel(bundle.validity_days)} · auto delivery</div>
         <div class="order-summary">
-          <div class="row"><span>Bundle</span><b>${bundle.size_mb / 1024}GB ${NETWORK_NAMES[bundle.network]} Data</b></div>
+          <div class="row"><span>Bundle</span><b>${bundle.size_mb / 1024}GB <span class="net-chip ${bundle.network}">${NETWORK_NAMES[bundle.network]}</span> Data</b></div>
           <div class="row total"><span>Total</span><b>${fmt(bundle.price)}</b></div>
         </div>
 
@@ -636,7 +636,7 @@
         <h3>Confirm your order</h3>
         <div class="m-sub">Check the number twice — misdials are unrecoverable.</div>
         <div class="order-summary">
-          <div class="row"><span>Bundle</span><b>${b.size_mb / 1024}GB ${NETWORK_NAMES[b.network]}</b></div>
+          <div class="row"><span>Bundle</span><b>${b.size_mb / 1024}GB <span class="net-chip ${b.network}">${NETWORK_NAMES[b.network]}</span></b></div>
           <div class="row"><span>Validity</span><b>${validityLabel(b.validity_days)}</b></div>
           <div class="row total"><span>Total</span><b>${fmt(b.price)}</b></div>
         </div>
@@ -705,6 +705,97 @@
     w.appendChild(t);
     setTimeout(() => t.remove(), 4500);
   }
+
+  /* ---------- Refer & Earn modal ---------- */
+  function openReferModal() {
+    const m = $("#referModal") || (function() {
+      const d = document.createElement("div");
+      d.id = "referModal";
+      d.className = "modal-back";
+      document.body.appendChild(d);
+      return d;
+    })();
+
+    const refCode = state.customerInfo?.phone ? state.customerInfo.phone.slice(-4) : "VD77";
+    const shareUrl = `${window.location.origin}/?ref=${encodeURIComponent(refCode)}`;
+    const shareText = encodeURIComponent(`Akosua referred and got 2GB free data on Valmont Data! 🎁 You can also buy the cheapest non-expiry MTN, Telecel & AirtelTigo bundles here: ${shareUrl}`);
+
+    m.innerHTML = `
+      <div class="modal" style="max-width:500px">
+        <button class="m-close" data-close aria-label="Close">×</button>
+        <div style="text-align:center;margin-bottom:18px">
+          <div style="font-size:36px;margin-bottom:6px">🎁</div>
+          <h3 style="font-size:22px;color:var(--white)">Akosua referred &amp; got 2GB Free!</h3>
+          <p class="m-sub" style="margin-bottom:0">Share Valmont Data with friends. When friends buy data using your link, you earn bonus points and free data bundles instantly!</p>
+        </div>
+
+        <div class="field" style="margin-top:14px">
+          <label>Your Personal Referral Link</label>
+          <div class="inp-group">
+            <input class="inp" id="refLinkInp" value="${shareUrl}" readonly style="font-size:13.5px;font-family:monospace">
+            <button class="btn btn-orange btn-sm" id="btnCopyRefLink">Copy</button>
+          </div>
+        </div>
+
+        <div style="margin-top:18px">
+          <a class="btn btn-block" style="background:#25D366;color:#fff;font-size:15px;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:8px"
+             href="https://api.whatsapp.com/send?text=${shareText}" target="_blank" rel="noopener">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12.01 2.01c-5.46 0-9.89 4.43-9.89 9.89 0 1.74.45 3.44 1.32 4.94l-1.4 5.12 5.24-1.38c1.45.8 3.1 1.22 4.83 1.22 5.46 0 9.89-4.43 9.89-9.89s-4.43-9.89-9.89-9.89z"/></svg>
+            Share on WhatsApp 🚀
+          </a>
+        </div>
+
+        <div style="background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:12px;padding:14px;margin-top:20px;font-size:13px;color:var(--soft)">
+          <b style="color:var(--white);display:block;margin-bottom:6px">How it works:</b>
+          <ol style="margin-left:18px;line-height:1.6">
+            <li>Copy and send your link to friends or post on your WhatsApp Status.</li>
+            <li>When friends purchase any bundle, your account automatically accumulates referral credits.</li>
+            <li>Redeem accumulated credits for free MTN, Telecel, or AirtelTigo bundles anytime.</li>
+          </ol>
+        </div>
+      </div>
+    `;
+
+    m.classList.add("open");
+    $("[data-close]", m)?.addEventListener("click", () => m.classList.remove("open"));
+    m.addEventListener("click", (e) => { if (e.target === m) m.classList.remove("open"); });
+
+    $("#btnCopyRefLink", m)?.addEventListener("click", () => {
+      const inp = $("#refLinkInp", m);
+      if (inp) {
+        inp.select();
+        navigator.clipboard?.writeText(inp.value).catch(() => {});
+        toast("Referral link copied to clipboard! 📋");
+      }
+    });
+  }
+
+  // Check for incoming referral code from URL (?ref=XYZ)
+  const urlRef = new URLSearchParams(window.location.search).get("ref");
+  if (urlRef) {
+    localStorage.setItem("vd_referrer", urlRef);
+  }
+
+  // Wire quick links
+  document.addEventListener("DOMContentLoaded", () => {
+    $("#linkReferEarn")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      openReferModal();
+    });
+    $("#heroReferBtn")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      openReferModal();
+    });
+    $$('a[href="#refer"]').forEach((a) =>
+      a.addEventListener("click", (e) => {
+        e.preventDefault();
+        openReferModal();
+      })
+    );
+    $("#btnLiveChat")?.addEventListener("click", () => {
+      window.open("https://wa.me/233542451578", "_blank", "noopener");
+    });
+  });
 
   loadBundles().catch((e) => {
     if ($("#bundleGrid")) {

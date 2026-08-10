@@ -95,9 +95,9 @@ purchase time so historical P&L stays accurate.
 ## 3 · Valmont-Pay — tenant #3 (payments)
 
 1. Get the **tenant onboarding pack** from the Valmont-Pay team:
-   - tenant API key → `VALMONTPAY_API_KEY`
+   - tenant API key → `VALMONTPAY_API_KEY` (`sk_valmontdata_...`)
    - webhook signing secret → `VALMONTPAY_WEBHOOK_SECRET`
-   - gateway base URL → `VALMONTPAY_API_URL`
+   - gateway base URL → `VALMONTPAY_API_URL` (`https://valmontpay.app/api`)
 2. Register the webhook URL in the gateway dashboard:
    ```
    https://<your-domain>/api/valmontpay/webhook
@@ -106,10 +106,10 @@ purchase time so historical P&L stays accurate.
 
    | Item | Expected |
    |---|---|
-   | Checkout creation | `POST /checkouts` with `reference, amount, currency=GHS, customer_phone, return_url, webhook_url` → `{ checkout_url }` |
-   | Webhook event | `payment.succeeded` with `{ provider_reference, reference, amount }` |
-   | Signature | `x-valmontpay-signature` = hex HMAC-SHA512 of the **raw** body with the tenant webhook secret |
-   | Refunds | `POST /refunds` with `{ provider_reference }` |
+   | Checkout creation | `POST /api/transaction/initialize` with `Authorization: Bearer <VALMONTPAY_API_KEY>` and JSON body `{ amount, reference, email, phone, callback_url, currency: "GHS" }` (amount in GHS major units) → `{ data: { pay_url, checkout_url, access_code } }` |
+   | Webhook event | `charge.success` with `{ event: "charge.success", data: { reference, status: "success", amount, currency, channel, gateway_reference, merchant } }` |
+   | Signature | `x-valmontpay-signature` = hex HMAC-SHA512 of the **raw** body with `VALMONTPAY_WEBHOOK_SECRET` |
+   | Refunds | Manual refund (automated refund endpoint not exposed on live gateway) |
 
    If the live gateway differs, adjust `createCheckout()` / `refund()` there —
    nothing else in the app knows gateway paths.
@@ -138,7 +138,7 @@ purchase time so historical P&L stays accurate.
    | `ADMIN_PASSWORD` | strong password for `/admin.html` |
    | `AUTH_SECRET` | long random string (session & customer auth tokens) |
    | `SUPPLIER_DRIVER` | `mock` until step 5, then `remadata` |
-   | `REMADATA_API_KEY` / `REMADATA_PLANS` | from step 5 |
+   | `REMADATA_API_KEY` | from step 5 |
    | `LOW_FLOAT_THRESHOLD` | e.g. `50` |
    | `NOTIFY_WEBHOOK_URL` | optional — WhatsApp/SMS alerts worker |
 
@@ -152,16 +152,9 @@ purchase time so historical P&L stays accurate.
 ## 5 · RemaData — the supplier (float!)
 
 1. Create a free account at [remadata.com](https://remadata.com) → copy your
-   API key → set `REMADATA_API_KEY`.
-2. Map every bundle you sell to a RemaData **plan_id** and export
-   `REMADATA_PLANS`, keyed by network → size in MB:
-
-   ```json
-   REMADATA_PLANS={"mtn":{"1024":1001,"2048":1002,"10240":1003},"telecel":{"10240":2001},"airteltigo":{"1024":3001}}
-   ```
-
-   (`starter-nextjs/scripts/sync-prices.js` prints this line from a
-   `plans.json` export if you prefer a helper.)
+   API key → set `REMADATA_API_KEY` in Vercel environment variables.
+2. Direct API integration: RemaData purchases are placed directly with
+   `volumeInMB`, `networkType`, `phone`, and `ref` (no `plan_id` mapping required).
 3. Fund your RemaData wallet — this **is your float**. Each successful delivery
    debits it at `cost_price`; the app tracks the same float in `float_ledger`
    so the storefront can refuse sales it cannot fulfil.
@@ -169,7 +162,11 @@ purchase time so historical P&L stays accurate.
 5. **Record the same top-up in the admin console** (`/admin.html` → Float →
    Top-up, per network). The admin float must mirror the supplier wallet, or
    the float guard cannot protect you.
-6. Set `LOW_FLOAT_THRESHOLD` — the cron job alerts you (via
+6. **Sync Wholesale Prices in Admin**: In `/admin.html` → **Prices & Sync**,
+   click **Sync prices from RemaData** to fetch live wholesale costs, review
+   gross margins with auto-calculated recommendations (1.15× cost), and apply
+   updates in one click.
+7. Set `LOW_FLOAT_THRESHOLD` — the cron job alerts you (via
    `NOTIFY_WEBHOOK_URL`) when float drops below it. **Never run float dry.**
 
 > **Fresh deploy showing everything "RESTOCKING"?** That's the float guard, not
@@ -214,7 +211,7 @@ an order — the race-condition path must **auto-refund** and mark the webhook
 | All bundles show "unavailable" | Float is zero (or `float_ledger` empty) — top up in admin |
 | Order stuck `pending` | No webhook arrived — check gateway dashboard + `webhook_log` in admin |
 | Order `pending` + webhook shows 401 | Wrong `VALMONTPAY_WEBHOOK_SECRET` — signature mismatch |
-| Order delivered but no supplier credit | `REMADATA_PLANS` missing that size, or wrong API key — see order's `supplier_response` |
+| Order delivered but no supplier credit | Wrong API key or supplier wallet empty — see order's `supplier_response` |
 | `delivery failed`, then delivered after admin retry | Supplier hiccup; cron would have retried within 15 min anyway (max 3 attempts) |
 | Webhook logged "unknown order" | `reference` mismatch between checkout and order — log a reconciliation ticket with the supplier payload |
 | P&L empty | `daily_pnl()` reads **completed** deliveries only — finish the smoke test first |
@@ -223,11 +220,11 @@ an order — the race-condition path must **auto-refund** and mark the webhook
 
 ## 8 · Go-live checklist
 
-- [ ] `npm test` green locally (37/37)
+- [ ] `npm test` green locally (40/40)
 - [ ] `schema.sql` run in Supabase; RLS sanity-checked (customers & saved_numbers tables added)
 - [ ] All env vars set in Vercel; `SUPABASE_MOCK` **not** set
 - [ ] Valmont-Pay webhook registered + signature verified end-to-end
-- [ ] `SUPPLIER_DRIVER=remadata` + `REMADATA_PLANS` covers every active bundle
+- [ ] `SUPPLIER_DRIVER=remadata` + `REMADATA_API_KEY` set
 - [ ] Supplier float funded **and** mirrored in admin (per network)
 - [ ] `LOW_FLOAT_THRESHOLD` + `NOTIFY_WEBHOOK_URL` set
 - [ ] Live smoke test order delivered; P&L row present; data arrived
