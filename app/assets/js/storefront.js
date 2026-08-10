@@ -718,15 +718,15 @@
 
     const refCode = state.customerInfo?.phone ? state.customerInfo.phone.slice(-4) : "VD77";
     const shareUrl = `${window.location.origin}/?ref=${encodeURIComponent(refCode)}`;
-    const shareText = encodeURIComponent(`Buy the cheapest non-expiry MTN, Telecel & AirtelTigo data in Ghana on Valmont Data! Use my link: ${shareUrl}`);
+    const shareText = encodeURIComponent(`Akosua referred and got 2GB free data on Valmont Data! 🎁 You can also buy the cheapest non-expiry MTN, Telecel & AirtelTigo bundles here: ${shareUrl}`);
 
     m.innerHTML = `
       <div class="modal" style="max-width:500px">
         <button class="m-close" data-close aria-label="Close">×</button>
         <div style="text-align:center;margin-bottom:18px">
           <div style="font-size:36px;margin-bottom:6px">🎁</div>
-          <h3 style="font-size:22px;color:var(--white)">Refer Friends &amp; Earn Data</h3>
-          <p class="m-sub" style="margin-bottom:0">Share Valmont Data with friends. Every time a friend buys data using your link, you earn commission &amp; free data points!</p>
+          <h3 style="font-size:22px;color:var(--white)">Akosua referred &amp; got 2GB Free!</h3>
+          <p class="m-sub" style="margin-bottom:0">Share Valmont Data with friends. When friends buy data using your link, you earn bonus points and free data bundles instantly!</p>
         </div>
 
         <div class="field" style="margin-top:14px">
@@ -741,7 +741,7 @@
           <a class="btn btn-block" style="background:#25D366;color:#fff;font-size:15px;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:8px"
              href="https://api.whatsapp.com/send?text=${shareText}" target="_blank" rel="noopener">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12.01 2.01c-5.46 0-9.89 4.43-9.89 9.89 0 1.74.45 3.44 1.32 4.94l-1.4 5.12 5.24-1.38c1.45.8 3.1 1.22 4.83 1.22 5.46 0 9.89-4.43 9.89-9.89s-4.43-9.89-9.89-9.89z"/></svg>
-            Share on WhatsApp
+            Share on WhatsApp 🚀
           </a>
         </div>
 
@@ -770,9 +770,19 @@
     });
   }
 
+  // Check for incoming referral code from URL (?ref=XYZ)
+  const urlRef = new URLSearchParams(window.location.search).get("ref");
+  if (urlRef) {
+    localStorage.setItem("vd_referrer", urlRef);
+  }
+
   // Wire quick links
   document.addEventListener("DOMContentLoaded", () => {
     $("#linkReferEarn")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      openReferModal();
+    });
+    $("#heroReferBtn")?.addEventListener("click", (e) => {
       e.preventDefault();
       openReferModal();
     });

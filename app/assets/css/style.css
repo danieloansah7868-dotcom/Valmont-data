@@ -330,6 +330,49 @@ td .err { color: #ff9d92; font-size: 12px; }
 .badge-loss { display: inline-flex; align-items: center; background: rgba(255, 92, 77, 0.2); border: 1px solid var(--red); color: #ff9d92; font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 6px; }
 .badge-ok { display: inline-flex; align-items: center; background: rgba(47, 230, 143, 0.15); border: 1px solid rgba(47, 230, 143, 0.4); color: var(--green); font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 6px; }
 
+/* Social icons & community links */
+.social-links { display: flex; gap: 10px; align-items: center; margin-top: 14px; flex-wrap: wrap; }
+.social-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--line-strong);
+  color: var(--soft);
+  transition: var(--transition);
+}
+.social-btn:hover {
+  background: rgba(245, 140, 20, 0.15);
+  border-color: var(--orange);
+  color: var(--orange);
+  transform: translateY(-2px);
+}
+.social-btn.wa:hover { background: rgba(37, 211, 102, 0.15); border-color: #25D366; color: #25D366; }
+.social-btn.fb:hover { background: rgba(24, 119, 242, 0.15); border-color: #1877f2; color: #1877f2; }
+.social-btn.tt:hover { background: rgba(254, 44, 85, 0.15); border-color: #fe2c55; color: #fe2c55; }
+
+/* Referral highlight banner */
+.ref-vision-banner {
+  background: linear-gradient(90deg, rgba(245, 140, 20, 0.15), rgba(37, 211, 102, 0.12));
+  border: 1px solid rgba(245, 140, 20, 0.35);
+  border-radius: 999px;
+  padding: 8px 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13.5px;
+  color: var(--white);
+  margin-bottom: 22px;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.25);
+}
+.ref-vision-banner b { color: var(--orange-2); }
+.ref-vision-banner a { color: var(--white); text-decoration: underline; font-weight: 700; }
+.ref-vision-banner a:hover { color: var(--orange); }
+
+
 /* ---------- footer ---------- */
 .footer { border-top: 1px solid var(--line); background: rgba(8, 17, 38, 0.7); margin-top: 30px; }
 .footer-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: 28px; padding: 40px 0 26px; }
