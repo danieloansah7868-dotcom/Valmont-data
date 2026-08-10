@@ -3,6 +3,7 @@
      GET    /api/account        → profile, time greeting, saved numbers, recent numbers, order history
      POST   /api/account/saved  → save a data line or MoMo number (max 10 per category)
      DELETE /api/account/saved  → remove a saved number
+     POST   /api/account/optin  → SMS marketing opt-in (public — storefront popup)
    ============================================================================ */
 
 const { json, readRawBody, wrap } = require("../lib/http");
@@ -170,7 +171,43 @@ async function del(req, res) {
   return json(res, 400, { error: "Number id or phone required for deletion" });
 }
 
+/* ---------- SMS marketing opt-in (public — no account needed) ----------
+   Storefront popup posts here after 10s of landing. Ghana mobile format is
+   validated server-side; the unique constraint keeps the list deduped. */
+async function optin(req, res) {
+  if (req.method !== "POST") return json(res, 405, { error: "POST only" });
+
+  const body = await readRawBody(req).then((b) => {
+    try { return JSON.parse(b); } catch { return null; }
+  });
+  if (!body) return json(res, 400, { error: "Invalid JSON" });
+
+  const check = phones.validate(body.phone);
+  if (!check.valid) return json(res, 400, { error: check.reason });
+
+  const source = String(body.source || "storefront-popup").slice(0, 60);
+
+  try {
+    const inserted = await db.insert("sms_leads", {
+      phone: check.normalized,
+      source,
+    });
+    return json(res, 201, { ok: true, phone: check.normalized, lead: inserted[0] });
+  } catch (e) {
+    if (e.status === 409 || e.message?.includes("unique constraint")) {
+      // Already opted in — treat as success so the popup still goes away.
+      return json(res, 200, { ok: true, duplicate: true, phone: check.normalized });
+    }
+    throw e;
+  }
+}
+
 module.exports = wrap(async (req, res) => {
+  const url = new URL(req.url, "http://local");
+
+  // Public SMS opt-in — no customer token required
+  if (url.pathname.includes("/optin")) return optin(req, res);
+
   if (req.method === "GET") return get(req, res);
   if (req.method === "POST") return post(req, res);
   if (req.method === "DELETE") return del(req, res);
