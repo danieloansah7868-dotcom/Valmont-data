@@ -11,6 +11,7 @@
      POST /api/admin/orders/retry
      GET  /api/admin/pl
      GET  /api/admin/webhooks
+     GET  /api/admin/sms-leads
      GET  /api/admin/remadata-prices
      GET  /api/admin/wallet-balance
      GET  /api/admin/bundles
@@ -21,6 +22,7 @@ const { json, readRawBody, wrap } = require("../lib/http");
 const { db } = require("../lib/supabase");
 const { requireAdmin, sign } = require("../lib/auth");
 const orders = require("../lib/orders");
+const phones = require("../lib/phones");
 const { getSupplier } = require("../lib/supplier");
 
 async function handler(req, res) {
@@ -168,6 +170,28 @@ async function handler(req, res) {
     const limit = Math.min(Number(url.searchParams.get("limit") || "20"), 100);
     const rows = await db.select({ from: "webhook_log", order: "id.desc", limit });
     return json(res, 200, { webhooks: rows });
+  }
+
+  // 5b. /api/admin/sms-leads — SMS marketing leads collected by the
+  // storefront popup. Each lead carries its detected network so the admin
+  // UI can segment; `phones` (flat list) is the 1-click copy source.
+  if (pathname.includes("/sms-leads")) {
+    if (req.method !== "GET") return json(res, 405, { error: "GET only" });
+    const limit = Math.min(Number(url.searchParams.get("limit") || "500"), 5000);
+    const rows = await db.select({ from: "sms_leads", order: "id.desc", limit });
+    const leads = rows.map((l) => ({
+      id: l.id,
+      phone: l.phone,
+      network: phones.detectNetwork(l.phone),
+      source: l.source,
+      created_at: l.created_at,
+    }));
+    return json(res, 200, {
+      ok: true,
+      count: leads.length,
+      leads,
+      phones: leads.map((l) => l.phone),
+    });
   }
 
   // 6. /api/admin/remadata-prices

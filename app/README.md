@@ -19,18 +19,18 @@ The **webhook handler is the heart of the system** (`api/valmontpay/webhook.js`)
 
 | Path | Purpose |
 |---|---|
-| `index.html` | Storefront — network tabs, bundle grid, customer accounts, saved numbers, time-based greeting, confirm-before-pay |
+| `index.html` | Storefront — network tabs, bundle grid, customer accounts, saved numbers, time-based greeting, confirm-before-pay, SMS opt-in popup (10s) |
 | `status.html` | Public order tracking by reference (no login) |
-| `admin.html` | Admin console — float, orders + retry, P&L, webhook audit |
+| `admin.html` | Admin console — float, orders + retry, P&L, SMS leads export (1-click copy), webhook audit |
 | `api/valmontpay/webhook.js` | ⚠️ Payment webhook: signature verify → idempotent claim → float guard → delivery |
 | `api/orders.js` | Create order (compulsory customer token, float guard #1, Valmont-Pay checkout) + public status |
 | `api/auth/customer.js` | Customer signup & login (scrypt password/PIN hash, 30-day HMAC token) |
-| `api/account.js` | Customer profile, time greeting ("Good morning, Kofi"), saved data/MoMo numbers (10/kind cap), order history |
+| `api/account.js` | Customer profile, time greeting ("Good morning, Kofi"), saved data/MoMo numbers (10/kind cap), order history, `POST /optin` (public SMS marketing opt-in) |
 | `api/bundles.js` | Public catalogue with server-side availability (never cost_price) |
-| `api/admin/*` | Login, float (+top-up), orders (+retry), P&L, webhook log |
+| `api/admin/*` | Login, float (+top-up), orders (+retry), P&L, SMS leads (`GET /sms-leads`), webhook log |
 | `api/cron/retry.js` | Daily cron (07:00 UTC) on Vercel Hobby + optional 15-min GitHub Actions pinger: retry failed deliveries (max 3), low-float alert |
 | `lib/` | `supabase.js` (data layer + mock), `valmontpay.js` (client + HMAC-SHA512), `supplier.js` (adapter), `orders.js` (engine), `phones.js`, `notify.js`, `auth.js` |
-| `supabase/schema.sql` | Tables (`customers`, `saved_numbers`, `orders`, `float_ledger`, etc.), RLS, functions, seeds — run once in Supabase |
+| `supabase/schema.sql` | Tables (`customers`, `saved_numbers`, `sms_leads`, `orders`, `float_ledger`, etc.), RLS, functions, seeds — run once in Supabase |
 | `supabase/seed-demo.sql` | **Demo seed** for DEMO/STAGING Supabase — customers, orders, float, webhook log (generated, self-skipping) |
 | `scripts/dev-server.js` | Zero-dependency local server (mock DB) |
 | `scripts/seed-demo.js` | Demo data: seed the mock DB (`SEED_DEMO=1`), verify consistency, or regenerate `supabase/seed-demo.sql` |

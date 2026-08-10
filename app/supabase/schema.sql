@@ -60,6 +60,17 @@ create table if not exists public.saved_numbers (
 );
 create index if not exists saved_numbers_customer_idx on public.saved_numbers(customer_id, kind);
 
+-- ---------- SMS LEADS (marketing opt-ins collected by the storefront popup) ----------
+-- Phone numbers of visitors who opted in to SMS promos. Unique phone so a
+-- repeat opt-in never duplicates the list (exported 1-click from /admin.html).
+create table if not exists public.sms_leads (
+  id          bigint generated always as identity primary key,
+  phone       text not null unique check (phone ~ '^0[0-9]{9}$'),
+  source      text not null default 'storefront-popup',
+  created_at  timestamptz not null default now()
+);
+create index if not exists sms_leads_created_idx on public.sms_leads(created_at desc);
+
 -- ---------- ORDERS ----------
 create table if not exists public.orders (
   id                  bigint generated always as identity primary key,
@@ -162,6 +173,7 @@ alter table public.networks      enable row level security;
 alter table public.bundles       enable row level security;
 alter table public.customers     enable row level security;
 alter table public.saved_numbers enable row level security;
+alter table public.sms_leads     enable row level security;
 alter table public.orders        enable row level security;
 alter table public.float_ledger  enable row level security;
 alter table public.webhook_log   enable row level security;
@@ -176,6 +188,10 @@ revoke all on public.bundles from anon;
 -- anon: no access to customer accounts or saved numbers
 revoke all on public.customers from anon;
 revoke all on public.saved_numbers from anon;
+
+-- anon: no direct access to SMS leads — opt-ins are written by the
+-- serverless function (service role) and exported from the admin console
+revoke all on public.sms_leads from anon;
 
 -- anon: may insert a pending order; may read only their own by reference
 -- (the reference IS the secret — same model as order tracking on the other sites)

@@ -48,10 +48,11 @@ const mockState = {
   bundles: [],
   customers: [],
   saved_numbers: [],
+  sms_leads: [],
   orders: [],
   float_ledger: [],
   webhook_log: [],
-  _seq: { bundles: 0, customers: 0, saved_numbers: 0, orders: 0, float_ledger: 0, webhook_log: 0 },
+  _seq: { bundles: 0, customers: 0, saved_numbers: 0, sms_leads: 0, orders: 0, float_ledger: 0, webhook_log: 0 },
 };
 
 // Seed bundles mirroring supabase/schema.sql
@@ -133,6 +134,13 @@ function mockInsert(from, row) {
   if (from === "saved_numbers") {
     if (mockState.saved_numbers.some((s) => s.customer_id === row.customer_id && s.kind === row.kind && s.phone === row.phone)) {
       const err = new Error("duplicate key value violates unique constraint on saved_numbers");
+      err.status = 409;
+      throw err;
+    }
+  }
+  if (from === "sms_leads") {
+    if (mockState.sms_leads.some((s) => s.phone === row.phone)) {
+      const err = new Error("duplicate key value violates unique constraint on sms_leads_phone");
       err.status = 409;
       throw err;
     }

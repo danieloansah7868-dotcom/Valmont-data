@@ -310,6 +310,37 @@ section { padding: 48px 0; }
 .big-number { font-size: 24px; font-weight: 900; color: var(--white); letter-spacing: 0.5px; text-align: center; background: rgba(255,255,255,0.04); border: 1px dashed var(--line-strong); border-radius: 14px; padding: 14px; margin: 12px 0; }
 .demo-note { font-size: 12px; color: var(--muted); background: rgba(245, 140, 20, 0.07); border: 1px dashed rgba(245, 140, 20, 0.35); border-radius: 10px; padding: 9px 12px; margin-top: 14px; }
 
+/* ---------- SMS lead capture popup (Datamart-style solid vibrant card) ---------- */
+.sms-lead-modal { max-width: 440px; padding: 0; overflow: hidden; border: none; }
+.sms-lead-hero {
+  background: linear-gradient(135deg, #FFCB05 0%, #F58C14 100%);
+  color: #0b1a38;
+  padding: 30px 26px 24px;
+  text-align: center;
+  position: relative;
+}
+.sms-lead-hero::after {
+  content: "";
+  position: absolute; left: 0; right: 0; bottom: -1px; height: 14px;
+  background: var(--navy-2);
+  border-radius: 18px 18px 0 0;
+}
+.sms-lead-emoji {
+  width: 58px; height: 58px; margin: 0 auto 12px;
+  background: #0b1a38; border-radius: 18px;
+  display: grid; place-items: center;
+  font-size: 28px;
+  box-shadow: 0 8px 22px rgba(11, 26, 56, 0.35);
+}
+.sms-lead-hero h3 { color: #0b1a38; font-size: 21px; line-height: 1.25; margin-bottom: 8px; font-weight: 900; }
+.sms-lead-hero p { color: rgba(11, 26, 56, 0.82); font-size: 13.5px; font-weight: 600; margin: 0; }
+.sms-lead-modal .field, .sms-lead-modal .btn { margin-left: 26px; margin-right: 26px; width: calc(100% - 52px); }
+.sms-lead-modal .btn { padding: 13px 20px; }
+.sms-lead-modal .field label { color: var(--soft); }
+.sms-lead-modal .m-close { color: rgba(11, 26, 56, 0.6); z-index: 2; }
+.sms-lead-modal .m-close:hover { color: #0b1a38; }
+.sms-lead-modal .btn-ghost { margin-bottom: 24px; }
+
 /* ---------- account panel ---------- */
 .account-panel { display: grid; gap: 18px; }
 .profile-greeting-box { background: linear-gradient(135deg, rgba(245, 140, 20, 0.15), rgba(77,159,255,0.1)); border: 1px solid rgba(245, 140, 20, 0.3); border-radius: 14px; padding: 16px; text-align: center; }

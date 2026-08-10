@@ -789,6 +789,106 @@
     });
   }
 
+  /* ---------- SMS lead collection popup (marketing opt-in) ----------
+     Auto-triggers 10s after landing on the storefront. Ghana mobile format
+     is validated live (prefix + length). On successful submission we set
+     localStorage["vd_sms_opted_in"] = "1" so the popup NEVER shows again
+     for that user. Closing without opting in may re-prompt next visit. */
+  function openSmsLeadPopup() {
+    if (localStorage.getItem("vd_sms_opted_in") === "1") return;
+    if ($("#smsLeadModal")) return; // already open
+
+    const m = document.createElement("div");
+    m.id = "smsLeadModal";
+    m.className = "modal-back";
+    m.innerHTML = `
+      <div class="modal sms-lead-modal">
+        <button class="m-close" data-close aria-label="Close">×</button>
+        <div class="sms-lead-hero">
+          <div class="sms-lead-emoji">📲</div>
+          <h3>Get Exclusive Data Deals via SMS!</h3>
+          <p>Flash discounts, bonus bundles &amp; price drops — straight to your phone. No spam, opt out anytime.</p>
+        </div>
+
+        <div class="field" style="margin-top:18px">
+          <label for="slp-phone">Your Ghana mobile number</label>
+          <input class="inp" id="slp-phone" inputmode="tel" autocomplete="tel" placeholder="e.g. 024 000 0000">
+          <div class="hint" id="slp-phone-hint"></div>
+        </div>
+
+        <button class="btn btn-orange btn-block" id="slp-submit" disabled>🔔 Send Me Data Deals</button>
+        <button class="btn btn-ghost btn-block" data-close style="margin-top:10px">No thanks, maybe later</button>
+      </div>`;
+    document.body.appendChild(m);
+    m.classList.add("open");
+
+    const close = () => m.remove();
+    $$("[data-close]", m).forEach((b) => b.addEventListener("click", close));
+    m.addEventListener("click", (e) => { if (e.target === m) close(); });
+
+    const phoneInput = $("#slp-phone", m);
+    const hint = $("#slp-phone-hint", m);
+    const submitBtn = $("#slp-submit", m);
+
+    // Instant prefix/format validation as the visitor types
+    function revalidate() {
+      const v = validatePhone(phoneInput.value);
+      phoneInput.classList.toggle("ok", v.ok);
+      phoneInput.classList.toggle("bad", phoneInput.value.length > 0 && !v.ok);
+      if (!phoneInput.value.length) {
+        hint.textContent = "";
+        submitBtn.disabled = true;
+        return;
+      }
+      if (!v.ok) {
+        hint.textContent = "⚠️ " + v.msg;
+        submitBtn.disabled = true;
+        return;
+      }
+      const detected = detectNetwork(v.n);
+      hint.textContent = "✓ Valid Ghana number" + (detected ? ` (${NETWORK_NAMES[detected]})` : "");
+      submitBtn.disabled = false;
+    }
+    phoneInput.addEventListener("input", revalidate);
+    setTimeout(() => phoneInput.focus(), 350);
+
+    submitBtn.addEventListener("click", async () => {
+      const v = validatePhone(phoneInput.value);
+      if (!v.ok) return revalidate();
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Saving…";
+      try {
+        const res = await fetch("/api/account/optin", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone: v.n, source: "storefront-popup" }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || "Could not save");
+        // Opted in → this popup NEVER shows again for this user
+        localStorage.setItem("vd_sms_opted_in", "1");
+        close();
+        toast("✅ You're on the list! Exclusive deals coming to " + v.n);
+      } catch (err) {
+        hint.textContent = "⚠️ " + err.message;
+        submitBtn.disabled = false;
+        submitBtn.textContent = "🔔 Send Me Data Deals";
+      }
+    });
+  }
+
+  function scheduleSmsLeadPopup() {
+    // Storefront home page only
+    const path = window.location.pathname;
+    if (!(path === "/" || path.endsWith("/index.html") || path.endsWith("index.html"))) return;
+    if (localStorage.getItem("vd_sms_opted_in") === "1") return;
+    // Auto-trigger 10 seconds after landing
+    setTimeout(() => {
+      if (localStorage.getItem("vd_sms_opted_in") === "1") return;
+      openSmsLeadPopup();
+    }, 10000);
+  }
+
   // Check for incoming referral code from URL (?ref=XYZ)
   const urlRef = new URLSearchParams(window.location.search).get("ref");
   if (urlRef) {
@@ -814,6 +914,9 @@
     $("#btnLiveChat")?.addEventListener("click", () => {
       window.open("https://wa.me/233542451578", "_blank", "noopener");
     });
+
+    // SMS marketing lead popup — auto-triggers after 10s on the storefront
+    scheduleSmsLeadPopup();
   });
 
   loadBundles().catch((e) => {

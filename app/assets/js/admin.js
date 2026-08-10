@@ -1,4 +1,4 @@
-/* Admin console — float, prices sync, orders, P&L, webhook audit. */
+/* Admin console — float, prices sync, orders, P&L, SMS leads export, webhook audit. */
 
 (function () {
   "use strict";
@@ -100,7 +100,7 @@
       $$(".admin-tab").forEach((x) => x.classList.remove("on"));
       t.classList.add("on");
       const activeTab = t.dataset.tab;
-      ["float", "prices", "orders", "pl", "webhooks"].forEach((k) => {
+      ["float", "prices", "orders", "pl", "smsleads", "webhooks"].forEach((k) => {
         const panel = $("#tab-" + k);
         if (panel) panel.style.display = k === activeTab ? "block" : "none";
       });
@@ -108,6 +108,7 @@
       else if (activeTab === "prices") loadCatalog();
       else if (activeTab === "orders") loadOrders();
       else if (activeTab === "pl") loadPl(activePlDays);
+      else if (activeTab === "smsleads") loadSmsLeads();
       else if (activeTab === "webhooks") loadWebhooks();
     })
   );
@@ -453,4 +454,73 @@
       // Handled by api()
     }
   }
+
+  /* ---------- SMS leads (marketing opt-ins from the storefront popup) ---------- */
+  let smsLeadPhones = [];
+
+  async function loadSmsLeads() {
+    try {
+      const d = await api("/api/admin/sms-leads");
+      smsLeadPhones = d.phones || [];
+      const body = $("#smsLeadsBody");
+      const countPill = $("#smsLeadCount");
+      const copyBtn = $("#btnCopySmsLeads");
+
+      if (countPill) countPill.textContent = `${d.count} lead${d.count === 1 ? "" : "s"}`;
+      if (copyBtn) copyBtn.disabled = !smsLeadPhones.length;
+      if (!body) return;
+
+      body.innerHTML = d.leads && d.leads.length
+        ? d.leads
+            .map(
+              (l, i) => `<tr>
+                <td style="color:var(--muted)">${i + 1}</td>
+                <td><b style="color:#fff;letter-spacing:0.03em">${l.phone}</b></td>
+                <td>${l.network ? `<span class="net-chip ${l.network}">${NET_NAMES[l.network] || l.network}</span>` : "—"}</td>
+                <td style="color:var(--muted)">${l.source || "storefront-popup"}</td>
+                <td>${new Date(l.created_at).toLocaleString("en-GH")}</td>
+              </tr>`
+            )
+            .join("")
+        : `<tr><td colspan="5" class="empty">No SMS leads yet — the storefront popup auto-asks visitors for their number 10 seconds after landing. Leads appear here as they opt in.</td></tr>`;
+    } catch {
+      // Handled by api()
+    }
+  }
+
+  $("#btnCopySmsLeads")?.addEventListener("click", async () => {
+    if (!smsLeadPhones.length) return;
+    // Comma-separated on one line — pastes straight into SMS blasting platforms
+    const text = smsLeadPhones.join(",");
+    const msg = $("#smsCopyMsg");
+    const btn = $("#btnCopySmsLeads");
+    let copied = false;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        copied = true;
+      }
+    } catch { /* fall through to legacy path */ }
+    if (!copied) {
+      // Legacy fallback (non-secure contexts / older browsers)
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      try { copied = document.execCommand("copy"); } catch { copied = false; }
+      ta.remove();
+    }
+    if (msg) {
+      msg.innerHTML = copied
+        ? `<div class="notice ok" style="margin:10px 0 0">✅ Copied <b>${smsLeadPhones.length}</b> number${smsLeadPhones.length === 1 ? "" : "s"} to clipboard — paste into your SMS blasting platform.</div>`
+        : `<div class="notice" style="margin:10px 0 0">Clipboard blocked by browser. Select &amp; copy manually: <b style="user-select:all">${text}</b></div>`;
+    }
+    if (btn && copied) {
+      const original = btn.textContent;
+      btn.textContent = "✅ Copied!";
+      setTimeout(() => { btn.textContent = original; }, 2000);
+    }
+  });
 })();

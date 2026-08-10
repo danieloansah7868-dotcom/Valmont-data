@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# Valmont Data — end-to-end test (45 checks). Start the dev server first:
+# Valmont Data — end-to-end test (47 checks). Start the dev server first:
 #   npm run dev   →  http://localhost:8787   (default mock DB)
 # The retry path is exercised deterministically via the built-in convention:
 # numbers ending 0000 fail their first delivery attempt (see lib/supplier.js).
@@ -162,6 +162,14 @@ ck "wallet-balance returns valid response" "$(echo "$R_WALLET" | jqget "['ok']")
 R_UPDATE=$(curl -s -X POST "$B/api/admin/bundles/update-prices" -H "$J" -H "Authorization: Bearer $TOK" -d '{"updates":[{"id":1,"cost_price":3.95,"sell_price":4.30}]}')
 ck "update-prices updates bundle" "$(echo "$R_UPDATE" | jqget "['ok']")" "True"
 
+echo "── 14. SMS lead collection (storefront popup → admin export) ──"
+# Public opt-in (no token): accepts spaced input, normalizes to 0XXXXXXXXX
+R_OPT=$(curl -s -X POST "$B/api/account/optin" -H "$J" -d '{"phone":"055 987 6543","source":"storefront-popup"}')
+ck "sms opt-in stores validated Ghana number" "$(echo "$R_OPT" | jqget "['ok']")" "True"
+# Admin export list contains the normalized number
+R_LEADS=$(curl -s "$B/api/admin/sms-leads" -H "Authorization: Bearer $TOK")
+ck "sms-leads returns collected numbers" "$(echo "$R_LEADS" | python3 -c "import sys,json;d=json.load(sys.stdin);print('0559876543' in d.get('phones',[]))")" "True"
+
 echo ""
 echo "RESULT: $PASS passed, $FAIL failed"
-[ "$FAIL" -eq 0 ] && [ "$PASS" -ge 40 ]
+[ "$FAIL" -eq 0 ] && [ "$PASS" -ge 47 ]
