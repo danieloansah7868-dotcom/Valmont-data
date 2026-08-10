@@ -51,6 +51,11 @@ const routes = {
   "POST /api/admin/orders/retry": require("../api/admin/orders.js"),
   "GET /api/admin/pl": require("../api/admin/pl.js"),
   "GET /api/admin/webhooks": require("../api/admin/webhooks.js"),
+  "GET /api/admin/remadata-prices": require("../api/admin/remadata-prices.js"),
+  "GET /api/admin/wallet-balance": require("../api/admin/wallet-balance.js"),
+  "GET /api/admin/bundles": require("../api/admin/bundles.js"),
+  "POST /api/admin/bundles": require("../api/admin/bundles.js"),
+  "POST /api/admin/bundles/update-prices": require("../api/admin/bundles.js"),
   "GET /api/cron/retry": require("../api/cron/retry.js"),
 };
 

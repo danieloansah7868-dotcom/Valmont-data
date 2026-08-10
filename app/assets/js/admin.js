@@ -1,4 +1,4 @@
-/* Admin console — float, orders, P&L, webhook audit. */
+/* Admin console — float, prices sync, orders, P&L, webhook audit. */
 
 (function () {
   "use strict";
@@ -10,6 +10,7 @@
   const NET_NAMES = { mtn: "MTN", telecel: "Telecel", airteltigo: "AirtelTigo" };
 
   let activePlDays = 7;
+  let syncReviewData = null;
 
   function token() { return sessionStorage.getItem(TOKEN_KEY) || ""; }
 
@@ -57,6 +58,7 @@
     if (lv) lv.style.display = "none";
     if (dv) dv.style.display = "block";
     loadFloat();
+    loadCatalog();
     loadOrders();
     loadPl(activePlDays);
     loadWebhooks();
@@ -98,24 +100,30 @@
       $$(".admin-tab").forEach((x) => x.classList.remove("on"));
       t.classList.add("on");
       const activeTab = t.dataset.tab;
-      ["float", "orders", "pl", "webhooks"].forEach((k) => {
+      ["float", "prices", "orders", "pl", "webhooks"].forEach((k) => {
         const panel = $("#tab-" + k);
         if (panel) panel.style.display = k === activeTab ? "block" : "none";
       });
       if (activeTab === "float") loadFloat();
+      else if (activeTab === "prices") loadCatalog();
       else if (activeTab === "orders") loadOrders();
       else if (activeTab === "pl") loadPl(activePlDays);
       else if (activeTab === "webhooks") loadWebhooks();
     })
   );
 
-  /* ---------- float ---------- */
+  /* ---------- float + supplier wallet ---------- */
   async function loadFloat() {
     try {
       const d = await api("/api/admin/float");
+      let walletInfo = null;
+      try {
+        walletInfo = await api("/api/admin/wallet-balance");
+      } catch {}
+
       const cards = $("#floatCards");
       if (cards && d.balances) {
-        cards.innerHTML = d.balances
+        let cardsHtml = d.balances
           .map(
             (b) => `<div class="stat-card stat-card-${b.code}">
               <div class="label"><span class="net-chip ${b.code}">${NET_NAMES[b.code] || b.code}</span> float</div>
@@ -124,7 +132,18 @@
             </div>`
           )
           .join("");
+
+        if (walletInfo) {
+          cardsHtml += `<div class="stat-card" style="border-top:3px solid var(--orange)">
+            <div class="label">RemaData Wallet</div>
+            <div class="value ok">${fmt(walletInfo.balance)}</div>
+            <div class="sub">${walletInfo.mock ? "Simulated wallet" : "Live wholesale balance"}</div>
+          </div>`;
+        }
+
+        cards.innerHTML = cardsHtml;
       }
+
       const ledger = $("#ledgerBody");
       if (ledger) {
         ledger.innerHTML = d.ledger && d.ledger.length
@@ -158,6 +177,149 @@
       loadFloat();
     } catch (err) {
       alert(err.message);
+    }
+  });
+
+  /* ---------- prices & sync ---------- */
+  async function loadCatalog() {
+    try {
+      const d = await api("/api/admin/bundles");
+      const body = $("#catalogBody");
+      if (!body) return;
+      body.innerHTML = d.bundles && d.bundles.length
+        ? d.bundles
+            .map((b) => {
+              const gb = b.size_mb >= 1024 ? b.size_mb / 1024 + "GB" : b.size_mb + "MB";
+              const margin = Number((b.sell_price - b.cost_price).toFixed(2));
+              const pct = b.cost_price > 0 ? ((margin / b.cost_price) * 100).toFixed(1) + "%" : "—";
+              return `<tr>
+                <td><span class="net-chip ${b.network_code}">${b.network_name || b.network_code}</span></td>
+                <td><b>${gb}</b></td>
+                <td>${b.validity_days ? b.validity_days + " days" : "No Expiry"}</td>
+                <td>${fmt(b.cost_price)}</td>
+                <td><b style="color:#fff">${fmt(b.sell_price)}</b></td>
+                <td><span class="badge-ok">+${fmt(margin)} (${pct})</span></td>
+              </tr>`;
+            })
+            .join("")
+        : `<tr><td colspan="6" class="empty">No bundles found in catalogue.</td></tr>`;
+    } catch {
+      // Handled by api()
+    }
+  }
+
+  $("#btnSyncPrices")?.addEventListener("click", async () => {
+    const btn = $("#btnSyncPrices");
+    const msg = $("#syncStatusMsg");
+    const reviewArea = $("#priceReviewArea");
+    const reviewBody = $("#priceReviewBody");
+
+    btn.disabled = true;
+    btn.textContent = "Fetching RemaData prices…";
+    if (msg) msg.innerHTML = "";
+
+    try {
+      const data = await api("/api/admin/remadata-prices");
+      syncReviewData = data.bundles || [];
+
+      let lossCount = 0;
+      reviewBody.innerHTML = syncReviewData
+        .map((b) => {
+          const gb = b.size_mb >= 1024 ? b.size_mb / 1024 + "GB" : b.size_mb + "MB";
+          if (b.is_loss) lossCount++;
+          const costDiff = Number((b.new_cost - b.current_cost).toFixed(2));
+          const diffStr = costDiff > 0 ? ` (+${fmt(costDiff)})` : costDiff < 0 ? ` (${fmt(costDiff)})` : " (same)";
+
+          return `<tr class="${b.is_loss ? "row-loss" : ""}">
+            <td><span class="net-chip ${b.network}">${b.network_name}</span></td>
+            <td><b>${gb}</b></td>
+            <td>${fmt(b.current_cost)}</td>
+            <td><b style="color:var(--orange)">${fmt(b.new_cost)}</b><small style="color:var(--muted)">${diffStr}</small></td>
+            <td>${fmt(b.current_sell)}</td>
+            <td>${fmt(b.current_margin)}</td>
+            <td>
+              <input class="inp inp-suggested-sell" type="number" step="0.1"
+                     data-id="${b.id}" data-cost="${b.new_cost}"
+                     value="${b.is_loss ? b.suggested_sell.toFixed(2) : b.current_sell.toFixed(2)}"
+                     style="width:110px;padding:6px 10px;font-size:13px;background:rgba(0,0,0,0.3)">
+            </td>
+            <td><b class="${b.is_loss ? "err" : ""}" id="margin-preview-${b.id}">${fmt(b.new_margin)}</b></td>
+            <td>${b.is_loss ? '<span class="badge-loss">⚠️ AT LOSS</span>' : '<span class="badge-ok">✓ Margin OK</span>'}</td>
+          </tr>`;
+        })
+        .join("");
+
+      // Update margin preview on custom sell price input change
+      $$(".inp-suggested-sell", reviewBody).forEach((inp) => {
+        inp.addEventListener("input", () => {
+          const id = inp.dataset.id;
+          const cost = Number(inp.dataset.cost);
+          const sell = Number(inp.value) || 0;
+          const marginEl = $(`#margin-preview-${id}`);
+          if (marginEl) {
+            const m = Number((sell - cost).toFixed(2));
+            marginEl.textContent = fmt(m);
+            marginEl.className = sell <= cost ? "err" : "";
+          }
+        });
+      });
+
+      if (reviewArea) reviewArea.style.display = "block";
+      if (msg) {
+        msg.innerHTML = `<div class="notice ok" style="margin-top:10px">
+          Fetched <b>${syncReviewData.length}</b> bundle costs from RemaData.
+          ${lossCount > 0 ? `<b style="color:var(--red)">${lossCount} bundles</b> are selling at or below the new wholesale cost. Suggested sell prices have been calculated (+15% margin). Review below and click Apply.` : "All margins are healthy."}
+        </div>`;
+      }
+    } catch (err) {
+      if (msg) msg.innerHTML = `<div class="notice err" style="margin-top:10px">${err.message}</div>`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "⚡ Sync prices from RemaData";
+    }
+  });
+
+  $("#btnCancelPrices")?.addEventListener("click", () => {
+    const reviewArea = $("#priceReviewArea");
+    if (reviewArea) reviewArea.style.display = "none";
+    const msg = $("#syncStatusMsg");
+    if (msg) msg.innerHTML = "";
+    syncReviewData = null;
+  });
+
+  $("#btnApplyPrices")?.addEventListener("click", async () => {
+    if (!syncReviewData) return;
+    const btn = $("#btnApplyPrices");
+    btn.disabled = true;
+    btn.textContent = "Applying updates…";
+
+    const updates = [];
+    $$(".inp-suggested-sell", $("#priceReviewBody")).forEach((inp) => {
+      const id = Number(inp.dataset.id);
+      const cost = Number(inp.dataset.cost);
+      const sell = Number(inp.value);
+      if (id && cost >= 0) {
+        updates.push({ id, cost_price: cost, sell_price: sell > 0 ? sell : undefined });
+      }
+    });
+
+    try {
+      const res = await api("/api/admin/bundles/update-prices", {
+        method: "POST",
+        body: JSON.stringify({ updates }),
+      });
+      alert(res.message || "Prices updated successfully!");
+      $("#priceReviewArea").style.display = "none";
+      const msg = $("#syncStatusMsg");
+      if (msg) msg.innerHTML = `<div class="notice ok">${res.message || "Prices updated and active in catalogue."}</div>`;
+      syncReviewData = null;
+      loadCatalog();
+      loadFloat();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Apply confirmed updates";
     }
   });
 

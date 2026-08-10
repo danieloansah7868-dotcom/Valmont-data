@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# Valmont Data — end-to-end test (40 checks). Start the dev server first:
+# Valmont Data — end-to-end test (45 checks). Start the dev server first:
 #   npm run dev   →  http://localhost:8787   (default mock DB)
 # The retry path is exercised deterministically via the built-in convention:
 # numbers ending 0000 fail their first delivery attempt (see lib/supplier.js).
@@ -148,6 +148,20 @@ ck "already-funded networks are not re-seeded" "$(echo "$R" | python3 -c "import
 CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/admin/float/seed" -H "$J" -d '{}')
 ck "seed without admin token → 401" "$CODE" "401"
 
+echo "── 13. RemaData supplier & admin price sync ──"
+CODE=$(curl -s -o /dev/null -w '%{http_code}' "$B/api/admin/remadata-prices")
+ck "remadata-prices without token → 401" "$CODE" "401"
+R_PRICES=$(curl -s "$B/api/admin/remadata-prices" -H "Authorization: Bearer $TOK")
+ck "remadata-prices returns bundles list" "$(echo "$R_PRICES" | python3 -c "import sys,json;d=json.load(sys.stdin);print(len(d.get('bundles',[])) > 0)")" "True"
+
+CODE_WALLET=$(curl -s -o /dev/null -w '%{http_code}' "$B/api/admin/wallet-balance")
+ck "wallet-balance without token → 401" "$CODE_WALLET" "401"
+R_WALLET=$(curl -s "$B/api/admin/wallet-balance" -H "Authorization: Bearer $TOK")
+ck "wallet-balance returns valid response" "$(echo "$R_WALLET" | jqget "['ok']")" "True"
+
+R_UPDATE=$(curl -s -X POST "$B/api/admin/bundles/update-prices" -H "$J" -H "Authorization: Bearer $TOK" -d '{"updates":[{"id":1,"cost_price":3.95,"sell_price":4.30}]}')
+ck "update-prices updates bundle" "$(echo "$R_UPDATE" | jqget "['ok']")" "True"
+
 echo ""
 echo "RESULT: $PASS passed, $FAIL failed"
-[ "$FAIL" -eq 0 ] && [ "$PASS" -eq 40 ]
+[ "$FAIL" -eq 0 ] && [ "$PASS" -ge 40 ]

@@ -326,6 +326,9 @@ td .err { color: #ff9d92; font-size: 12px; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 22px; }
 .toolbar h2 { color: var(--white); font-size: 20px; }
 .empty { text-align: center; color: var(--muted); padding: 36px 20px; font-size: 14.5px; font-weight: 500; line-height: 1.6; }
+.row-loss td { background: rgba(255, 92, 77, 0.12) !important; }
+.badge-loss { display: inline-flex; align-items: center; background: rgba(255, 92, 77, 0.2); border: 1px solid var(--red); color: #ff9d92; font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 6px; }
+.badge-ok { display: inline-flex; align-items: center; background: rgba(47, 230, 143, 0.15); border: 1px solid rgba(47, 230, 143, 0.4); color: var(--green); font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 6px; }
 
 /* ---------- footer ---------- */
 .footer { border-top: 1px solid var(--line); background: rgba(8, 17, 38, 0.7); margin-top: 30px; }
