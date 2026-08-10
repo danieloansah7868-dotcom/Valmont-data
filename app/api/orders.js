@@ -55,6 +55,7 @@ async function post(req, res) {
       reference: order.reference,
       amount: Number(order.amount),
       phone: order.phone,
+      email: (customer && customer.email) ? customer.email : (order.phone ? `${order.phone.replace(/\D/g, "")}@valmontdata.com` : "customer@valmontdata.com"),
       description: `${(bundle.size_mb / 1024) || bundle.size_mb}${bundle.size_mb >= 1024 ? "GB" : "MB"} ${network.name} data`,
       returnUrl: `${siteUrl}/status.html?reference=${order.reference}`,
       webhookUrl: `${siteUrl}/api/valmontpay/webhook`,

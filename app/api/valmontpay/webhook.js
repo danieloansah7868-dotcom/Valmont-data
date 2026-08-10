@@ -45,26 +45,30 @@ async function handler(req, res) {
   const logId = Array.isArray(logged) ? logged[0]?.id : null;
 
   if (!signatureValid) {
-    await db.update("webhook_log", { handled: true, error: "invalid signature" }, { id: `eq.${logId}` });
+    if (logId) await db.update("webhook_log", { handled: true, error: "invalid signature" }, { id: `eq.${logId}` });
     return json(res, 401, { error: "invalid signature" });
   }
 
-  // Only payment.succeeded matters. Others are ack'd and ignored.
-  if (payload.event !== "payment.succeeded") {
-    await db.update("webhook_log", { handled: true }, { id: `eq.${logId}` });
+  // Only charge.success matters from the live Valmont-Pay gateway. Others are ack'd and ignored.
+  if (payload.event !== "charge.success") {
+    if (logId) await db.update("webhook_log", { handled: true }, { id: `eq.${logId}` });
     return json(res, 200, { received: true });
   }
 
-  const { provider_reference, reference, amount } = payload;
+  const data = payload.data || payload;
+  const reference = data.reference || payload.reference;
+  const provider_reference = data.gateway_reference || data.provider_reference || payload.provider_reference || reference;
+  const amount = data.amount !== undefined ? data.amount : payload.amount;
+
   if (!provider_reference || !reference) {
-    await db.update("webhook_log", { handled: true, error: "missing provider_reference/reference" }, { id: `eq.${logId}` });
+    if (logId) await db.update("webhook_log", { handled: true, error: "missing provider_reference/reference" }, { id: `eq.${logId}` });
     return json(res, 200, { received: true, error: "missing fields" });
   }
 
   const order = await orders.findOrderByReference(reference);
   if (!order) {
     // Don't 4xx — the gateway would retry forever. Log for manual reconciliation.
-    await db.update("webhook_log", { handled: true, error: `unknown order ${reference}` }, { id: `eq.${logId}` });
+    if (logId) await db.update("webhook_log", { handled: true, error: `unknown order ${reference}` }, { id: `eq.${logId}` });
     const { notify } = require("../../lib/notify");
     await notify.alert(`Webhook for unknown order ${reference} (${provider_reference})`);
     return json(res, 200, { received: true, error: "unknown order" });
@@ -79,20 +83,20 @@ async function handler(req, res) {
     if (existing && existing.status === "failed" && existing.attempts < orders.MAX_ATTEMPTS) {
       await orders.retryOrder(existing);
     }
-    await db.update("webhook_log", { handled: true }, { id: `eq.${logId}` });
+    if (logId) await db.update("webhook_log", { handled: true }, { id: `eq.${logId}` });
     return json(res, 200, { received: true, duplicate: true });
   }
 
   /* ---- amount check: never deliver for the wrong price ---- */
   if (Number(amount) !== Number(claimed.amount)) {
     await orders.refundOrder(claimed, `Amount mismatch: webhook ${amount} vs order ${claimed.amount}`);
-    await db.update("webhook_log", { handled: true, error: "amount mismatch → refunded" }, { id: `eq.${logId}` });
+    if (logId) await db.update("webhook_log", { handled: true, error: "amount mismatch → refunded" }, { id: `eq.${logId}` });
     return json(res, 200, { received: true, handled: true, outcome: "refunded" });
   }
 
   /* ---- FLOAT GUARD (race-condition path) + DELIVERY ---- */
   const result = await orders.deliverOrder(claimed);
-  await db.update("webhook_log", { handled: true }, { id: `eq.${logId}` });
+  if (logId) await db.update("webhook_log", { handled: true }, { id: `eq.${logId}` });
   return json(res, 200, { received: true, handled: true, outcome: result.ok ? "delivered" : result.reason || "failed" });
 }
 

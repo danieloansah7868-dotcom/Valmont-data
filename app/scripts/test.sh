@@ -83,7 +83,7 @@ R=$(curl -s "$B/api/admin/float" -H "Authorization: Bearer $TOK")
 ck "float NOT debited twice" "$(echo "$R" | jqget "['balances'][0]['balance']")" "161.5"
 
 echo "── 6. signature + amount guards ──"
-CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/valmontpay/webhook" -H "Content-Type: application/json" -H "x-valmontpay-signature: deadbeef" -d '{"event":"payment.succeeded"}')
+CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/valmontpay/webhook" -H "Content-Type: application/json" -H "x-valmontpay-signature: deadbeef" -d '{"event":"charge.success"}')
 ck "bad signature → 401" "$CODE" "401"
 
 R=$(curl -s -X POST "$B/api/orders" -H "$J" -H "Authorization: Bearer $CTOK" -d '{"bundle_id":10,"phone":"0241112222"}')  # 10GB telecel

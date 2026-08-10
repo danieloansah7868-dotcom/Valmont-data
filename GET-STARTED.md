@@ -95,9 +95,9 @@ purchase time so historical P&L stays accurate.
 ## 3 · Valmont-Pay — tenant #3 (payments)
 
 1. Get the **tenant onboarding pack** from the Valmont-Pay team:
-   - tenant API key → `VALMONTPAY_API_KEY`
+   - tenant API key → `VALMONTPAY_API_KEY` (`sk_valmontdata_...`)
    - webhook signing secret → `VALMONTPAY_WEBHOOK_SECRET`
-   - gateway base URL → `VALMONTPAY_API_URL`
+   - gateway base URL → `VALMONTPAY_API_URL` (`https://valmontpay.app/api`)
 2. Register the webhook URL in the gateway dashboard:
    ```
    https://<your-domain>/api/valmontpay/webhook
@@ -106,10 +106,10 @@ purchase time so historical P&L stays accurate.
 
    | Item | Expected |
    |---|---|
-   | Checkout creation | `POST /checkouts` with `reference, amount, currency=GHS, customer_phone, return_url, webhook_url` → `{ checkout_url }` |
-   | Webhook event | `payment.succeeded` with `{ provider_reference, reference, amount }` |
-   | Signature | `x-valmontpay-signature` = hex HMAC-SHA512 of the **raw** body with the tenant webhook secret |
-   | Refunds | `POST /refunds` with `{ provider_reference }` |
+   | Checkout creation | `POST /api/transaction/initialize` with `Authorization: Bearer <VALMONTPAY_API_KEY>` and JSON body `{ amount, reference, email, phone, callback_url, currency: "GHS" }` (amount in GHS major units) → `{ data: { pay_url, checkout_url, access_code } }` |
+   | Webhook event | `charge.success` with `{ event: "charge.success", data: { reference, status: "success", amount, currency, channel, gateway_reference, merchant } }` |
+   | Signature | `x-valmontpay-signature` = hex HMAC-SHA512 of the **raw** body with `VALMONTPAY_WEBHOOK_SECRET` |
+   | Refunds | Manual refund (automated refund endpoint not exposed on live gateway) |
 
    If the live gateway differs, adjust `createCheckout()` / `refund()` there —
    nothing else in the app knows gateway paths.
