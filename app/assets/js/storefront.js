@@ -706,6 +706,87 @@
     setTimeout(() => t.remove(), 4500);
   }
 
+  /* ---------- Refer & Earn modal ---------- */
+  function openReferModal() {
+    const m = $("#referModal") || (function() {
+      const d = document.createElement("div");
+      d.id = "referModal";
+      d.className = "modal-back";
+      document.body.appendChild(d);
+      return d;
+    })();
+
+    const refCode = state.customerInfo?.phone ? state.customerInfo.phone.slice(-4) : "VD77";
+    const shareUrl = `${window.location.origin}/?ref=${encodeURIComponent(refCode)}`;
+    const shareText = encodeURIComponent(`Buy the cheapest non-expiry MTN, Telecel & AirtelTigo data in Ghana on Valmont Data! Use my link: ${shareUrl}`);
+
+    m.innerHTML = `
+      <div class="modal" style="max-width:500px">
+        <button class="m-close" data-close aria-label="Close">×</button>
+        <div style="text-align:center;margin-bottom:18px">
+          <div style="font-size:36px;margin-bottom:6px">🎁</div>
+          <h3 style="font-size:22px;color:var(--white)">Refer Friends &amp; Earn Data</h3>
+          <p class="m-sub" style="margin-bottom:0">Share Valmont Data with friends. Every time a friend buys data using your link, you earn commission &amp; free data points!</p>
+        </div>
+
+        <div class="field" style="margin-top:14px">
+          <label>Your Personal Referral Link</label>
+          <div class="inp-group">
+            <input class="inp" id="refLinkInp" value="${shareUrl}" readonly style="font-size:13.5px;font-family:monospace">
+            <button class="btn btn-orange btn-sm" id="btnCopyRefLink">Copy</button>
+          </div>
+        </div>
+
+        <div style="margin-top:18px">
+          <a class="btn btn-block" style="background:#25D366;color:#fff;font-size:15px;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:8px"
+             href="https://api.whatsapp.com/send?text=${shareText}" target="_blank" rel="noopener">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12.01 2.01c-5.46 0-9.89 4.43-9.89 9.89 0 1.74.45 3.44 1.32 4.94l-1.4 5.12 5.24-1.38c1.45.8 3.1 1.22 4.83 1.22 5.46 0 9.89-4.43 9.89-9.89s-4.43-9.89-9.89-9.89z"/></svg>
+            Share on WhatsApp
+          </a>
+        </div>
+
+        <div style="background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:12px;padding:14px;margin-top:20px;font-size:13px;color:var(--soft)">
+          <b style="color:var(--white);display:block;margin-bottom:6px">How it works:</b>
+          <ol style="margin-left:18px;line-height:1.6">
+            <li>Copy and send your link to friends or post on your WhatsApp Status.</li>
+            <li>When friends purchase any bundle, your account automatically accumulates referral credits.</li>
+            <li>Redeem accumulated credits for free MTN, Telecel, or AirtelTigo bundles anytime.</li>
+          </ol>
+        </div>
+      </div>
+    `;
+
+    m.classList.add("open");
+    $("[data-close]", m)?.addEventListener("click", () => m.classList.remove("open"));
+    m.addEventListener("click", (e) => { if (e.target === m) m.classList.remove("open"); });
+
+    $("#btnCopyRefLink", m)?.addEventListener("click", () => {
+      const inp = $("#refLinkInp", m);
+      if (inp) {
+        inp.select();
+        navigator.clipboard?.writeText(inp.value).catch(() => {});
+        toast("Referral link copied to clipboard! 📋");
+      }
+    });
+  }
+
+  // Wire quick links
+  document.addEventListener("DOMContentLoaded", () => {
+    $("#linkReferEarn")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      openReferModal();
+    });
+    $$('a[href="#refer"]').forEach((a) =>
+      a.addEventListener("click", (e) => {
+        e.preventDefault();
+        openReferModal();
+      })
+    );
+    $("#btnLiveChat")?.addEventListener("click", () => {
+      window.open("https://wa.me/233542451578", "_blank", "noopener");
+    });
+  });
+
   loadBundles().catch((e) => {
     if ($("#bundleGrid")) {
       $("#bundleGrid").innerHTML = `<div class="notice">Failed to load bundles: ${e.message}</div>`;
