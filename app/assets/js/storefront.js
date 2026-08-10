@@ -204,6 +204,17 @@
   function renderGrid() {
     const grid = $("#bundleGrid");
     if (!grid) return;
+    // Datamart-style guarantee banner above grid
+    const buySection = grid.closest("section") || grid.parentElement;
+    if (buySection && !buySection.querySelector(".delivery-guarantee-banner")) {
+      const banner = document.createElement("div");
+      banner.className = "delivery-guarantee-banner";
+      banner.innerHTML = "\u26A1 <b>Guaranteed 30-Second Instant Delivery</b> — Auto-credited to your line";
+      const tabs = buySection.querySelector("#netTabs");
+      if (tabs && tabs.parentElement) tabs.parentElement.insertBefore(banner, tabs.nextSibling);
+      else buySection.insertBefore(banner, grid);
+    }
+
     const list = state.bundles.filter((b) => b.network === state.currentNet);
     if (!list.length) {
       grid.innerHTML = '<p style="color:var(--muted);padding:20px">No bundles for this network yet.</p>';
@@ -213,12 +224,20 @@
       .map((b) => {
         const disabled = !b.available ? "disabled" : "";
         const tag = b.available ? "" : '<span class="soldout soft">Back soon</span>';
+        const sizeLabel = `${(b.size_mb / 1024)}${b.size_mb >= 1024 ? " GB" : " MB"}`;
+        const durationLabel = b.validity_days ? `${b.validity_days} Days` : "No Expiry";
         return `<button class="bundle ${b.network} ${disabled}" data-bundle="${b.id}" ${disabled ? "disabled" : ""}>
           ${tag}
-          <div class="net ${b.network}">${NETWORK_NAMES[b.network]}</div>
-          <div class="gb">${(b.size_mb / 1024)}${b.size_mb >= 1024 ? "GB" : "MB"}</div>
-          <div class="price">${fmt(b.price)} <small>${validityLabel(b.validity_days)}</small></div>
-          <div class="meta"><span>⚡ Auto delivery</span><span>MoMo / card</span></div>
+          <div class="bundle-top">
+            <div class="bundle-size">${sizeLabel}</div>
+            <span class="bundle-network-badge">${NETWORK_NAMES[b.network]}</span>
+          </div>
+          <div class="bundle-delivery-badge">\u26A1 Delivers in 30 seconds</div>
+          <div class="bundle-details-grid">
+            <div class="detail"><span class="label">PRICE</span><b class="value price-val">${fmt(b.price)}</b></div>
+            <div class="detail"><span class="label">ROLLOVER</span><b class="value">Yes</b></div>
+            <div class="detail"><span class="label">DURATION</span><b class="value">${durationLabel}</b></div>
+          </div>
           ${b.available ? "" : '<div class="restock-note">Restocking — check back shortly</div>'}
         </button>`;
       })
