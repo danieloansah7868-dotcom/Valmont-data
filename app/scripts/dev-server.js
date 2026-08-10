@@ -29,33 +29,37 @@ if (process.env.SEED_DEMO === "1") {
   demoSeed = require("../lib/supabase").seedDemo();
 }
 
-/* route → handler module (mirrors Vercel's /api folder) */
+const adminRouter = require("../api/admin.js");
+const accountRouter = require("../api/account.js");
+const authRouter = require("../api/auth/customer.js");
+
+/* route → handler module (mirrors Vercel's consolidated /api folder) */
 const routes = {
   "GET /api/bundles": require("../api/bundles.js"),
   "GET /api/orders": require("../api/orders.js"),
   "POST /api/orders": require("../api/orders.js"),
-  "POST /api/auth/customer": require("../api/auth/customer.js"),
-  "POST /api/auth/customer/signup": require("../api/auth/customer.js"),
-  "POST /api/auth/customer/login": require("../api/auth/customer.js"),
-  "GET /api/account": require("../api/account.js"),
-  "POST /api/account": require("../api/account.js"),
-  "DELETE /api/account": require("../api/account.js"),
-  "POST /api/account/saved": require("../api/account.js"),
-  "DELETE /api/account/saved": require("../api/account.js"),
+  "POST /api/auth/customer": authRouter,
+  "POST /api/auth/customer/signup": authRouter,
+  "POST /api/auth/customer/login": authRouter,
+  "GET /api/account": accountRouter,
+  "POST /api/account": accountRouter,
+  "DELETE /api/account": accountRouter,
+  "POST /api/account/saved": accountRouter,
+  "DELETE /api/account/saved": accountRouter,
   "POST /api/valmontpay/webhook": require("../api/valmontpay/webhook.js"),
-  "POST /api/admin/login": require("../api/admin/login.js"),
-  "GET /api/admin/float": require("../api/admin/float.js"),
-  "POST /api/admin/float/topup": require("../api/admin/float.js"),
-  "POST /api/admin/float/seed": require("../api/admin/float.js"),
-  "GET /api/admin/orders": require("../api/admin/orders.js"),
-  "POST /api/admin/orders/retry": require("../api/admin/orders.js"),
-  "GET /api/admin/pl": require("../api/admin/pl.js"),
-  "GET /api/admin/webhooks": require("../api/admin/webhooks.js"),
-  "GET /api/admin/remadata-prices": require("../api/admin/remadata-prices.js"),
-  "GET /api/admin/wallet-balance": require("../api/admin/wallet-balance.js"),
-  "GET /api/admin/bundles": require("../api/admin/bundles.js"),
-  "POST /api/admin/bundles": require("../api/admin/bundles.js"),
-  "POST /api/admin/bundles/update-prices": require("../api/admin/bundles.js"),
+  "POST /api/admin/login": adminRouter,
+  "GET /api/admin/float": adminRouter,
+  "POST /api/admin/float/topup": adminRouter,
+  "POST /api/admin/float/seed": adminRouter,
+  "GET /api/admin/orders": adminRouter,
+  "POST /api/admin/orders/retry": adminRouter,
+  "GET /api/admin/pl": adminRouter,
+  "GET /api/admin/webhooks": adminRouter,
+  "GET /api/admin/remadata-prices": adminRouter,
+  "GET /api/admin/wallet-balance": adminRouter,
+  "GET /api/admin/bundles": adminRouter,
+  "POST /api/admin/bundles": adminRouter,
+  "POST /api/admin/bundles/update-prices": adminRouter,
   "GET /api/cron/retry": require("../api/cron/retry.js"),
 };
 
@@ -75,7 +79,7 @@ const server = http.createServer(async (req, res) => {
 
   // 1) API routes
   if (url.pathname.startsWith("/api/")) {
-    const route = routes[key] || (req.method === "GET" && routes["GET " + url.pathname]);
+    const route = routes[key] || (url.pathname.startsWith("/api/admin") ? adminRouter : (req.method === "GET" && routes["GET " + url.pathname]));
     if (route) {
       const body = await new Promise((resolve) => {
         let d = "";
@@ -83,7 +87,6 @@ const server = http.createServer(async (req, res) => {
         req.on("end", () => resolve(d));
       });
       req.rawBody = body;
-      // admin float.js checks req.url for /topup — give it the full path
       return route(req, res);
     }
     res.statusCode = 404;
