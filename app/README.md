@@ -41,7 +41,7 @@ The **webhook handler is the heart of the system** (`api/valmontpay/webhook.js`)
 | `api/bundles.js` | Public catalogue with server-side availability (never cost_price) |
 | `api/admin/*` | Login, float (+top-up), orders (+retry), P&L, SMS leads (`GET /sms-leads`), webhook log |
 | `api/cron/retry.js` | Daily cron (07:00 UTC) on Vercel Hobby + optional 15-min GitHub Actions pinger: retry failed deliveries (max 3), low-float alert |
-| `api/cron/autoreload.js` | **Auto-reload sweep** (every 15 min in `vercel.json`): watches active rules, re-buys low/expired bundles from pre-authorized MoMos via the normal webhook pipeline. Dev/demo: `curl /api/cron/autoreload` |
+| `api/cron/autoreload.js` | **Auto-reload sweep**: daily Vercel cron (Hobby-compatible) — watches active rules, re-buys low/expired bundles from pre-authorized MoMos via the normal webhook pipeline. Dev/demo: `curl /api/cron/autoreload` |
 | `lib/` | `supabase.js` (data layer + mock), `valmontpay.js` (client + HMAC-SHA512, incl. `initiateCharge` direct MoMo charge), `supplier.js` (adapter), `orders.js` (engine — creates `bundle_usage` on delivery), `autoreload.js` (engine — thresholds, cooldown, in-flight guard, dev webhook simulation), `phones.js`, `notify.js`, `auth.js` |
 | `supabase/schema.sql` | Tables (`customers`, `saved_numbers`, `sms_leads`, `orders`, `bundle_usage`, `auto_reload`, `float_ledger`, etc.), RLS, functions, seeds — run once in Supabase |
 | `supabase/seed-demo.sql` | **Demo seed** for DEMO/STAGING Supabase — customers, orders, bundle usage, auto-reload rules, float, webhook log (generated, self-skipping) |
@@ -225,7 +225,7 @@ never run it against production). Demo logins are printed in the file header.
 ## Deploy (Vercel + Supabase)
 
 1. **Supabase**: create project → SQL editor → paste `supabase/schema.sql` → run. (Tables + RLS + functions + seeds. Idempotent; adds `customers`, `saved_numbers`, `bundle_usage`, `auto_reload` and the rest.)
-2. **Vercel**: import this repo, set **Root Directory = `app`** → add env vars from `.env.example` → deploy. (`vercel.json` wires the daily `0 7 * * *` retry cron **and** the `*/15 * * * *` auto-reload sweep.)
+2. **Vercel**: import this repo, set **Root Directory = `app`** → add env vars from `.env.example` → deploy. (`vercel.json` wires two **daily** crons — `0 7 * * *` retry and `30 7 * * *` auto-reload — Vercel Hobby allows only one run per day.) For a more responsive auto-reload sweep (e.g. every 15 min), upgrade to Pro, or add a GitHub Actions workflow that pings `$SITE_URL/api/cron/autoreload` on a schedule (set `SITE_URL` under Settings → Secrets and variables → Actions → Variables).
 3. **Valmont-Pay**: request tenant #3 onboarding → set `VALMONTPAY_API_URL/API_KEY/WEBHOOK_SECRET` → register webhook URL `https://<your-domain>/api/valmontpay/webhook` in the gateway dashboard. For auto-reload to charge saved MoMos live, ask the gateway team to enable the **direct charge** (`POST /transaction/charge`, method `momo`, type `direct`) permission for tenant #3.
 4. **Go live**: set `VALMONTPAY_MODE=live` (see `.env.example`). In live mode there is **no dev fallback**: missing gateway credentials fail loudly (503) on checkout and auto-reload charges — payments are never simulated in production. (Local dev uses `VALMONTPAY_MODE=dev` + `AUTORELOAD_SIMULATE=1`, set by `scripts/dev-server.js`.)
 4. **Supplier**: see `GET-STARTED.md` at repo root — create a RemaData account, set `SUPPLIER_DRIVER=remadata` and `REMADATA_API_KEY`. Wholesale costs can be synced directly via `/admin.html` → Prices & Sync.
