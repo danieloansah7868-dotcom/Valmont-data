@@ -101,9 +101,14 @@ async function createCheckout({ reference, amount, phone, email, description, re
 
 /** Pre-authorized direct charge (auto-reload path).
     The customer has opted in to auto-reload and pre-authorized this MoMo
-    number, so there is NO checkout redirect: the gateway charges the saved
-    number and delivers the signed `charge.success` webhook, which flows
-    through the same idempotent claim → float check → delivery pipeline.
+    number, so there is NO checkout redirect: the gateway initiates a charge
+    against the saved number. IMPORTANT — mobile money wallets always require
+    the wallet owner to approve the debit with their PIN (USSD/app prompt),
+    so the charge is AUTHORIZATION-PENDING after this call; the gateway sends
+    the signed `charge.success` webhook once the customer approves, and that
+    webhook flows through the same idempotent claim → float check → delivery
+    pipeline. If the customer never approves, nothing is charged and nothing
+    is delivered.
 
     Gateway contract (tenant #3): POST {base}/transaction/charge with
     method "momo" + type "direct". Requires the "direct charge" permission to
@@ -152,10 +157,17 @@ async function initiateCharge({ reference, amount, phone, email, description }) 
     throw err;
   }
 
+  const status = String(respData.status || "authorization_pending").toLowerCase();
+  // A MoMo charge is initiated, not completed: the wallet owner must approve
+  // it with their PIN before money moves. The charge.success webhook is the
+  // source of truth for completion (never this response alone).
+  const completed = ["success", "confirmed", "completed", "paid"].includes(status);
   return {
     ...respData,
     reference: (respData && respData.reference) || reference,
-    charged: true,
+    status,
+    authorization_required: !completed,
+    awaiting_pin: !completed,
   };
 }
 

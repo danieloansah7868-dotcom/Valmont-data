@@ -221,7 +221,7 @@ async function triggerReload(rule) {
   const email = customerRows[0]?.email || null;
 
   await notify.alert(
-    `Auto-reload fired for ${rule.phone} — ${mbLabel(bundle.size_mb)} ${network.name} (GH₵${Number(bundle.sell_price).toFixed(2)}) ordered, charging MoMo ${rule.momo_number || "on file"}`
+    `Auto-reload triggered for ${rule.phone} — ${mbLabel(bundle.size_mb)} ${network.name} (GH₵${Number(bundle.sell_price).toFixed(2)}) ordered. MoMo prompt sent to ${rule.momo_number || "the saved number"} — the data delivers when the wallet owner approves with their PIN`
   );
 
   let charge;
@@ -259,7 +259,19 @@ async function triggerReload(rule) {
     return { triggered: true, reference: order.reference, charged: true, dev: true, outcome };
   }
 
-  return { triggered: true, reference: order.reference, charged: true, live: true };
+  // LIVE: the charge is INITIATED against the customer's MoMo. It is not
+  // complete — the wallet owner must approve the debit with their PIN first.
+  // Delivery happens when the gateway's charge.success webhook arrives and
+  // flows through the normal idempotent pipeline. `awaiting_pin` tells callers
+  // (and the UI) to expect a MoMo prompt, not instant delivery.
+  return {
+    triggered: true,
+    reference: order.reference,
+    initiated: true,
+    live: true,
+    status: charge.status || "authorization_pending",
+    awaiting_pin: charge.awaiting_pin !== false,
+  };
 }
 
 /* ---------- cron ---------- */

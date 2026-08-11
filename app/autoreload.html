@@ -210,9 +210,10 @@
           <label class="consent-box" for="ar-consent">
             <input type="checkbox" id="ar-consent">
             <span>
-              I authorise <b>Valmont Data</b> to charge my MoMo number above and buy the selected bundle
-              automatically whenever my data runs low. I understand this repeats until I pause or remove
-              the rule, and I can opt out anytime.
+              I authorise <b>Valmont Data</b> to buy the selected bundle automatically whenever my data runs low
+              and charge it to my MoMo number above. Every top-up still sends a <b>MoMo prompt to my phone</b> —
+              I approve with my PIN and nothing is charged without my approval. This repeats until I pause or
+              remove the rule, and I can opt out anytime.
             </span>
           </label>
 
@@ -222,9 +223,11 @@
     </div>
 
     <p class="footer-note">
-      Auto-reload uses your pre-authorized MoMo number via Valmont-Pay's direct charge — the same
-      payment pipeline as a manual order, so every reload is receipted, float-checked and idempotent.
-      A cooldown prevents repeat charges while your usage report is stale.
+      When a top-up fires, your phone gets a <b>MoMo prompt</b> — approve with your PIN and the data lands
+      instantly; if you ignore or reject it, nothing is charged and nothing is delivered. Auto-reload uses
+      Valmont-Pay's direct charge — the same payment pipeline as a manual order, so every reload is
+      receipted, float-checked and idempotent. A cooldown prevents repeat prompts while your usage report
+      is stale.
     </p>
   </main>
 

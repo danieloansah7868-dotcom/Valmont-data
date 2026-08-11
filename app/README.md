@@ -101,6 +101,20 @@ never be confused with topping yourself up:
   — enforced server-side (`confirm_recipient`), and rule cards / dashboards
   label such lines "📤 others".
 
+**How charging works (MoMo PIN)** — an automatic top-up *initiates* a
+Valmont-Pay direct charge against the saved MoMo number; it does **not**
+silently debit the wallet. Ghana's mobile-money wallets require the wallet
+owner to approve every debit with their PIN (USSD/app prompt), so the
+customer's phone gets a **MoMo prompt** and the data only delivers after they
+approve — the gateway's signed `charge.success` webhook then flows through the
+normal idempotent pipeline. Ignore or reject the prompt → nothing is charged,
+nothing is delivered. (If the Valmont-Pay tenant enables an operator
+merchant-initiated/standing-mandate product — e.g. MTN's auto-renewal — debits
+can become fully automatic after the first approval; that is a gateway/operator
+setup decision. The site's contract never assumes it: `initiateCharge`
+returns `status: "authorization_pending"` + `awaiting_pin` until the webhook
+confirms.)
+
 **The engine** (`lib/autoreload.js`, swept by `api/cron/autoreload.js` every
 15 minutes) is conservative by design:
 

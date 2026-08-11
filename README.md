@@ -41,8 +41,10 @@ failure path (duplicate webhook, bad signature, wrong amount, retry).
 **Auto-reload** — the web tracks each delivered bundle (`bundle_usage`),
 prompts the user when a line runs low, and when they opt in at
 `autoreload.html`, a cron re-buys the bundle from their pre-authorized MoMo
-through the same idempotent webhook pipeline. Sweep manually in dev:
-`curl localhost:8787/api/cron/autoreload`.
+through the same idempotent webhook pipeline. Each top-up **sends a MoMo
+prompt to the customer's phone — they approve with their PIN** and only then
+does the data deliver (no silent wallet debits; if they don't approve,
+nothing is charged). Sweep manually in dev: `curl localhost:8787/api/cron/autoreload`.
 
 **Payments are live-first**: set `VALMONTPAY_MODE=live` plus the
 Valmont-Pay keys (`VALMONTPAY_API_URL/API_KEY/WEBHOOK_SECRET`) and every

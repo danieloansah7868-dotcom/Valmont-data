@@ -654,8 +654,8 @@
         if (label) {
           const isOwnLine = v.ok && v.n === (state.customerInfo?.phone || "");
           label.innerHTML = isOwnLine
-            ? `⚡ Also turn on <b>Auto-reload</b> for <b>my line</b> — when this bundle runs low, we re-buy it automatically from your MoMo <b>${firstMomo}</b>.`
-            : `⚡ <b>Auto top-up ${v.n} (others)</b> — when <b>their</b> data runs low, we top <b>them</b> up from your MoMo <b>${firstMomo}</b>. The data goes to <b>${v.n}</b>, not to you.`;
+            ? `⚡ Also turn on <b>Auto-reload</b> for <b>my line</b> — when this bundle runs low, we re-buy it automatically from your MoMo <b>${firstMomo}</b>. Each top-up sends a <b>MoMo prompt</b> to <b>${firstMomo}</b> — approve with your PIN and the data lands.`
+            : `⚡ <b>Auto top-up ${v.n} (others)</b> — when <b>their</b> data runs low, we top <b>them</b> up from your MoMo <b>${firstMomo}</b>. The data goes to <b>${v.n}</b>, not to you — each top-up sends a <b>MoMo prompt</b> to <b>${firstMomo}</b> that you approve with your PIN.`;
         }
       }
     }
