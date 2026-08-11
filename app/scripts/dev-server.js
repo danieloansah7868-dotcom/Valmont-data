@@ -15,6 +15,11 @@ process.env.SITE_URL = process.env.SITE_URL || "http://localhost:8787";
 process.env.LOW_FLOAT_THRESHOLD = process.env.LOW_FLOAT_THRESHOLD || "50";
 process.env.USAGE_REPORT_KEY = process.env.USAGE_REPORT_KEY || "dev-usage-key";
 process.env.AUTORELOAD_COOLDOWN_MINUTES = process.env.AUTORELOAD_COOLDOWN_MINUTES || "720";
+// Local dev = simulated payments (VALMONTPAY_MODE=dev) + simulated auto-reload
+// webhooks (AUTORELOAD_SIMULATE=1). Production deployments set
+// VALMONTPAY_MODE=live and leave AUTORELOAD_SIMULATE unset — no simulation.
+process.env.VALMONTPAY_MODE = process.env.VALMONTPAY_MODE || "dev";
+process.env.AUTORELOAD_SIMULATE = process.env.AUTORELOAD_SIMULATE || "1";
 
 const http = require("http");
 const fs = require("fs");
@@ -131,6 +136,7 @@ server.listen(PORT, () => {
   console.log(`  Admin      : http://localhost:${PORT}/admin.html  (password: ${process.env.ADMIN_PASSWORD})`);
   console.log(`  Auto-reload: http://localhost:${PORT}/autoreload.html  (opt-in — usage tracking)`);
   console.log(`  Mock DB    : ${process.env.SUPABASE_MOCK === "1" ? "in-memory (SUPABASE_MOCK=1)" : "Supabase"}`);
+  console.log(`  Payments   : ${process.env.VALMONTPAY_MODE === "live" ? "LIVE — Valmont-Pay" : "dev — simulated (set VALMONTPAY_MODE=live + keys to go live)"}`);
   console.log(`  Sim payment: node scripts/sim-webhook.js --ref <reference>`);
   console.log(`  Sim usage  : node scripts/sim-usage.js --ref <reference> --used-mb <n>`);
   console.log(`  Auto sweep  : curl http://localhost:${PORT}/api/cron/autoreload`);

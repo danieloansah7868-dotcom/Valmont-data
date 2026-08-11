@@ -603,9 +603,9 @@
         </div>
 
         ${firstMomo ? `
-          <div class="field" style="margin-top:2px">
+          <div class="field" style="margin-top:2px" id="bm-autoreload-row">
             <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-weight:normal;font-size:13px;line-height:1.45">
-              <input type="checkbox" id="bm-autoreload" style="margin-top:2px;accent-color:var(--orange);"> <span>⚡ Also turn on <b>Auto-reload</b> — when this bundle runs low, we re-buy it automatically from your MoMo <b>${firstMomo}</b>. Opt in anytime at <b>Auto-reload</b>.</span>
+              <input type="checkbox" id="bm-autoreload" style="margin-top:2px;accent-color:var(--orange);"> <span>⚡ Also turn on <b>Auto-reload</b> for <b>my line</b> — when this bundle runs low, we re-buy it automatically from your MoMo <b>${firstMomo}</b>. Opt in anytime at <b>Auto-reload</b>.</span>
             </label>
           </div>` : `
           <div class="field" style="margin-top:2px">
@@ -642,6 +642,20 @@
       }
       hint.textContent = phoneInput.value.length ? "✓ Looks good" : "";
       next.disabled = !v.ok;
+
+      // THE GIFT RULE in the buy flow: auto-reload is ONLY offered when the
+      // delivery number is the buyer's OWN line. Buying for someone else never
+      // shows (or silently enables) auto-reload — otherwise the customer
+      // thinks the top-up reloads them, but it tops up the other person.
+      const arRow = $("#bm-autoreload-row", m);
+      if (arRow) {
+        const isOwnLine = v.ok && v.n === (state.customerInfo?.phone || "");
+        arRow.style.display = isOwnLine ? "" : "none";
+        if (!isOwnLine) {
+          const cb = $("#bm-autoreload", m);
+          if (cb) cb.checked = false;
+        }
+      }
     }
 
     // Wire chips
@@ -661,7 +675,10 @@
       const v = validatePhone(phoneInput.value);
       if (!v.ok) return revalidate();
       const shouldSave = $("#bm-save-num", m)?.checked;
-      const autoreload = $("#bm-autoreload", m)?.checked || false;
+      // Gift rule: never carry auto-reload to someone else's number even if
+      // the box was checked before the number was changed.
+      const isOwnLine = v.n === (state.customerInfo?.phone || "");
+      const autoreload = ($("#bm-autoreload", m)?.checked || false) && isOwnLine;
       showConfirm(v.n, shouldSave, autoreload, firstMomo);
     });
   }
@@ -718,8 +735,9 @@
         }
 
         // Auto-reload opt-in chosen in the buy flow: standing permission to
-        // re-buy this bundle from the saved MoMo when it runs low.
-        if (autoreload && firstMomo) {
+        // re-buy this bundle from the saved MoMo when it runs low. Only ever
+        // for the customer's own line (phone === account phone).
+        if (autoreload && firstMomo && phone === (state.customerInfo?.phone || "")) {
           fetch("/api/autoreload", {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${state.customerToken}` },

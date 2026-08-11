@@ -19,6 +19,23 @@ function configured() {
   return !!(VP_KEY() && VP_SECRET());
 }
 
+/* Live vs dev mode — NO silent dev fallback in live mode.
+   VALMONTPAY_MODE=live is the production setting: if the gateway credentials
+   are missing, calls fail loudly (503) instead of pretending to work. Dev
+   mode (simulated payments, local only) requires VALMONTPAY_MODE=dev, which
+   scripts/dev-server.js sets by default. */
+function mode() {
+  return process.env.VALMONTPAY_MODE === "live" ? "live" : "dev";
+}
+
+function liveConfigError() {
+  const err = new Error(
+    "Valmont-Pay gateway not configured — set VALMONTPAY_API_KEY and VALMONTPAY_WEBHOOK_SECRET (VALMONTPAY_MODE=live)"
+  );
+  err.status = 503;
+  return err;
+}
+
 function getEndpoint(path) {
   const base = VP_BASE();
   const cleanPath = path.startsWith("/") ? path : `/${path}`;
@@ -31,7 +48,8 @@ function getEndpoint(path) {
 /** Create a checkout session on the live Valmont-Pay gateway. Returns { checkout_url, ... } or throws. */
 async function createCheckout({ reference, amount, phone, email, description, returnUrl, webhookUrl }) {
   if (!configured()) {
-    // Dev mode: no gateway configured — the caller shows a "simulate payment" path.
+    if (mode() === "live") throw liveConfigError();
+    // Dev mode only: no gateway configured — the caller shows a "simulate payment" path.
     return { checkout_url: null, dev: true };
   }
 
@@ -93,6 +111,8 @@ async function createCheckout({ reference, amount, phone, email, description, re
     { dev: true } and the auto-reload engine simulates the webhook locally. */
 async function initiateCharge({ reference, amount, phone, email, description }) {
   if (!configured()) {
+    if (mode() === "live") throw liveConfigError();
+    // Dev mode only — see AUTORELOAD_SIMULATE in lib/autoreload.js.
     return { dev: true, reference };
   }
 
@@ -159,4 +179,4 @@ async function refund(providerReference) {
   throw new Error(`Valmont-Pay manual refund required: automated refund endpoint not supported for reference ${providerReference}`);
 }
 
-module.exports = { configured, createCheckout, initiateCharge, verifySignature, refund };
+module.exports = { configured, mode, createCheckout, initiateCharge, verifySignature, refund };

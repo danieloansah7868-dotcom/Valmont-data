@@ -80,6 +80,20 @@ account panel, and offered as a checkbox in the buy flow). There the customer:
    and which **MoMo number is pre-authorized to be charged**;
 4. can pause / resume / remove the rule anytime.
 
+**The gift rule** — buying a bundle for someone else (a favour) must never
+silently reload *their* line with *your* money while you think it tops you up:
+
+- Every rule stores `relation`: `self` (the line is the customer's own number)
+  or `other` (a line they buy data for).
+- The **ask prompt only ever appears for the customer's OWN line** (`should_ask`
+  is false for `other` lines in both the page and the usage API).
+- The **buy-flow checkbox is only shown when the delivery number is the
+  customer's own line** — buying for someone else never offers auto-reload.
+- Opting in for an `other` line requires an extra **recipient confirmation**
+  ("I understand the data goes to 055…, not to me") — enforced server-side
+  (`confirm_recipient`), and rule cards / dashboards label such lines
+  "📤 not your line".
+
 **The engine** (`lib/autoreload.js`, swept by `api/cron/autoreload.js` every
 15 minutes) is conservative by design:
 
@@ -156,10 +170,11 @@ What you get (see `lib/demo-data.js` — deterministic, one source of truth):
   | `0273344556` | Esi Asante | `1357` |
   Each with saved data lines + MoMo numbers and linked order history.
 - **Bundle usage rows** for every delivered order (some delivered to the demo
-  customers' own lines) + **3 auto-reload rules**: Ama's rule is live with a
-  bundle at 97% and cooldown already over → hitting `/api/cron/autoreload`
-  fires it instantly; Kofi's rule is inside its cooldown (sweep skips it);
-  Yaw's rule is paused.
+  customers' own lines) + **3 auto-reload rules**: Ama's rule is live on her
+  **own line** with a bundle at 97% and cooldown already over → hitting
+  `/api/cron/autoreload` fires it instantly; Kofi's rule (his **shop line**,
+  relation `other`) is inside its cooldown (sweep skips it); Yaw's rule is
+  paused.
 - **Orders in every status**: `delivered` (most, with `supplier_ref` +
   full `supplier_response` + `delivered_at`), a few `failed` (some retryable,
   some at max attempts), `refunded` (amount-mismatch path), `delivering`,
@@ -190,14 +205,15 @@ never run it against production). Demo logins are printed in the file header.
 
 1. **Supabase**: create project → SQL editor → paste `supabase/schema.sql` → run. (Tables + RLS + functions + seeds. Idempotent; adds `customers`, `saved_numbers`, `bundle_usage`, `auto_reload` and the rest.)
 2. **Vercel**: import this repo, set **Root Directory = `app`** → add env vars from `.env.example` → deploy. (`vercel.json` wires the daily `0 7 * * *` retry cron **and** the `*/15 * * * *` auto-reload sweep.)
-3. **Valmont-Pay**: request tenant #3 onboarding → set `VALMONTPAY_API_URL/API_KEY/WEBHOOK_SECRET` → register webhook URL `https://<your-domain>/api/valmontpay/webhook` in the gateway dashboard. For auto-reload to charge saved MoMos live, ask the gateway team to enable the **direct charge** (`POST /transaction/charge`, method `momo`, type `direct`) permission for tenant #3 — until then auto-reload works in dev mode only.
+3. **Valmont-Pay**: request tenant #3 onboarding → set `VALMONTPAY_API_URL/API_KEY/WEBHOOK_SECRET` → register webhook URL `https://<your-domain>/api/valmontpay/webhook` in the gateway dashboard. For auto-reload to charge saved MoMos live, ask the gateway team to enable the **direct charge** (`POST /transaction/charge`, method `momo`, type `direct`) permission for tenant #3.
+4. **Go live**: set `VALMONTPAY_MODE=live` (see `.env.example`). In live mode there is **no dev fallback**: missing gateway credentials fail loudly (503) on checkout and auto-reload charges — payments are never simulated in production. (Local dev uses `VALMONTPAY_MODE=dev` + `AUTORELOAD_SIMULATE=1`, set by `scripts/dev-server.js`.)
 4. **Supplier**: see `GET-STARTED.md` at repo root — create a RemaData account, set `SUPPLIER_DRIVER=remadata` and `REMADATA_API_KEY`. Wholesale costs can be synced directly via `/admin.html` → Prices & Sync.
 
 ---
 
 ## Tested
 
-`scripts/test.sh` runs the full 73-check pipeline against the dev server (mock DB):
+`scripts/test.sh` runs the full 82-check pipeline against the dev server (mock DB):
 float guard (reject when 0 float, guest 401) → admin login/float top-up →
 customer signup (scrypt hash, 30-day token) → duplicate 409 → wrong credentials 401 →
 customer login → account gating 401 → authed 0-float 422 → order creation →
@@ -209,7 +225,9 @@ admin float/orders/retry/P&L → static pages →
 flags → opt-in guards (no consent 400, wrong-network bundle 400, re-opt-in updates) →
 cron triggers → auto-reload delivered via the real webhook pipeline → `reload_count`
 bumped → line usage reset → cooldown blocks a second sweep → pause stops sweeps →
-opt-out removes the rule → auth guards 401.
+opt-out removes the rule → auth guards 401 →
+**gift lines**: relation `other`, never asked, `confirm_recipient` required (400 without) →
+**live mode**: checkout + direct charge fail loudly (503) with no gateway keys.
 
 Run it with `npm test` (after starting `npm run dev`).
 

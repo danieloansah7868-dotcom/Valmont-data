@@ -320,6 +320,7 @@ function seedDemo(now = new Date()) {
       id: mockState._seq.auto_reload,
       customer_id: customerIdByPhone[a.customer_phone],
       phone: a.phone,
+      relation: a.relation || (a.phone === a.customer_phone ? "self" : "other"),
       network_id: networkIdByCode[a.network],
       bundle_id: bundleIdByKey[a.bundle],
       trigger_percent: a.trigger_percent,

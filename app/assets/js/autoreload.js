@@ -92,12 +92,14 @@
     host.innerHTML = lines
       .map((l) => {
         const u = l.usage;
-        const netName = u ? null : ""; // network comes from usage/rule; unknown before first order
-        const netChip = "";
+        const relationTag = l.relation === "self"
+          ? `<span class="line-label" style="color:var(--green);">✓ your line</span>`
+          : `<span class="line-label" style="color:var(--orange-2);">📤 not your line — data goes to ${l.phone}</span>`;
         if (!u) {
           return `<div class="line-card">
             <div class="line-top">
               <div><div class="line-phone">${l.phone}</div><div class="line-label">${l.label || "Data line"}</div></div>
+              ${relationTag}
             </div>
             <div class="no-usage">No bundle on this line yet — order one and we'll start tracking it here.</div>
           </div>`;
@@ -107,7 +109,7 @@
         const ask = l.low && l.should_ask ? `
           <div class="ask-box">
             <div style="font-size:20px;">⚠️</div>
-            <div class="txt">Your <b>${mbLabel(u.size_mb)}</b> bundle is at <b>${pct}% used</b> (${mbLabel(u.remaining_mb)} left).
+            <div class="txt">Your <b>${mbLabel(u.size_mb)}</b> bundle on <b>${l.phone}</b> is at <b>${pct}% used</b> (${mbLabel(u.remaining_mb)} left).
               It will run out soon — turn on Auto-reload and we'll top it up for you automatically.</div>
             <button class="btn-mini on" data-enable-line="${l.phone}">Enable →</button>
           </div>` : "";
@@ -121,7 +123,7 @@
             <div>
               <div class="line-phone">${l.phone} <span class="line-label">${l.label || "Data line"}</span></div>
             </div>
-            <span class="pill ${u.status}">${u.status}</span>
+            <span style="display:flex;gap:8px;align-items:center;">${relationTag}<span class="pill ${u.status}">${u.status}</span></span>
           </div>
           <div class="bar-wrap">
             <div class="bar-meta"><span>${mbLabel(u.size_mb)} bundle</span><b>${pct}% used · ${mbLabel(u.remaining_mb)} left</b></div>
@@ -129,7 +131,6 @@
           </div>
           <div class="line-foot">
             <span>${u.expires_at ? "Expires " + when(u.expires_at) : "No expiry"}</span>
-            ${netName ? netName : ""}
           </div>
           ${ask}
           ${ruleNote}
@@ -149,6 +150,9 @@
     host.innerHTML = rules
       .map((r) => {
         const cooldownLeft = relTime(r.cooldown_until);
+        const recipientChip = r.is_own_line
+          ? `<span class="meta-chip" style="color:var(--green);">✓ Your line</span>`
+          : `<span class="meta-chip" style="color:var(--orange-2);">📤 Delivers to ${r.phone} — NOT your line</span>`;
         return `<div class="rule-card ${r.active ? "" : "paused"}">
           <div class="rule-top">
             <div>
@@ -158,6 +162,7 @@
             <span class="status-pill ${r.active ? "on" : "off"}">${r.active ? "ON" : "PAUSED"}</span>
           </div>
           <div class="rule-meta">
+            ${recipientChip}
             <span class="meta-chip">Trigger <b>${r.trigger_percent}% left</b></span>
             <span class="meta-chip">Reloads <b>${r.reload_count}</b></span>
             <span class="meta-chip">Last <b>${r.last_reload_at ? when(r.last_reload_at) : "—"}</b></span>
@@ -197,7 +202,30 @@
     }
 
     fillBundles();
-    phoneSel.addEventListener("change", fillBundles);
+    phoneSel.addEventListener("change", () => {
+      fillBundles();
+      updateGiftBox();
+    });
+  }
+
+  /* THE GIFT RULE — when the selected line is not the customer's own number,
+     show the warning + recipient-confirmation checkbox. The server enforces
+     this too (confirm_recipient), so a favour can never silently reload
+     someone else's line with the customer's money. */
+  function updateGiftBox() {
+    const box = $("#ar-gift-box");
+    const confirmCb = $("#ar-confirm-recipient");
+    if (!box) return;
+    const phone = $("#ar-phone")?.value || "";
+    const ownPhone = data?.customer?.phone || "";
+    const isOwn = phone === ownPhone;
+    box.style.display = isOwn ? "none" : "";
+    if (isOwn && confirmCb) confirmCb.checked = false;
+    if (confirmCb) confirmCb.checked = false;
+    const p1 = $("#ar-gift-phone");
+    const p2 = $("#ar-gift-phone2");
+    if (p1) p1.textContent = phone;
+    if (p2) p2.textContent = phone;
   }
 
   function fillBundles() {
@@ -217,11 +245,18 @@
   }
 
   /* ---------- actions ---------- */
-  async function optIn(phone, bundleId, triggerPercent, momoNumber) {
+  async function optIn(phone, bundleId, triggerPercent, momoNumber, confirmRecipient) {
     const res = await fetch("/api/autoreload", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ phone, bundle_id: bundleId, trigger_percent: triggerPercent, momo_number: momoNumber, consent: true }),
+      body: JSON.stringify({
+        phone,
+        bundle_id: bundleId,
+        trigger_percent: triggerPercent,
+        momo_number: momoNumber,
+        consent: true,
+        confirm_recipient: confirmRecipient || false,
+      }),
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(body.error || "Could not enable auto-reload");
@@ -272,18 +307,29 @@
       const triggerPercent = Number($("#ar-trigger").value);
       const momoNumber = $("#ar-momo").value;
       const consent = $("#ar-consent").checked;
+      const ownPhone = data?.customer?.phone || "";
+      const isOwnLine = phone === ownPhone;
+      const confirmRecipient = $("#ar-confirm-recipient")?.checked || false;
 
       if (!phone || !bundleId) return toast("Pick a data line and a bundle first", "error");
       if (!momoNumber) return toast("Pick a MoMo number to charge (save one in your account first)", "error");
       if (!consent) return toast("Please tick the consent box — we never top up without your authorisation", "error");
+      if (!isOwnLine && !confirmRecipient) {
+        return toast("This line is not yours — tick the box confirming the data goes to " + phone + ", not to you", "error");
+      }
 
       const btn = $("#ar-submit");
       btn.disabled = true;
       btn.textContent = "Saving your opt-in…";
       try {
-        const r = await optIn(phone, bundleId, triggerPercent, momoNumber);
-        toast(`✅ Auto-reload is on for ${phone} — we'll top up when only ${triggerPercent}% is left`);
+        const r = await optIn(phone, bundleId, triggerPercent, momoNumber, !isOwnLine ? confirmRecipient : undefined);
+        toast(
+          isOwnLine
+            ? `✅ Auto-reload is on for ${phone} — we'll top up when only ${triggerPercent}% is left`
+            : `✅ Gift auto-reload on: ${phone} gets topped up from your MoMo when it drops below ${triggerPercent}%`
+        );
         $("#ar-consent").checked = false;
+        if ($("#ar-confirm-recipient")) $("#ar-confirm-recipient").checked = false;
         await refresh();
       } catch (err) {
         toast(err.message, "error");
@@ -372,12 +418,15 @@
       <div style="display:flex;flex-direction:column;gap:10px;">
         ${lines.slice(0, 4).map((l) => {
           const u = l.usage;
+          const giftTag = l.relation === "other"
+            ? `<span style="color:var(--orange-2);font-size:10.5px;font-weight:800;margin-left:6px;">📤 not your line</span>`
+            : "";
           if (!u) return `<div style="display:flex;justify-content:space-between;gap:10px;font-size:13px;color:var(--muted);padding:8px 0;border-bottom:1px solid var(--line);">
             <b style="color:var(--soft);">${l.phone}</b><span>No bundle yet</span></div>`;
           const pct = u.percent_used;
           return `<div style="padding:8px 0;border-bottom:1px solid var(--line);">
             <div style="display:flex;justify-content:space-between;gap:10px;font-size:13px;margin-bottom:6px;">
-              <span><b style="color:var(--white);">${l.phone}</b> <span style="color:var(--muted);font-size:11.5px;">${mbLabel(u.size_mb)}</span></span>
+              <span><b style="color:var(--white);">${l.phone}</b>${giftTag} <span style="color:var(--muted);font-size:11.5px;">${mbLabel(u.size_mb)}</span></span>
               <span style="color:${pct >= 90 ? "var(--red)" : pct >= 60 ? "var(--orange)" : "var(--green)"};font-weight:800;">${pct}% used</span>
             </div>
             <div class="bar" style="height:8px;"><div class="bar-fill ${barClass(pct)}" style="width:${Math.min(pct,100)}%;"></div></div>

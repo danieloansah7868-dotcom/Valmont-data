@@ -289,17 +289,19 @@ function buildDemo({ now = new Date(), rngSeed = 20260807, orderCount = 52 } = {
 
   /* ---- auto-reload opt-ins (explicit customer consent, stored rules) ---- */
   const AR_SEED = [
-    // Ama — live rule, cooldown already over, current bundle at 97% → the cron
-    // fires the moment you hit /api/cron/autoreload (great for the demo).
-    { customer_phone: "0241234567", phone: "0241234567", bundle: "mtn:1024", trigger_percent: 10, momo_number: "0245678901", active: true, reload_count: 3, last_reload_at: at(2, 40), cooldown_hours_from_now: -2 },
-    // Kofi — live rule but inside cooldown → the cron skips it.
-    { customer_phone: "0209876543", phone: "0201122334", bundle: "telecel:10240", trigger_percent: 20, momo_number: "0505566778", active: true, reload_count: 1, last_reload_at: at(6, 30), cooldown_hours_from_now: 6 },
-    // Yaw — paused rule (opted out).
-    { customer_phone: "0502345678", phone: "0276655443", bundle: "airteltigo:1024", trigger_percent: 15, momo_number: "0501234321", active: false, reload_count: 2, last_reload_at: at(9, 120), cooldown_hours_from_now: null },
+    // Ama — live rule on her OWN line, cooldown already over, current bundle at
+    // 97% → the cron fires the moment you hit /api/cron/autoreload.
+    { customer_phone: "0241234567", phone: "0241234567", relation: "self", bundle: "mtn:1024", trigger_percent: 10, momo_number: "0245678901", active: true, reload_count: 3, last_reload_at: at(2, 40), cooldown_hours_from_now: -2 },
+    // Kofi — live rule but inside cooldown → the cron skips it. The line is
+    // his shop's line (NOT his own number) → relation "other" (gift rule).
+    { customer_phone: "0209876543", phone: "0201122334", relation: "other", bundle: "telecel:10240", trigger_percent: 20, momo_number: "0505566778", active: true, reload_count: 1, last_reload_at: at(6, 30), cooldown_hours_from_now: 6 },
+    // Yaw — paused rule (opted out) for a family line → relation "other".
+    { customer_phone: "0502345678", phone: "0276655443", relation: "other", bundle: "airteltigo:1024", trigger_percent: 15, momo_number: "0501234321", active: false, reload_count: 2, last_reload_at: at(9, 120), cooldown_hours_from_now: null },
   ];
   const auto_reload = AR_SEED.map((a, i) => ({
     customer_phone: a.customer_phone,
     phone: a.phone,
+    relation: a.relation || (a.phone === a.customer_phone ? "self" : "other"),
     network: a.bundle.split(":")[0],
     bundle: a.bundle,
     trigger_percent: a.trigger_percent,

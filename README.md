@@ -27,7 +27,7 @@ Customer → bundle + number → Valmont-Pay checkout (MoMo/card)
 cd app
 cp .env.example .env.local      # defaults are fine for local
 npm run dev                     # → http://localhost:8787 (in-memory DB)
-npm test                        # 73-check end-to-end suite (start dev server first)
+npm test                        # 82-check end-to-end suite (start dev server first)
 ```
 
 Storefront at `/`, order tracking at `/status.html`, admin console at
@@ -43,6 +43,17 @@ prompts the user when a line runs low, and when they opt in at
 `autoreload.html`, a cron re-buys the bundle from their pre-authorized MoMo
 through the same idempotent webhook pipeline. Sweep manually in dev:
 `curl localhost:8787/api/cron/autoreload`.
+
+**Payments are live-first**: set `VALMONTPAY_MODE=live` plus the
+Valmont-Pay keys (`VALMONTPAY_API_URL/API_KEY/WEBHOOK_SECRET`) and every
+checkout *and* auto-reload charge goes through the real gateway — there is no
+silent dev fallback (missing keys → 503). Simulation exists only for local
+development (`npm run dev` sets dev mode explicitly).
+
+**Gift safety**: buying a bundle for someone else never offers auto-reload,
+the low-data ask only ever appears for your own line, and enabling it for
+someone else's line requires an explicit "the data goes to them, not to me"
+confirmation — so a favour can't silently drain your MoMo onto their line.
 
 Want a pre-populated storefront instead of an empty one?
 `cd app && SEED_DEMO=1 npm run dev` — loads ~50 realistic demo orders, 5 demo

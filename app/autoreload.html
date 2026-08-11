@@ -167,6 +167,22 @@
             <div class="hint" id="ar-phone-hint" style="font-size:12px;color:var(--muted);margin-top:5px;"></div>
           </div>
 
+          <!-- THE GIFT RULE: shown only when the selected line is NOT the
+               customer's own number — they must confirm the data goes to the
+               other person, or this is exactly how a favour silently drains
+               their MoMo onto someone else's line. -->
+          <div class="field" id="ar-gift-box" style="display:none;">
+            <div class="notice warn" style="margin:0 0 10px;">
+              <b>⚠️ This is not your line.</b><br>
+              Auto-reload will deliver data to <b id="ar-gift-phone"></b> — the person who uses that
+              number — and charge <b>YOUR</b> MoMo. It will <b>not</b> top you up.
+            </div>
+            <label class="consent-box" for="ar-confirm-recipient" style="margin:0;border-color:rgba(255,92,77,0.45);">
+              <input type="checkbox" id="ar-confirm-recipient">
+              <span>I understand: the data goes to <b id="ar-gift-phone2"></b>, <b>not to me</b>. My MoMo is the one being charged.</span>
+            </label>
+          </div>
+
           <div class="field">
             <label for="ar-bundle">Bundle to re-buy</label>
             <select class="inp" id="ar-bundle" required></select>

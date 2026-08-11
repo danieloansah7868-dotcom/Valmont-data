@@ -5,7 +5,11 @@
                                         numbers and the bundle catalogue
      POST   /api/autoreload           → create/update an opt-in rule
                                         { phone, bundle_id, trigger_percent,
-                                          momo_number, consent: true }
+                                          momo_number, consent: true,
+                                          confirm_recipient: true } — the
+                                        recipient confirmation is REQUIRED
+                                        when the line is not the customer's
+                                        own number (gift/favour line)
      POST   /api/autoreload           → { action: "toggle", id, active } pauses
                                         or resumes an existing rule
      DELETE /api/autoreload?id=       → permanent opt-out for that rule
@@ -29,6 +33,9 @@ async function get(req, res) {
     db.select({ from: "bundles", where: { is_active: "eq.true" }, order: "network_id.asc,sort_order.asc" }),
   ]);
 
+  const customer = customerRows[0] || auth;
+  const ownPhone = customer.phone || "";
+
   const networkById = new Map(networks.map((n) => [n.id, n]));
   const bundleById = new Map(bundles.map((b) => [b.id, b]));
 
@@ -40,24 +47,35 @@ async function get(req, res) {
     dataLines.map(async (line) => {
       const usage = autoreload.computeUsageState(await autoreload.latestUsage(line.phone));
       const ruleRow = ruleRows.find((r) => r.phone === line.phone) || null;
-      const rule = ruleRow ? enrichRule(ruleRow, networkById, bundleById) : null;
+      const rule = ruleRow ? enrichRule(ruleRow, networkById, bundleById, ownPhone) : null;
+      const relation = line.phone === ownPhone ? "self" : "other";
+      const low = autoreload.isLow(usage);
+      const hasActiveRule = !!(rule && rule.active);
       return {
         phone: line.phone,
         label: line.label || "Data line",
+        relation,
+        is_own_line: relation === "self",
         usage,
-        low: autoreload.isLow(usage),
-        should_ask: autoreload.isLow(usage) && (!rule || !rule.active),
+        low,
+        // THE GIFT RULE: only ever ask about the customer's OWN line. A line
+        // they buy for someone else must never trigger the "auto-reload?"
+        // prompt, or the customer thinks the reload tops THEM up.
+        should_ask: low && !hasActiveRule && relation === "self",
         rule,
       };
     })
   );
 
   return json(res, 200, {
-    customer: customerRows[0]
-      ? { id: customerRows[0].id, phone: customerRows[0].phone, email: customerRows[0].email, name: customerRows[0].name }
-      : auth,
+    customer: {
+      id: customer.id,
+      phone: customer.phone,
+      email: customer.email,
+      name: customer.name,
+    },
     lines,
-    rules: ruleRows.map((r) => enrichRule(r, networkById, bundleById)),
+    rules: ruleRows.map((r) => enrichRule(r, networkById, bundleById, ownPhone)),
     momo_numbers: momoNumbers,
     networks: networks.map((n) => ({ id: n.id, code: n.code, name: n.name })),
     bundles: bundles.map((b) => ({
@@ -72,12 +90,15 @@ async function get(req, res) {
   });
 }
 
-function enrichRule(rule, networkById, bundleById) {
+function enrichRule(rule, networkById, bundleById, ownPhone) {
   const bundle = bundleById.get(rule.bundle_id);
   const network = networkById.get(rule.network_id);
+  const relation = rule.relation || (rule.phone === ownPhone ? "self" : "other");
   return {
     id: rule.id,
     phone: rule.phone,
+    relation,
+    is_own_line: relation === "self",
     network: network ? network.code : null,
     network_name: network ? network.name : null,
     bundle_id: rule.bundle_id,
@@ -151,6 +172,21 @@ async function post(req, res) {
     });
   }
 
+  /* ---- THE GIFT RULE ---- */
+  // relation tells us who the phone belongs to:
+  //   'self'  → the customer's own line (their account phone)
+  //   'other' → a line they buy data FOR (favour / family / shop line)
+  // For 'other' lines we require an explicit RECIPIENT confirmation on top of
+  // consent — the reload delivers to THAT number and charges the customer's
+  // MoMo, and the customer must clearly understand that before a rule exists.
+  const relation = phoneCheck.normalized === (auth.phone || "") ? "self" : "other";
+  if (relation === "other" && body.confirm_recipient !== true) {
+    return json(res, 400, {
+      error: `${phoneCheck.normalized} is not your own number. Auto-reload will deliver the data to ${phoneCheck.normalized} (not to you) and charge your MoMo. Confirm that you understand before enabling it.`,
+      code: "RECIPIENT_CONFIRM_REQUIRED",
+    });
+  }
+
   const nowIso = new Date().toISOString();
   const existing = await autoreload.findRuleForPhone(auth.id, phoneCheck.normalized);
 
@@ -161,6 +197,7 @@ async function post(req, res) {
       {
         bundle_id: bundle.id,
         network_id: bundle.network_id,
+        relation,
         trigger_percent: triggerPercent,
         momo_number: momoCheck.normalized,
         active: true,
@@ -174,6 +211,7 @@ async function post(req, res) {
       const inserted = await db.insert("auto_reload", {
         customer_id: auth.id,
         phone: phoneCheck.normalized,
+        relation,
         network_id: bundle.network_id,
         bundle_id: bundle.id,
         trigger_percent: triggerPercent,
@@ -213,6 +251,7 @@ async function notifyConsent(auth, rule, bundle, network) {
     customer_phone: auth.phone || auth.email || null,
     rule_id: rule.id,
     phone: rule.phone,
+    relation: rule.relation || "self",
     bundle: `${autoreload.mbLabel(bundle.size_mb)} ${network.name}`,
     price: Number(bundle.sell_price),
     trigger_percent: Number(rule.trigger_percent),

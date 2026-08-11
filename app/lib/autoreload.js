@@ -34,6 +34,11 @@ const { notify } = require("./notify");
 const COOLDOWN_MINUTES = () => Number(process.env.AUTORELOAD_COOLDOWN_MINUTES || 720); // 12h default
 const LOW_PERCENT_FOR_ASK = 80; // lines above this without a rule get the "turn on auto-reload?" prompt
 
+/* Dev-only webhook simulation. NEVER on in live mode: scripts/dev-server.js
+   sets AUTORELOAD_SIMULATE=1 locally; production deployments leave it unset,
+   so a missing gateway fails loudly instead of faking a payment. */
+const SIMULATE = () => process.env.AUTORELOAD_SIMULATE === "1";
+
 /* ---------- labels ---------- */
 function mbLabel(sizeMb) {
   return sizeMb >= 1024 ? `${Math.round(sizeMb / 1024)}GB` : `${sizeMb}MB`;
@@ -182,6 +187,15 @@ async function triggerReload(rule) {
   const network = await orders.findNetworkById(rule.network_id);
   if (!bundle || !network) return { triggered: false, reason: "bundle/network unavailable" };
 
+  // LIVE GATEWAY GUARD — in live mode a reload must charge a real MoMo. If the
+  // gateway is not configured, skip loudly (no simulated success).
+  if (valmontpay.mode() === "live" && !valmontpay.configured()) {
+    await notify.alert(
+      `Auto-reload for ${rule.phone} skipped — Valmont-Pay live mode requires VALMONTPAY_API_KEY and VALMONTPAY_WEBHOOK_SECRET`
+    );
+    return { triggered: false, reason: "live gateway not configured" };
+  }
+
   // FLOAT GUARD — never create an order we cannot deliver.
   const float = await orders.currentFloat(rule.network_id);
   if (float < Number(bundle.cost_price)) {
@@ -228,6 +242,17 @@ async function triggerReload(rule) {
   }
 
   if (charge.dev) {
+    if (!SIMULATE()) {
+      // Live mode (or simulation disabled): a dev-only fallback must never
+      // masquerade as a payment. Fail the order and alert instead.
+      await orders.setStatus(order.id, "failed", {
+        supplier_response: { autoreload: true, charge_error: "live mode: gateway simulation disabled" },
+      });
+      await notify.alert(
+        `Auto-reload charge FAILED for ${rule.phone} (order ${order.reference}): Valmont-Pay not configured and AUTORELOAD_SIMULATE is off`
+      );
+      return { triggered: true, reference: order.reference, charged: false, error: "gateway not configured" };
+    }
     // Dev mode — no gateway. Simulate the signed charge.success webhook so the
     // claim → float check → delivery path runs exactly as it would live.
     const outcome = await simulateChargeWebhook(order);
@@ -309,6 +334,18 @@ async function reportUsage({ reference, phone, usedMb }) {
     limit: 1,
   });
 
+  // THE GIFT RULE: we only ever ASK the customer about a line that is their
+  // OWN number. If this phone is not anyone's account phone, it is a line they
+  // buy data FOR (favour/family) — never auto-prompt, or the customer will
+  // think the reload tops THEM up when it actually goes to the other person.
+  const ownRows = await db.select({
+    from: "customers",
+    where: { phone: `eq.${usage.phone}` },
+    select: "id",
+    limit: 1,
+  });
+  const isOwnLine = ownRows.length > 0;
+
   return {
     ok: true,
     usage: {
@@ -321,7 +358,7 @@ async function reportUsage({ reference, phone, usedMb }) {
       percent_left: state.percent_left,
       status: state.status,
       low: isLow(state),
-      should_ask: isLow(state) && ruleRows.length === 0,
+      should_ask: isLow(state) && ruleRows.length === 0 && isOwnLine,
       expires_at: state.expires_at,
       last_report_at: state.last_report_at,
     },

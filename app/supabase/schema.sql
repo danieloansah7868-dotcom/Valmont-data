@@ -75,10 +75,18 @@ create index if not exists sms_leads_created_idx on public.sms_leads(created_at 
 -- One rule per customer per data line. When the line's current bundle drops
 -- below trigger_percent (or expires), the cron re-buys `bundle_id` from the
 -- pre-authorized `momo_number` and delivers it to `phone`.
+--
+-- `relation` says who the phone belongs to:
+--   'self'  → the line is the customer's own number (phone = customers.phone)
+--   'other' → a line they buy data FOR (gift / favour / family line)
+-- The web NEVER auto-suggests auto-reload for 'other' lines, and creating a
+-- rule for one requires an explicit recipient confirmation (confirm_recipient)
+-- so a favour can't silently drain the customer's MoMo onto someone else's line.
 create table if not exists public.auto_reload (
   id                bigint generated always as identity primary key,
   customer_id       bigint not null references public.customers(id) on delete cascade,
   phone             text not null check (phone ~ '^0[0-9]{9}$'),
+  relation          text not null default 'self' check (relation in ('self','other')),
   network_id        bigint not null references public.networks(id),
   bundle_id         bigint not null references public.bundles(id),
   trigger_percent   integer not null default 10 check (trigger_percent between 1 and 50),

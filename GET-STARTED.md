@@ -33,7 +33,7 @@ npm run dev                     # → http://localhost:8787 (in-memory DB, SUPAB
 In a second terminal (with the dev server still running):
 
 ```bash
-npm test                        # 73-check end-to-end suite — must be 73/73
+npm test                        # 82-check end-to-end suite — must be 82/82
 ```
 
 Then click through the business manually:
@@ -74,7 +74,7 @@ node scripts/sim-webhook.js --ref VD-... --wrong-amount    # auto-refund
 MOCK_FAIL_FIRST=1 npm run dev                              # delivery fails → retry via admin/cron
 ```
 
-**Do not proceed until `npm test` is green (73/73) and you have seen all failure
+**Do not proceed until `npm test` is green (82/82) and you have seen all failure
 paths behave as documented.**
 
 ---
@@ -122,13 +122,19 @@ purchase time so historical P&L stays accurate.
    | Item | Expected |
    |---|---|
    | Checkout creation | `POST /api/transaction/initialize` with `Authorization: Bearer <VALMONTPAY_API_KEY>` and JSON body `{ amount, reference, email, phone, callback_url, currency: "GHS" }` (amount in GHS major units) → `{ data: { pay_url, checkout_url, access_code } }` |
-   | **Direct charge (auto-reload)** | `POST /api/transaction/charge` with JSON body `{ amount, reference, email, phone, currency: "GHS", method: "momo", type: "direct" }` — charges the customer's **pre-authorized** MoMo with no checkout redirect; same `charge.success` webhook then flows through the normal pipeline. **Ask the Valmont-Pay team to enable the direct-charge permission for tenant #3.** Until then auto-reload runs in dev mode (simulated webhook) only. |
+   | **Direct charge (auto-reload)** | `POST /api/transaction/charge` with JSON body `{ amount, reference, email, phone, currency: "GHS", method: "momo", type: "direct" }` — charges the customer's **pre-authorized** MoMo with no checkout redirect; same `charge.success` webhook then flows through the normal pipeline. **Ask the Valmont-Pay team to enable the direct-charge permission for tenant #3** — auto-reload is live-only by default (`VALMONTPAY_MODE=live`), it never simulates a charge in production. |
    | Webhook event | `charge.success` with `{ event: "charge.success", data: { reference, status: "success", amount, currency, channel, gateway_reference, merchant } }` |
    | Signature | `x-valmontpay-signature` = hex HMAC-SHA512 of the **raw** body with `VALMONTPAY_WEBHOOK_SECRET` |
    | Refunds | Manual refund (automated refund endpoint not exposed on live gateway) |
 
    If the live gateway differs, adjust `createCheckout()` / `initiateCharge()` /
    `refund()` there — nothing else in the app knows gateway paths.
+5. **Go live**: set `VALMONTPAY_MODE=live` in Vercel together with
+   `VALMONTPAY_API_URL`, `VALMONTPAY_API_KEY` and `VALMONTPAY_WEBHOOK_SECRET`.
+   There is **no silent dev fallback** — without the credentials the site
+   returns 503 instead of pretending to work. (Simulation only exists locally:
+   `npm run dev` sets `VALMONTPAY_MODE=dev` + `AUTORELOAD_SIMULATE=1`, and the
+   test suite runs in that mode.)
 4. Test the signature locally before going live:
    ```bash
    VALMONTPAY_WEBHOOK_SECRET=<secret> node scripts/sim-webhook.js --ref VD-... --base https://<your-domain>
@@ -236,7 +242,7 @@ an order — the race-condition path must **auto-refund** and mark the webhook
 
 ## 8 · Go-live checklist
 
-- [ ] `npm test` green locally (73/73)
+- [ ] `npm test` green locally (82/82)
 - [ ] `schema.sql` run in Supabase; RLS sanity-checked (customers & saved_numbers tables added)
 - [ ] All env vars set in Vercel; `SUPABASE_MOCK` **not** set
 - [ ] Valmont-Pay webhook registered + signature verified end-to-end

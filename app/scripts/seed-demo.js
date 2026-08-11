@@ -123,6 +123,9 @@ function verify(data) {
     if (!BUNDLES.some((b) => `${b.network}:${b.size_mb}` === a.bundle)) problems.push(`auto_reload ${a.phone}: unknown bundle ${a.bundle}`);
     if (a.trigger_percent < 1 || a.trigger_percent > 50) problems.push(`auto_reload ${a.phone}: bad trigger_percent ${a.trigger_percent}`);
     if (a.momo_number && !/^0\d{9}$/.test(a.momo_number)) problems.push(`auto_reload ${a.phone}: bad momo_number ${a.momo_number}`);
+    const ownerPhone = DEMO_CUSTOMERS.find((c) => c.phone === a.customer_phone)?.phone;
+    const expectedRelation = a.phone === ownerPhone ? "self" : "other";
+    if (a.relation !== expectedRelation) problems.push(`auto_reload ${a.phone}: relation ${a.relation} should be ${expectedRelation}`);
   }
 
   return problems;
@@ -218,10 +221,10 @@ function toSql(data, { now }) {
   P(``);
 
   // auto-reload opt-ins
-  P(`  -- auto-reload opt-ins (explicit customer consent)`);
+  P(`  -- auto-reload opt-ins (explicit customer consent; relation = self|other)`);
   for (const a of data.auto_reload || []) {
-    P(`  insert into public.auto_reload (customer_id, phone, network_id, bundle_id, trigger_percent, momo_number, active, reload_count, last_reload_at, last_triggered_at, cooldown_until, created_at, updated_at)`);
-    P(`  select (select id from public.customers where phone = ${esc(a.customer_phone)}), ${esc(a.phone)},`);
+    P(`  insert into public.auto_reload (customer_id, phone, relation, network_id, bundle_id, trigger_percent, momo_number, active, reload_count, last_reload_at, last_triggered_at, cooldown_until, created_at, updated_at)`);
+    P(`  select (select id from public.customers where phone = ${esc(a.customer_phone)}), ${esc(a.phone)}, ${esc(a.relation)},`);
     P(`         (select id from public.networks where code = ${esc(a.network)}),`);
     P(`         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = ${esc(a.network)} and b.size_mb = ${a.bundle.split(":")[1]}),`);
     P(`         ${a.trigger_percent}, ${esc(a.momo_number)}, ${a.active}, ${a.reload_count},`);
