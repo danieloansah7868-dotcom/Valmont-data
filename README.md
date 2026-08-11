@@ -27,7 +27,7 @@ Customer → bundle + number → Valmont-Pay checkout (MoMo/card)
 cd app
 cp .env.example .env.local      # defaults are fine for local
 npm run dev                     # → http://localhost:8787 (in-memory DB)
-npm test                        # 26-check end-to-end suite (start dev server first)
+npm test                        # 63-check end-to-end suite (start dev server first)
 ```
 
 Storefront at `/`, order tracking at `/status.html`, admin console at
@@ -66,6 +66,10 @@ discounts** (no fake "was" prices).
 - **Frontend:** plain HTML/CSS/JS (`app/index.html`, `status.html`,
   `admin.html`). Mobile-first; house style navy `#0b1a38`, orange `#ff8c00`,
   white `#f8fafc`; big tap targets.
+- **PWA:** installable + offline-capable app shell — `app/manifest.json`,
+  `app/sw.js` (precached shell, offline fallback, cache versioning),
+  `app/offline.html`, `app/assets/js/pwa.js` (install card, update-to-refresh,
+  offline pill). Details in `app/README.md` → PWA.
 - **API:** zero-dependency Node serverless functions under `app/api/` (Vercel).
 - **Data:** Supabase (PostgREST) via `app/lib/supabase.js` — service-role key
   server-side only. `SUPABASE_MOCK=1` gives an in-memory DB for local dev.

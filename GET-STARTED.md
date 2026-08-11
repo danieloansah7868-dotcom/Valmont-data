@@ -33,7 +33,7 @@ npm run dev                     # → http://localhost:8787 (in-memory DB, SUPAB
 In a second terminal (with the dev server still running):
 
 ```bash
-npm test                        # 37-check end-to-end suite — must be 37/37
+npm test                        # 63-check end-to-end suite — must be 63/63
 ```
 
 Then click through the business manually:
@@ -220,7 +220,7 @@ an order — the race-condition path must **auto-refund** and mark the webhook
 
 ## 8 · Go-live checklist
 
-- [ ] `npm test` green locally (40/40)
+- [ ] `npm test` green locally (63/63)
 - [ ] `schema.sql` run in Supabase; RLS sanity-checked (customers & saved_numbers tables added)
 - [ ] All env vars set in Vercel; `SUPABASE_MOCK` **not** set
 - [ ] Valmont-Pay webhook registered + signature verified end-to-end
