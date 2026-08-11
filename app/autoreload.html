@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Auto-reload — Valmont Data</title>
+  <link rel="icon" type="image/svg+xml" href="assets/img/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png">
+  <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0b1a38">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <style>
+    body { background: var(--navy); min-height: 100vh; display: flex; flex-direction: column; }
+
+    .ar-header { padding: 40px 0 8px; }
+    .ar-header .k { display: flex; align-items: center; gap: 10px; }
+    .ar-header h1 { color: var(--white); font-size: clamp(26px, 4vw, 38px); font-weight: 850; letter-spacing: -0.4px; margin: 10px 0 6px; }
+    .ar-header .lead { color: var(--soft); font-size: 15px; max-width: 640px; }
+    .ar-header .live-pill {
+      display: inline-flex; align-items: center; gap: 7px; background: rgba(47,230,143,0.1);
+      border: 1px solid rgba(47,230,143,0.4); color: var(--green); font-size: 12px; font-weight: 800;
+      padding: 5px 12px; border-radius: 999px;
+    }
+    .live-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); animation: pulse 1.6s infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+    .ar-grid { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 22px; margin: 22px 0 60px; align-items: start; }
+    @media (max-width: 900px) { .ar-grid { grid-template-columns: 1fr; } }
+
+    .card { background: #112240; border: 1px solid var(--line); border-radius: 18px; padding: 22px; }
+    .card h2 { color: var(--white); font-size: 17px; font-weight: 800; margin-bottom: 4px; }
+    .card .sub { color: var(--muted); font-size: 13px; margin-bottom: 18px; }
+
+    /* ---- usage cards ---- */
+    .line-card { background: var(--panel-2); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 12px; }
+    .line-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .line-phone { font-weight: 800; color: var(--white); font-size: 15.5px; }
+    .line-label { color: var(--muted); font-size: 12px; }
+    .net-chip { display: inline-block; font-size: 10.5px; font-weight: 900; padding: 3px 9px; border-radius: 999px; letter-spacing: 0.04em; }
+    .net-chip.mtn { background: rgba(255,203,5,0.12); color: var(--mtn); border: 1px solid rgba(255,203,5,0.35); }
+    .net-chip.telecel { background: rgba(255,77,77,0.12); color: var(--telecel); border: 1px solid rgba(255,77,77,0.35); }
+    .net-chip.airteltigo { background: rgba(77,155,245,0.14); color: var(--airtel); border: 1px solid rgba(77,155,245,0.4); }
+
+    .bar-wrap { margin: 12px 0 6px; }
+    .bar-meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+    .bar-meta b { color: var(--white); }
+    .bar { height: 10px; border-radius: 999px; background: rgba(255,255,255,0.08); overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--green), #8ff5c4); transition: width .6s cubic-bezier(0.16,1,0.3,1); }
+    .bar-fill.mid { background: linear-gradient(90deg, var(--orange), var(--orange-2)); }
+    .bar-fill.low { background: linear-gradient(90deg, var(--red), #ff8f84); }
+
+    .line-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; font-size: 12.5px; color: var(--muted); }
+    .pill { display: inline-block; font-size: 10.5px; font-weight: 900; padding: 3px 10px; border-radius: 999px; letter-spacing: 0.05em; }
+    .pill.active { background: rgba(47,230,143,0.12); color: var(--green); }
+    .pill.exhausted, .pill.expired { background: rgba(255,92,77,0.14); color: var(--red); }
+
+    .ask-box {
+      display: flex; gap: 12px; align-items: center; background: rgba(245,140,20,0.09);
+      border: 1px solid rgba(245,140,20,0.4); border-radius: 12px; padding: 12px 14px; margin-top: 12px;
+    }
+    .ask-box .txt { flex: 1; font-size: 13px; color: #ffd9a8; }
+    .ask-box .txt b { color: #ffe9c7; }
+
+    .no-usage { color: var(--muted); font-size: 13px; padding: 8px 0 2px; }
+
+    /* ---- rules ---- */
+    .rule-card { background: var(--panel-2); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 12px; }
+    .rule-card.paused { opacity: 0.75; }
+    .rule-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+    .rule-bundle { font-weight: 800; color: var(--white); font-size: 15px; }
+    .rule-phone { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+    .rule-meta { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+    .meta-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700; color: var(--soft); background: rgba(255,255,255,0.05); border: 1px solid var(--line); padding: 5px 10px; border-radius: 999px; }
+    .meta-chip b { color: var(--orange-2); }
+    .rule-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn-mini { padding: 7px 14px; font-size: 12.5px; border-radius: 999px; border: 1.5px solid var(--line-strong); background: transparent; color: var(--soft); font-weight: 800; cursor: pointer; font-family: inherit; transition: var(--transition); }
+    .btn-mini:hover { border-color: var(--orange); color: var(--orange); }
+    .btn-mini.danger { color: var(--red); }
+    .btn-mini.danger:hover { border-color: var(--red); background: rgba(255,92,77,0.1); }
+    .btn-mini.on { border-color: rgba(47,230,143,0.5); color: var(--green); background: rgba(47,230,143,0.08); }
+    .status-pill { display: inline-block; font-size: 10.5px; font-weight: 900; padding: 3px 10px; border-radius: 999px; }
+    .status-pill.on { background: rgba(47,230,143,0.12); color: var(--green); }
+    .status-pill.off { background: rgba(255,255,255,0.1); color: var(--soft); }
+    .rule-cooldown { color: var(--muted); font-size: 12px; margin-top: 8px; }
+    .rule-cooldown b { color: var(--orange-2); }
+
+    /* ---- opt-in form ---- */
+    .form-card { position: sticky; top: 84px; }
+    @media (max-width: 900px) { .form-card { position: static; } }
+    .form-card .field label { display: block; font-size: 12.5px; font-weight: 800; color: var(--soft); margin-bottom: 6px; }
+    .form-card select.inp { appearance: none; background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%237f8fb4' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 40px; cursor: pointer; }
+    .consent-box {
+      display: flex; gap: 10px; align-items: flex-start; background: rgba(245,140,20,0.06);
+      border: 1px solid rgba(245,140,20,0.3); border-radius: 12px; padding: 12px 14px; margin: 14px 0; cursor: pointer;
+    }
+    .consent-box input { margin-top: 3px; accent-color: var(--orange); width: 17px; height: 17px; flex: none; cursor: pointer; }
+    .consent-box span { font-size: 12.5px; color: #c3cfe8; }
+    .consent-box b { color: #ffe9c7; }
+
+    .toast {
+      position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%) translateY(20px);
+      background: var(--navy-3); border: 1px solid var(--line-strong); color: var(--white);
+      padding: 13px 20px; border-radius: 14px; font-size: 13.5px; font-weight: 700; z-index: 300;
+      opacity: 0; transition: all .3s cubic-bezier(0.16,1,0.3,1); pointer-events: none; max-width: 92vw; text-align: center;
+      box-shadow: 0 16px 40px rgba(0,0,0,.45);
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.error { border-color: rgba(255,92,77,0.6); color: #ffb3ab; }
+    .toast.ok { border-color: rgba(47,230,143,0.6); color: #a7f5cf; }
+
+    .empty-state { text-align: center; padding: 26px 10px; color: var(--muted); font-size: 13.5px; }
+    .empty-state .big { font-size: 30px; margin-bottom: 8px; }
+    .footer-note { margin: -30px 0 40px; font-size: 12px; color: var(--muted); max-width: 640px; }
+  </style>
+</head>
+<body>
+
+  <header class="nav">
+    <div class="wrap nav-inner">
+      <a class="brand" href="/" title="Valmont Data — Home">
+        <img src="assets/img/brand-logo.png" alt="Valmont Data" class="brand-banner">
+      </a>
+      <div id="navAuthArea" style="margin-left: auto;">
+        <!-- Filled by storefront.js -->
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="ar-header">
+      <div class="k">
+        <span class="live-pill"><span class="dot"></span> AUTO-TOP-UP</span>
+      </div>
+      <h1>Auto-reload your data</h1>
+      <p class="lead">
+        We track each of your data lines. When the bundle runs low, we ask — and if you've opted in,
+        we automatically buy the bundle again from your own MoMo, so you never run dry mid-work.
+      </p>
+    </div>
+
+    <div class="ar-grid">
+      <!-- LEFT: my lines + rules -->
+      <div>
+        <div class="card" style="margin-bottom:22px;">
+          <h2>📡 My data lines &amp; usage</h2>
+          <div class="sub">Live usage for bundles we delivered to your lines.</div>
+          <div id="arLines"><div class="empty-state"><div class="big">⏳</div>Loading your lines…</div></div>
+        </div>
+
+        <div class="card">
+          <h2>⚡ My auto-reload rules</h2>
+          <div class="sub">Pause, resume or remove an opt-in anytime — you stay in control.</div>
+          <div id="arRules"><div class="empty-state"><div class="big">⏳</div>Loading rules…</div></div>
+        </div>
+      </div>
+
+      <!-- RIGHT: the opt-in -->
+      <div class="card form-card">
+        <h2>Opt in to auto-reload</h2>
+        <div class="sub">One rule per data line. This is the only place that gives us standing permission to top you up.</div>
+
+        <form id="arForm" autocomplete="off">
+          <div class="field">
+            <label for="ar-phone">Data line to top up</label>
+            <select class="inp" id="ar-phone" required></select>
+            <div class="hint" id="ar-phone-hint" style="font-size:12px;color:var(--muted);margin-top:5px;"></div>
+          </div>
+
+          <div class="field">
+            <label for="ar-bundle">Bundle to re-buy</label>
+            <select class="inp" id="ar-bundle" required></select>
+            <div class="hint" style="font-size:12px;color:var(--muted);margin-top:5px;">Only bundles for this line's network are shown.</div>
+          </div>
+
+          <div class="field">
+            <label for="ar-trigger">Reload when only this much data is left</label>
+            <select class="inp" id="ar-trigger" required>
+              <option value="5">5% left — almost empty</option>
+              <option value="10" selected>10% left (recommended)</option>
+              <option value="20">20% left — top up early</option>
+              <option value="30">30% left — never worry</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="ar-momo">MoMo number to charge (pre-authorized)</label>
+            <select class="inp" id="ar-momo" required></select>
+            <div class="hint" style="font-size:12px;color:var(--muted);margin-top:5px;">Save MoMo numbers in your account if none are listed.</div>
+          </div>
+
+          <label class="consent-box" for="ar-consent">
+            <input type="checkbox" id="ar-consent">
+            <span>
+              I authorise <b>Valmont Data</b> to charge my MoMo number above and buy the selected bundle
+              automatically whenever my data runs low. I understand this repeats until I pause or remove
+              the rule, and I can opt out anytime.
+            </span>
+          </label>
+
+          <button class="btn btn-orange btn-block" id="ar-submit" type="submit">Turn on Auto-reload →</button>
+        </form>
+      </div>
+    </div>
+
+    <p class="footer-note">
+      Auto-reload uses your pre-authorized MoMo number via Valmont-Pay's direct charge — the same
+      payment pipeline as a manual order, so every reload is receipted, float-checked and idempotent.
+      A cooldown prevents repeat charges while your usage report is stale.
+    </p>
+  </main>
+
+  <div class="modal-back" id="accountModal"></div>
+  <div class="toast" id="arToast"></div>
+
+  <script src="assets/js/storefront.js"></script>
+  <script src="assets/js/pwa.js"></script>
+  <script src="assets/js/autoreload.js"></script>
+</body>
+</html>

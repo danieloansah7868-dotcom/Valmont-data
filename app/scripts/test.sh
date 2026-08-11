@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# Valmont Data — end-to-end test (47 checks). Start the dev server first:
+# Valmont Data — end-to-end test (73 checks). Start the dev server first:
 #   npm run dev   →  http://localhost:8787   (default mock DB)
 # The retry path is exercised deterministically via the built-in convention:
 # numbers ending 0000 fail their first delivery attempt (see lib/supplier.js).
@@ -136,7 +136,7 @@ CODE=$(curl -s -o /dev/null -w '%{http_code}' "$B/api/admin/float")
 ck "admin without token → 401" "$CODE" "401"
 
 echo "── 11. static pages ──"
-for p in / /status.html /admin.html; do
+for p in / /status.html /admin.html /autoreload.html; do
   CODE=$(curl -s -o /dev/null -w '%{http_code}' "$B$p")
   ck "page $p" "$CODE" "200"
 done
@@ -170,6 +170,72 @@ ck "sms opt-in stores validated Ghana number" "$(echo "$R_OPT" | jqget "['ok']")
 R_LEADS=$(curl -s "$B/api/admin/sms-leads" -H "Authorization: Bearer $TOK")
 ck "sms-leads returns collected numbers" "$(echo "$R_LEADS" | python3 -c "import sys,json;d=json.load(sys.stdin);print('0559876543' in d.get('phones',[]))")" "True"
 
+echo "── 15. auto-reload: usage tracking → opt-in → automatic top-up ──"
+# Deliver a 2GB MTN bundle (id 2, GH₵9.00 — untouched by the §13 price sync) to the customer's line
+R=$(curl -s -X POST "$B/api/orders" -H "$J" -H "Authorization: Bearer $CTOK" -d '{"bundle_id":2,"phone":"0241112222"}')
+REF_AR=$(echo "$R" | jqget "['reference']")
+sim --ref "$REF_AR" --amount 9 >/dev/null
+ck "auto-reload order delivered" "$(curl -s "$B/api/orders?reference=$REF_AR" | jqget "['order']['status']")" "delivered"
+
+# Usage tracking: every delivered bundle gets a bundle_usage row
+R_U=$(curl -s "$B/api/usage?reference=$REF_AR" -H "x-usage-key: dev-usage-key")
+ck "usage row created on delivery (0% used)" "$(echo "$R_U" | jqget "['usage']['percent_used']")" "0"
+ck "usage row status active" "$(echo "$R_U" | jqget "['usage']['status']")" "active"
+
+# Report usage → crosses the low threshold, no rule yet → should_ask=true
+R_U=$(curl -s -X POST "$B/api/usage" -H "$J" -H "x-usage-key: dev-usage-key" -d "{\"action\":\"report\",\"reference\":\"$REF_AR\",\"used_mb\":1800}")
+ck "usage report updates percent (88%)" "$(echo "$R_U" | jqget "['usage']['percent_used']")" "88"
+ck "low usage flagged" "$(echo "$R_U" | jqget "['usage']['low']")" "True"
+ck "no rule yet → should_ask true" "$(echo "$R_U" | jqget "['usage']['should_ask']")" "True"
+R_AR=$(curl -s "$B/api/autoreload" -H "Authorization: Bearer $CTOK")
+ck "line shows low usage + ask prompt" "$(echo "$R_AR" | python3 -c "import sys,json;d=json.load(sys.stdin);l=[x for x in d['lines'] if x['phone']=='0241112222'][0];print(l['low'] and l['should_ask'])")" "True"
+
+# Opt-in is explicit: no consent → 400; duplicate/network mismatch guarded
+CODE_NOC=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/autoreload" -H "$J" -H "Authorization: Bearer $CTOK" -d '{"phone":"0241112222","bundle_id":2,"trigger_percent":10,"momo_number":"0551112233"}')
+ck "opt-in without consent rejected (400)" "$CODE_NOC" "400"
+CODE_WRONGNET=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/autoreload" -H "$J" -H "Authorization: Bearer $CTOK" -d '{"phone":"0241112222","bundle_id":10,"trigger_percent":10,"momo_number":"0551112233","consent":true}')
+ck "opt-in with wrong-network bundle rejected (400)" "$CODE_WRONGNET" "400"
+R_AR=$(curl -s -X POST "$B/api/autoreload" -H "$J" -H "Authorization: Bearer $CTOK" -d '{"phone":"0241112222","bundle_id":2,"trigger_percent":10,"momo_number":"0551112233","consent":true}')
+ARID=$(echo "$R_AR" | jqget "['rule_id']")
+ck "valid opt-in creates rule" "$(echo "$R_AR" | jqget "['ok']")" "True"
+ck "rule starts active with trigger 10" "$(echo "$R_AR" | jqget "['rule']['trigger_percent']")" "10"
+R_DUP=$(curl -s -X POST "$B/api/autoreload" -H "$J" -H "Authorization: Bearer $CTOK" -d '{"phone":"0241112222","bundle_id":2,"trigger_percent":20,"momo_number":"0551112233","consent":true}')
+ck "re-opt-in updates the existing rule (trigger → 20)" "$(echo "$R_DUP" | jqget "['rule']['trigger_percent']")" "20"
+
+# Exhaust the bundle (98% > 90% threshold) and let the cron auto-reload it
+curl -s -X POST "$B/api/usage" -H "$J" -H "x-usage-key: dev-usage-key" -d "{\"action\":\"report\",\"reference\":\"$REF_AR\",\"used_mb\":2000}" >/dev/null
+R_SWEEP=$(curl -s "$B/api/cron/autoreload")
+ck "cron triggered auto-reload" "$(echo "$R_SWEEP" | jqget "['triggered'][0]['triggered']")" "True"
+ARREF=$(echo "$R_SWEEP" | jqget "['triggered'][0]['reference']")
+ck "auto-reload delivered via real webhook pipeline" "$(echo "$R_SWEEP" | jqget "['triggered'][0]['outcome']['outcome']")" "delivered"
+ck "auto-reload order is delivered" "$(curl -s "$B/api/orders?reference=$ARREF" | jqget "['order']['status']")" "delivered"
+R_AR=$(curl -s "$B/api/autoreload" -H "Authorization: Bearer $CTOK")
+ck "reload counted on the rule" "$(echo "$R_AR" | python3 -c "import sys,json;d=json.load(sys.stdin);r=[x for x in d['rules'] if x['id']==$ARID][0];print(r['reload_count'])")" "1"
+ck "line usage reset (fresh bundle tracked)" "$(echo "$R_AR" | python3 -c "import sys,json;d=json.load(sys.stdin);l=[x for x in d['lines'] if x['phone']=='0241112222'][0];print(l['usage']['percent_used'])")" "0"
+
+# Cooldown: a second sweep must NOT double-buy
+R_SWEEP2=$(curl -s "$B/api/cron/autoreload")
+ck "cooldown blocks second reload" "$(echo "$R_SWEEP2" | python3 -c "import sys,json;d=json.load(sys.stdin);print(d['results'][0]['action'] if d['results'] else 'skip')")" "skip"
+ck "cooldown reason reported" "$(echo "$R_SWEEP2" | python3 -c "import sys,json;d=json.load(sys.stdin);print('cooldown' in (d['results'][0].get('reason') or '') if d['results'] else False)")" "True"
+
+# Pause → sweep ignores it; resume → toggle back
+R_TOG=$(curl -s -X POST "$B/api/autoreload" -H "$J" -H "Authorization: Bearer $CTOK" -d "{\"action\":\"toggle\",\"id\":$ARID,\"active\":false}")
+ck "rule can be paused" "$(echo "$R_TOG" | jqget "['active']")" "False"
+R_SWEEP3=$(curl -s "$B/api/cron/autoreload")
+ck "paused rule not swept" "$(echo "$R_SWEEP3" | jqget "['checked']")" "0"
+
+# Opt-out: delete the rule
+R_DEL=$(curl -s -X DELETE "$B/api/autoreload?id=$ARID" -H "Authorization: Bearer $CTOK")
+ck "rule deleted (opt-out)" "$(echo "$R_DEL" | jqget "['removed']")" "True"
+R_AR=$(curl -s "$B/api/autoreload" -H "Authorization: Bearer $CTOK")
+ck "no rules left after opt-out" "$(echo "$R_AR" | python3 -c "import sys,json;print(len(json.load(sys.stdin)['rules']))")" "0"
+
+# Guard rails
+CODE_AR_NOAUTH=$(curl -s -o /dev/null -w '%{http_code}' "$B/api/autoreload")
+ck "autoreload endpoint without token → 401" "$CODE_AR_NOAUTH" "401"
+CODE_USAGE_BADKEY=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/usage" -H "$J" -H "x-usage-key: wrong" -d '{"action":"report","phone":"0241112222","used_mb":10}')
+ck "usage report with wrong key → 401" "$CODE_USAGE_BADKEY" "401"
+
 echo ""
 echo "RESULT: $PASS passed, $FAIL failed"
-[ "$FAIL" -eq 0 ] && [ "$PASS" -ge 47 ]
+[ "$FAIL" -eq 0 ] && [ "$PASS" -ge 73 ]

@@ -64,4 +64,10 @@ function getCustomer(req) {
   return payload && payload.role === "customer" ? payload : null;
 }
 
-module.exports = { sign, verify, requireAdmin, requireCustomer, getCustomer };
+function getAdmin(req) {
+  const token = extractBearer(req);
+  const payload = verify(token);
+  return payload && payload.role === "admin" ? payload : null;
+}
+
+module.exports = { sign, verify, requireAdmin, requireCustomer, getCustomer, getAdmin };

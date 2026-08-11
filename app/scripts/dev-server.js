@@ -13,6 +13,8 @@ process.env.ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin123";
 process.env.VALMONTPAY_WEBHOOK_SECRET = process.env.VALMONTPAY_WEBHOOK_SECRET || "dev-webhook-secret";
 process.env.SITE_URL = process.env.SITE_URL || "http://localhost:8787";
 process.env.LOW_FLOAT_THRESHOLD = process.env.LOW_FLOAT_THRESHOLD || "50";
+process.env.USAGE_REPORT_KEY = process.env.USAGE_REPORT_KEY || "dev-usage-key";
+process.env.AUTORELOAD_COOLDOWN_MINUTES = process.env.AUTORELOAD_COOLDOWN_MINUTES || "720";
 
 const http = require("http");
 const fs = require("fs");
@@ -63,6 +65,13 @@ const routes = {
   "POST /api/admin/bundles": adminRouter,
   "POST /api/admin/bundles/update-prices": adminRouter,
   "GET /api/cron/retry": require("../api/cron/retry.js"),
+  "GET /api/autoreload": require("../api/autoreload.js"),
+  "POST /api/autoreload": require("../api/autoreload.js"),
+  "DELETE /api/autoreload": require("../api/autoreload.js"),
+  "GET /api/usage": require("../api/usage.js"),
+  "POST /api/usage": require("../api/usage.js"),
+  "GET /api/cron/autoreload": require("../api/cron/autoreload.js"),
+  "POST /api/cron/autoreload": require("../api/cron/autoreload.js"),
 };
 
 const MIME = {
@@ -120,8 +129,11 @@ server.listen(PORT, () => {
   console.log(`  Storefront : http://localhost:${PORT}/`);
   console.log(`  Status     : http://localhost:${PORT}/status.html`);
   console.log(`  Admin      : http://localhost:${PORT}/admin.html  (password: ${process.env.ADMIN_PASSWORD})`);
+  console.log(`  Auto-reload: http://localhost:${PORT}/autoreload.html  (opt-in — usage tracking)`);
   console.log(`  Mock DB    : ${process.env.SUPABASE_MOCK === "1" ? "in-memory (SUPABASE_MOCK=1)" : "Supabase"}`);
   console.log(`  Sim payment: node scripts/sim-webhook.js --ref <reference>`);
+  console.log(`  Sim usage  : node scripts/sim-usage.js --ref <reference> --used-mb <n>`);
+  console.log(`  Auto sweep  : curl http://localhost:${PORT}/api/cron/autoreload`);
   if (demoSeed && demoSeed.skipped) console.log(`  Demo seed  : present (skipped — orders already loaded)`);
   else if (demoSeed) console.log(`  Demo seed  : ${demoSeed.counts.orders} orders, ${demoSeed.counts.customers} customers, ${demoSeed.counts.float_ledger} float entries (SEED_DEMO=1)`);
   console.log("");

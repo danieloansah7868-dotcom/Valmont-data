@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/retry",
       "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/autoreload",
+      "schedule": "*/15 * * * *"
     }
   ],
   "rewrites": [

@@ -27,14 +27,22 @@ Customer → bundle + number → Valmont-Pay checkout (MoMo/card)
 cd app
 cp .env.example .env.local      # defaults are fine for local
 npm run dev                     # → http://localhost:8787 (in-memory DB)
-npm test                        # 26-check end-to-end suite (start dev server first)
+npm test                        # 73-check end-to-end suite (start dev server first)
 ```
 
 Storefront at `/`, order tracking at `/status.html`, admin console at
-`/admin.html` (dev password `admin123`). See [`app/README.md`](app/README.md)
+`/admin.html` (dev password `admin123`), **Auto-reload opt-in at
+`/autoreload.html`**. See [`app/README.md`](app/README.md)
 for the full tour, including how to simulate payments
-(`node scripts/sim-webhook.js --ref VD-260806-XXXX`) and exercise every
+(`node scripts/sim-webhook.js --ref VD-260806-XXXX`), simulate bundle usage
+(`node scripts/sim-usage.js --ref VD-... --percent 92`) and exercise every
 failure path (duplicate webhook, bad signature, wrong amount, retry).
+
+**Auto-reload** — the web tracks each delivered bundle (`bundle_usage`),
+prompts the user when a line runs low, and when they opt in at
+`autoreload.html`, a cron re-buys the bundle from their pre-authorized MoMo
+through the same idempotent webhook pipeline. Sweep manually in dev:
+`curl localhost:8787/api/cron/autoreload`.
 
 Want a pre-populated storefront instead of an empty one?
 `cd app && SEED_DEMO=1 npm run dev` — loads ~50 realistic demo orders, 5 demo

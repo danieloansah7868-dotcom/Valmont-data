@@ -71,6 +71,29 @@ create table if not exists public.sms_leads (
 );
 create index if not exists sms_leads_created_idx on public.sms_leads(created_at desc);
 
+-- ---------- AUTO-RELOAD (the user's opt-in — "auto top-up") ----------
+-- One rule per customer per data line. When the line's current bundle drops
+-- below trigger_percent (or expires), the cron re-buys `bundle_id` from the
+-- pre-authorized `momo_number` and delivers it to `phone`.
+create table if not exists public.auto_reload (
+  id                bigint generated always as identity primary key,
+  customer_id       bigint not null references public.customers(id) on delete cascade,
+  phone             text not null check (phone ~ '^0[0-9]{9}$'),
+  network_id        bigint not null references public.networks(id),
+  bundle_id         bigint not null references public.bundles(id),
+  trigger_percent   integer not null default 10 check (trigger_percent between 1 and 50),
+  momo_number       text check (momo_number is null or momo_number ~ '^0[0-9]{9}$'),
+  active            boolean not null default true,
+  reload_count      integer not null default 0,
+  last_reload_at    timestamptz,                        -- last successful reload delivered
+  last_triggered_at timestamptz,                        -- last time the engine fired
+  cooldown_until    timestamptz,                        -- no new reload before this
+  created_at        timestamptz not null default now(),
+  updated_at        timestamptz not null default now(),
+  unique (customer_id, phone)
+);
+create index if not exists auto_reload_active_idx on public.auto_reload(active, id);
+
 -- ---------- ORDERS ----------
 create table if not exists public.orders (
   id                  bigint generated always as identity primary key,
@@ -87,6 +110,7 @@ create table if not exists public.orders (
   supplier_response   jsonb,                            -- full supplier reply for dispute settling
   attempts            integer not null default 0,
   customer_id         bigint references public.customers(id),
+  auto_reload_id      bigint references public.auto_reload(id),  -- set when this order was created by the auto-reload engine
   created_at          timestamptz not null default now(),
   delivered_at        timestamptz
 );
@@ -94,6 +118,26 @@ create index if not exists orders_status_idx      on public.orders(status);
 create index if not exists orders_created_idx    on public.orders(created_at desc);
 create index if not exists orders_provider_ref_idx on public.orders(provider_reference);
 create index if not exists orders_customer_idx   on public.orders(customer_id);
+
+-- ---------- BUNDLE USAGE (tracks each delivered bundle's data consumption) ----------
+-- One row per delivered order. `used_mb` is updated by usage reports (telco /
+-- supplier API in production, the sim-usage script in dev). The auto-reload
+-- engine watches the newest row per phone and fires when the bundle runs low.
+create table if not exists public.bundle_usage (
+  id             bigint generated always as identity primary key,
+  order_id       bigint not null references public.orders(id) on delete cascade,
+  phone          text not null check (phone ~ '^0[0-9]{9}$'),
+  network_id     bigint not null references public.networks(id),
+  size_mb        integer not null,
+  used_mb        numeric(12,2) not null default 0,
+  status         text not null default 'active' check (status in ('active','exhausted','expired')),
+  started_at     timestamptz not null default now(),
+  expires_at     timestamptz,                           -- null = no expiry (MTN)
+  last_report_at timestamptz,
+  created_at     timestamptz not null default now()
+);
+create index if not exists bundle_usage_phone_idx on public.bundle_usage(phone, id desc);
+create index if not exists bundle_usage_order_idx on public.bundle_usage(order_id);
 
 -- ---------- FLOAT LEDGER (every cedi of prepaid float, per network) ----------
 create table if not exists public.float_ledger (
@@ -175,6 +219,8 @@ alter table public.customers     enable row level security;
 alter table public.saved_numbers enable row level security;
 alter table public.sms_leads     enable row level security;
 alter table public.orders        enable row level security;
+alter table public.bundle_usage  enable row level security;
+alter table public.auto_reload   enable row level security;
 alter table public.float_ledger  enable row level security;
 alter table public.webhook_log   enable row level security;
 
@@ -188,6 +234,12 @@ revoke all on public.bundles from anon;
 -- anon: no access to customer accounts or saved numbers
 revoke all on public.customers from anon;
 revoke all on public.saved_numbers from anon;
+
+-- anon: no access to bundle usage or auto-reload opt-ins — both are managed
+-- server-side (usage reports come from the supplier integration, opt-ins from
+-- the authenticated customer API)
+revoke all on public.bundle_usage from anon;
+revoke all on public.auto_reload  from anon;
 
 -- anon: no direct access to SMS leads — opt-ins are written by the
 -- serverless function (service role) and exported from the admin console
