@@ -174,7 +174,7 @@ echo "── 15. auto-reload: usage tracking → opt-in → automatic top-up ─
 # Deliver a 2GB MTN bundle (id 2, GH₵9.00 — untouched by the §13 price sync) to the customer's line
 R=$(curl -s -X POST "$B/api/orders" -H "$J" -H "Authorization: Bearer $CTOK" -d '{"bundle_id":2,"phone":"0241112222"}')
 REF_AR=$(echo "$R" | jqget "['reference']")
-sim --ref "$REF_AR" --amount 9 >/dev/null
+sim --ref "$REF_AR" --amount 12 >/dev/null
 ck "auto-reload order delivered" "$(curl -s "$B/api/orders?reference=$REF_AR" | jqget "['order']['status']")" "delivered"
 
 # Usage tracking: every delivered bundle gets a bundle_usage row
@@ -193,7 +193,7 @@ ck "line shows low usage + ask prompt" "$(echo "$R_AR" | python3 -c "import sys,
 # Opt-in is explicit: no consent → 400; duplicate/network mismatch guarded
 CODE_NOC=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/autoreload" -H "$J" -H "Authorization: Bearer $CTOK" -d '{"phone":"0241112222","bundle_id":2,"trigger_percent":10,"momo_number":"0551112233"}')
 ck "opt-in without consent rejected (400)" "$CODE_NOC" "400"
-CODE_WRONGNET=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/autoreload" -H "$J" -H "Authorization: Bearer $CTOK" -d '{"phone":"0241112222","bundle_id":10,"trigger_percent":10,"momo_number":"0551112233","consent":true}')
+CODE_WRONGNET=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/autoreload" -H "$J" -H "Authorization: Bearer $CTOK" -d '{"phone":"0241112222","bundle_id":15,"trigger_percent":10,"momo_number":"0551112233","consent":true}')
 ck "opt-in with wrong-network bundle rejected (400)" "$CODE_WRONGNET" "400"
 R_AR=$(curl -s -X POST "$B/api/autoreload" -H "$J" -H "Authorization: Bearer $CTOK" -d '{"phone":"0241112222","bundle_id":2,"trigger_percent":10,"momo_number":"0551112233","consent":true}')
 ARID=$(echo "$R_AR" | jqget "['rule_id']")
@@ -244,7 +244,7 @@ curl -s -X POST "$B/api/account/saved" -H "$J" -H "Authorization: Bearer $CTOK" 
 # Buy a bundle for ANOTHER person's number (a favour) — not the customer's phone
 R=$(curl -s -X POST "$B/api/orders" -H "$J" -H "Authorization: Bearer $CTOK" -d '{"bundle_id":2,"phone":"0559988776"}')
 REF_GIFT=$(echo "$R" | jqget "['reference']")
-sim --ref "$REF_GIFT" --amount 9 >/dev/null
+sim --ref "$REF_GIFT" --amount 12 >/dev/null
 curl -s -X POST "$B/api/usage" -H "$J" -H "x-usage-key: dev-usage-key" -d "{\"action\":\"report\",\"reference\":\"$REF_GIFT\",\"used_mb\":1900}" >/dev/null
 R_AR=$(curl -s "$B/api/autoreload" -H "Authorization: Bearer $CTOK")
 ck "others line flagged as 'other'" "$(echo "$R_AR" | python3 -c "import sys,json;d=json.load(sys.stdin);l=[x for x in d['lines'] if x['phone']=='0559988776'][0];print(l['relation'])")" "other"
