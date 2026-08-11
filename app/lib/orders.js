@@ -46,7 +46,7 @@ async function addFloatEntry(networkId, direction, amount, orderId, note) {
 }
 
 /* ---------- create ---------- */
-async function createOrder(bundle, phone, networkId, customerId = null) {
+async function createOrder(bundle, phone, networkId, customerId = null, opts = {}) {
   const reference = genReference();
   await db.insert("orders", {
     reference,
@@ -57,6 +57,7 @@ async function createOrder(bundle, phone, networkId, customerId = null) {
     cost_price: bundle.cost_price,
     status: "pending",
     customer_id: customerId || null,
+    auto_reload_id: opts.autoReloadId || null,
   });
   return findOrderByReference(reference);
 }
@@ -110,14 +111,41 @@ async function deliverOrder(order) {
   });
 
   if (result.ok) {
+    const nowIso = new Date().toISOString();
     await setStatus(order.id, "delivered", {
       supplier_ref: result.supplier_ref,
       supplier_response: result.raw || {},
       attempts,
-      delivered_at: new Date().toISOString(),
+      delivered_at: nowIso,
     });
     await addFloatEntry(order.network_id, "debit", order.cost_price, order.id, "delivery cost");
     await notify.receipt({ ...order, ...full, supplier_ref: result.supplier_ref });
+
+    // Usage tracking: every delivered bundle gets a bundle_usage row the
+    // auto-reload engine (and the dashboard) watches.
+    await db.insert("bundle_usage", {
+      order_id: order.id,
+      phone: order.phone,
+      network_id: order.network_id,
+      size_mb: full.size_mb,
+      used_mb: 0,
+      status: "active",
+      started_at: nowIso,
+      expires_at: full.validity_days ? new Date(Date.now() + full.validity_days * 86400000).toISOString() : null,
+    });
+
+    // Auto-reload bookkeeping: this order WAS the auto-reload → count it.
+    if (order.auto_reload_id) {
+      const ruleRows = await db.select({ from: "auto_reload", where: { id: `eq.${order.auto_reload_id}` } });
+      if (ruleRows.length) {
+        const rule = ruleRows[0];
+        await db.update(
+          "auto_reload",
+          { reload_count: Number(rule.reload_count || 0) + 1, last_reload_at: nowIso, updated_at: nowIso },
+          { id: `eq.${rule.id}` }
+        );
+      }
+    }
     return { ok: true, attempts };
   }
 

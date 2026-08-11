@@ -411,6 +411,13 @@
         </div>
 
         <div class="account-panel" style="margin-top:16px">
+          <!-- Auto-reload (usage tracking + opt-in) -->
+          <div class="account-section" style="border:1px solid rgba(47,230,143,0.35); background:rgba(47,230,143,0.05);">
+            <h4>⚡ Auto-reload</h4>
+            <p style="color:var(--muted);font-size:12.5px;margin:4px 0 10px;">We track your data lines — when a bundle runs low we top it up automatically, if you opt in.</p>
+            <a href="autoreload.html" class="btn btn-orange btn-sm">Manage Auto-reload →</a>
+          </div>
+
           <!-- Saved Data Lines -->
           <div class="account-section">
             <h4>Saved Data Lines <small style="color:var(--muted);font-size:12px">${dataLines.length}/10</small></h4>
@@ -560,6 +567,8 @@
     const m = $("#buyModal");
     const dataLines = state.accountData?.data_lines || state.accountData?.saved_numbers?.filter((s) => s.kind === "data") || [];
     const recent = state.accountData?.recent_numbers || [];
+    const momoNumbers = state.accountData?.momo_numbers || state.accountData?.saved_numbers?.filter((s) => s.kind === "momo") || [];
+    const firstMomo = momoNumbers[0]?.phone || "";
 
     m.innerHTML = `
       <div class="modal">
@@ -593,6 +602,16 @@
           </label>
         </div>
 
+        ${firstMomo ? `
+          <div class="field" style="margin-top:2px" id="bm-autoreload-row">
+            <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-weight:normal;font-size:13px;line-height:1.45">
+              <input type="checkbox" id="bm-autoreload" style="margin-top:2px;accent-color:var(--orange);"> <span id="bm-autoreload-label"></span>
+            </label>
+          </div>` : `
+          <div class="field" style="margin-top:2px">
+            <div style="font-size:12.5px;color:var(--muted);line-height:1.5">💡 Save a MoMo number in your account to unlock <b style="color:var(--soft);">Auto-reload</b> — automatic top-ups when your data runs low.</div>
+          </div>`}
+
         <button class="btn btn-orange btn-block" id="bm-next" disabled>Continue →</button>
       </div>`;
     m.classList.add("open");
@@ -623,6 +642,22 @@
       }
       hint.textContent = phoneInput.value.length ? "✓ Looks good" : "";
       next.disabled = !v.ok;
+
+      // Auto-reload checkbox — offered for BOTH your own line ("Auto-reload")
+      // and numbers you buy for someone else ("Auto top-up others", e.g. your
+      // girlfriend). The label always says clearly whose number gets the data,
+      // so a favour can never be confused with topping yourself up.
+      const arRow = $("#bm-autoreload-row", m);
+      if (arRow) {
+        arRow.style.display = v.ok ? "" : "none";
+        const label = $("#bm-autoreload-label", m);
+        if (label) {
+          const isOwnLine = v.ok && v.n === (state.customerInfo?.phone || "");
+          label.innerHTML = isOwnLine
+            ? `⚡ Also turn on <b>Auto-reload</b> for <b>my line</b> — when this bundle runs low, we re-buy it automatically from your MoMo <b>${firstMomo}</b>. Each top-up sends a <b>MoMo prompt</b> to <b>${firstMomo}</b> — approve with your PIN and the data lands.`
+            : `⚡ <b>Auto top-up ${v.n} (others)</b> — when <b>their</b> data runs low, we top <b>them</b> up from your MoMo <b>${firstMomo}</b>. The data goes to <b>${v.n}</b>, not to you — each top-up sends a <b>MoMo prompt</b> to <b>${firstMomo}</b> that you approve with your PIN.`;
+        }
+      }
     }
 
     // Wire chips
@@ -642,11 +677,15 @@
       const v = validatePhone(phoneInput.value);
       if (!v.ok) return revalidate();
       const shouldSave = $("#bm-save-num", m)?.checked;
-      showConfirm(v.n, shouldSave);
+      const isOwnLine = v.n === (state.customerInfo?.phone || "");
+      // The checkbox covers BOTH cases: auto-reload for your own line, or
+      // auto top-up for someone else's number (their label says exactly that).
+      const autoreload = $("#bm-autoreload", m)?.checked || false;
+      showConfirm(v.n, shouldSave, autoreload, firstMomo, isOwnLine);
     });
   }
 
-  function showConfirm(phone, shouldSave) {
+  function showConfirm(phone, shouldSave, autoreload, firstMomo, isOwnLine) {
     const b = state.selected;
     const m = $("#buyModal");
     m.innerHTML = `
@@ -659,6 +698,9 @@
           <div class="row"><span>Validity</span><b>${validityLabel(b.validity_days)}</b></div>
           <div class="row total"><span>Total</span><b>${fmt(b.price)}</b></div>
         </div>
+        ${autoreload ? (isOwnLine
+          ? `<div class="notice info" style="margin-top:12px">⚡ <b>Auto-reload on:</b> when your bundle on <b>${phone}</b> runs low, we'll re-buy it from <b>${firstMomo}</b> automatically — you can opt out anytime.</div>`
+          : `<div class="notice info" style="margin-top:12px">⚡ <b>Auto top-up on for ${phone} (others):</b> when <b>their</b> data runs low, we'll top <b>them</b> up from <b>your</b> MoMo <b>${firstMomo}</b>. The data goes to <b>${phone}</b>, not to you.</div>`) : ""}
         <div class="big-number">${phone}</div>
         <div class="notice" style="margin-top:12px"><b>Data goes to this number the moment payment confirms.</b> Wrong numbers are not refundable.</div>
         <button class="btn btn-orange btn-block" id="bm-pay" style="margin-top:14px">Confirm &amp; Pay →</button>
@@ -694,6 +736,25 @@
           m.innerHTML = `<div class="modal"><h3>Could not place order</h3><div class="m-sub">${data.error || "Try again"}</div><button class="btn btn-ghost btn-block" data-close>Close</button></div>`;
           $("[data-close]", m).addEventListener("click", () => m.classList.remove("open"));
           return;
+        }
+
+        // Auto-reload / auto top-up opt-in chosen in the buy flow: standing
+        // permission to re-buy this bundle from the saved MoMo when the line
+        // runs low. For someone else's number (others) the checkbox text
+        // already confirmed the recipient, so confirm_recipient is sent too.
+        if (autoreload && firstMomo) {
+          fetch("/api/autoreload", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${state.customerToken}` },
+            body: JSON.stringify({
+              phone,
+              bundle_id: b.id,
+              trigger_percent: 10,
+              momo_number: firstMomo,
+              consent: true,
+              confirm_recipient: !isOwnLine,
+            }),
+          }).catch(() => {});
         }
         if (data.checkout_url) {
           m.innerHTML = `<div class="modal"><h3>Order created ✅</h3><div class="m-sub">Reference <b>${data.reference}</b> — redirecting to secure checkout…</div></div>`;

@@ -33,7 +33,7 @@ npm run dev                     # → http://localhost:8787 (in-memory DB, SUPAB
 In a second terminal (with the dev server still running):
 
 ```bash
-npm test                        # 37-check end-to-end suite — must be 37/37
+npm test                        # 83-check end-to-end suite — must be 83/83
 ```
 
 Then click through the business manually:
@@ -51,6 +51,19 @@ Then click through the business manually:
 5. Customer account: view saved data lines, saved MoMo numbers, recent delivery numbers,
    personalized time greeting ("Good morning, Kofi" / "Good afternoon, Kofi"),
    and order history.
+6. **Auto-reload**: open `/autoreload.html` (also reachable from the dashboard
+   and the account panel). Order a bundle for a line, then drain it with the
+   usage simulator:
+   ```bash
+   node scripts/sim-usage.js --ref VD-260806-XXXX --percent 92
+   ```
+   The page now asks ("your bundle is 92% used — turn on Auto-reload?"). Opt in
+   (line, bundle, 10% left, your saved MoMo, consent tick) and fire the sweep:
+   ```bash
+   curl http://localhost:8787/api/cron/autoreload
+   ```
+   Watch it re-buy the bundle and deliver it through the normal webhook path
+   (`reload_count` increments, the line resets to 0% used).
 
 Exercise the failure paths — each is a non-negotiable guarantee:
 
@@ -61,7 +74,7 @@ node scripts/sim-webhook.js --ref VD-... --wrong-amount    # auto-refund
 MOCK_FAIL_FIRST=1 npm run dev                              # delivery fails → retry via admin/cron
 ```
 
-**Do not proceed until `npm test` is green (37/37) and you have seen all failure
+**Do not proceed until `npm test` is green (83/83) and you have seen all failure
 paths behave as documented.**
 
 ---
@@ -73,10 +86,12 @@ paths behave as documented.**
 2. Open **SQL Editor** → paste the whole of
    [`app/supabase/schema.sql`](app/supabase/schema.sql) → **Run**.
    It is idempotent: tables (`networks`, `bundles`, `customers`, `saved_numbers`,
-   `orders`, `float_ledger`, `webhook_log`), the advisory-locked `add_float_entry()`
-   function, `current_float()`, `daily_pnl()`, the public `v_bundles` view, RLS policies
-   and seed bundles (cost + sell prices) are all created in one go. If upgrading an existing
-   database, running the script safely adds the new `customers` and `saved_numbers` tables.
+   `orders`, `bundle_usage`, `auto_reload`, `float_ledger`, `webhook_log`), the
+   advisory-locked `add_float_entry()` function, `current_float()`, `daily_pnl()`,
+   the public `v_bundles` view, RLS policies and seed bundles (cost + sell prices)
+   are all created in one go. If upgrading an existing database, running the script
+   safely adds the new tables (including `customers`, `saved_numbers`,
+   `bundle_usage` and `auto_reload`).
 3. Sanity-check RLS: the **anon** role may only read `networks` + `v_bundles`,
    insert a `pending` order and read its own order by reference. There is **no
    anon path to `cost_price`, float, customer data or webhooks**. The app talks to PostgREST
@@ -107,12 +122,19 @@ purchase time so historical P&L stays accurate.
    | Item | Expected |
    |---|---|
    | Checkout creation | `POST /api/transaction/initialize` with `Authorization: Bearer <VALMONTPAY_API_KEY>` and JSON body `{ amount, reference, email, phone, callback_url, currency: "GHS" }` (amount in GHS major units) → `{ data: { pay_url, checkout_url, access_code } }` |
+   | **Direct charge (auto-reload)** | `POST /api/transaction/charge` with JSON body `{ amount, reference, email, phone, currency: "GHS", method: "momo", type: "direct" }` — initiates a charge on the customer's **pre-authorized** MoMo with no checkout redirect. The wallet owner still approves the debit with their **MoMo PIN** (USSD/app prompt) — the charge returns `status: authorization_pending` and the same `charge.success` webhook flows through the normal pipeline once approved. **Ask the Valmont-Pay team to enable the direct-charge permission for tenant #3** — auto-reload is live-only by default (`VALMONTPAY_MODE=live`), it never simulates a charge in production. |
    | Webhook event | `charge.success` with `{ event: "charge.success", data: { reference, status: "success", amount, currency, channel, gateway_reference, merchant } }` |
    | Signature | `x-valmontpay-signature` = hex HMAC-SHA512 of the **raw** body with `VALMONTPAY_WEBHOOK_SECRET` |
    | Refunds | Manual refund (automated refund endpoint not exposed on live gateway) |
 
-   If the live gateway differs, adjust `createCheckout()` / `refund()` there —
-   nothing else in the app knows gateway paths.
+   If the live gateway differs, adjust `createCheckout()` / `initiateCharge()` /
+   `refund()` there — nothing else in the app knows gateway paths.
+5. **Go live**: set `VALMONTPAY_MODE=live` in Vercel together with
+   `VALMONTPAY_API_URL`, `VALMONTPAY_API_KEY` and `VALMONTPAY_WEBHOOK_SECRET`.
+   There is **no silent dev fallback** — without the credentials the site
+   returns 503 instead of pretending to work. (Simulation only exists locally:
+   `npm run dev` sets `VALMONTPAY_MODE=dev` + `AUTORELOAD_SIMULATE=1`, and the
+   test suite runs in that mode.)
 4. Test the signature locally before going live:
    ```bash
    VALMONTPAY_WEBHOOK_SECRET=<secret> node scripts/sim-webhook.js --ref VD-... --base https://<your-domain>
@@ -220,7 +242,7 @@ an order — the race-condition path must **auto-refund** and mark the webhook
 
 ## 8 · Go-live checklist
 
-- [ ] `npm test` green locally (40/40)
+- [ ] `npm test` green locally (83/83)
 - [ ] `schema.sql` run in Supabase; RLS sanity-checked (customers & saved_numbers tables added)
 - [ ] All env vars set in Vercel; `SUPABASE_MOCK` **not** set
 - [ ] Valmont-Pay webhook registered + signature verified end-to-end

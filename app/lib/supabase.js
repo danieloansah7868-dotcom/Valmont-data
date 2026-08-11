@@ -50,9 +50,11 @@ const mockState = {
   saved_numbers: [],
   sms_leads: [],
   orders: [],
+  bundle_usage: [],
+  auto_reload: [],
   float_ledger: [],
   webhook_log: [],
-  _seq: { bundles: 0, customers: 0, saved_numbers: 0, sms_leads: 0, orders: 0, float_ledger: 0, webhook_log: 0 },
+  _seq: { bundles: 0, customers: 0, saved_numbers: 0, sms_leads: 0, orders: 0, bundle_usage: 0, auto_reload: 0, float_ledger: 0, webhook_log: 0 },
 };
 
 // Seed bundles mirroring supabase/schema.sql — single source of truth lives
@@ -133,6 +135,13 @@ function mockInsert(from, row) {
   if (from === "sms_leads") {
     if (mockState.sms_leads.some((s) => s.phone === row.phone)) {
       const err = new Error("duplicate key value violates unique constraint on sms_leads_phone");
+      err.status = 409;
+      throw err;
+    }
+  }
+  if (from === "auto_reload") {
+    if (mockState.auto_reload.some((r) => r.customer_id === row.customer_id && r.phone === row.phone)) {
+      const err = new Error("duplicate key value violates unique constraint on auto_reload (customer_id, phone)");
       err.status = 409;
       throw err;
     }
@@ -288,6 +297,44 @@ function seedDemo(now = new Date()) {
     });
   }
 
+  for (const u of data.bundle_usage || []) {
+    mockState._seq.bundle_usage += 1;
+    mockState.bundle_usage.push({
+      id: mockState._seq.bundle_usage,
+      order_id: orderIdByRef[u.order_reference],
+      phone: u.phone,
+      network_id: networkIdByCode[u.network],
+      size_mb: u.size_mb,
+      used_mb: u.used_mb,
+      status: u.status,
+      started_at: u.started_at,
+      expires_at: u.expires_at,
+      last_report_at: u.last_report_at,
+      created_at: u.started_at,
+    });
+  }
+
+  for (const a of data.auto_reload || []) {
+    mockState._seq.auto_reload += 1;
+    mockState.auto_reload.push({
+      id: mockState._seq.auto_reload,
+      customer_id: customerIdByPhone[a.customer_phone],
+      phone: a.phone,
+      relation: a.relation || (a.phone === a.customer_phone ? "self" : "other"),
+      network_id: networkIdByCode[a.network],
+      bundle_id: bundleIdByKey[a.bundle],
+      trigger_percent: a.trigger_percent,
+      momo_number: a.momo_number,
+      active: a.active,
+      reload_count: a.reload_count,
+      last_reload_at: a.last_reload_at,
+      last_triggered_at: a.last_triggered_at,
+      cooldown_until: a.cooldown_until,
+      created_at: a.created_at,
+      updated_at: a.created_at,
+    });
+  }
+
   for (const f of data.float_ledger) {
     mockState._seq.float_ledger += 1;
     mockState.float_ledger.push({
@@ -320,6 +367,8 @@ function seedDemo(now = new Date()) {
       customers: data.customers.length,
       saved_numbers: data.saved_numbers.length,
       orders: data.orders.length,
+      bundle_usage: (data.bundle_usage || []).length,
+      auto_reload: (data.auto_reload || []).length,
       float_ledger: data.float_ledger.length,
       webhook_log: data.webhook_log.length,
     },

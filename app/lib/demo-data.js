@@ -1,6 +1,7 @@
 /* ============================================================================
    Demo dataset generator — realistic sample data for the Valmont Data
-   marketplace (customers, saved numbers, orders, float ledger, webhook log).
+   marketplace (customers, saved numbers, orders, bundle usage, auto-reload
+   opt-ins, float ledger, webhook log).
 
    One source of truth for two outputs:
      - in-memory mock DB :  SEED_DEMO=1 node scripts/dev-server.js
@@ -141,12 +142,24 @@ function pickBundle(rng, network) {
 }
 
 /* ============================================================================
-   buildDemo — returns { customers, saved_numbers, orders, float_ledger, webhook_log }
+   buildDemo — returns { customers, saved_numbers, orders, bundle_usage,
+                         auto_reload, float_ledger, webhook_log }
    All timestamps are ISO strings relative to `now` (default: current time).
    ============================================================================ */
 function buildDemo({ now = new Date(), rngSeed = 20260807, orderCount = 52 } = {}) {
   const rng = mulberry32(rngSeed);
   const at = (daysAgo, minutes = 0) => new Date(now.getTime() - daysAgo * 86400000 + minutes * 60000).toISOString();
+
+  /* data lines per customer (from SAVED_NUMBERS) — used to make some demo
+     orders land on the customers' own lines so usage tracking is visible */
+  const customerLines = {};
+  for (const s of SAVED_NUMBERS) {
+    if (s.kind !== "data") continue;
+    customerLines[s.customer_phone] = customerLines[s.customer_phone] || [];
+    customerLines[s.customer_phone].push(s.phone);
+  }
+  const bundleByKey = {};
+  for (const b of BUNDLES) bundleByKey[`${b.network}:${b.size_mb}`] = b;
 
   /* ---- customers ---- */
   const customers = DEMO_CUSTOMERS.map((c, i) => ({
@@ -182,7 +195,16 @@ function buildDemo({ now = new Date(), rngSeed = 20260807, orderCount = 52 } = {
     const r = rng();
     const network = r < 0.6 ? "mtn" : r < 0.85 ? "telecel" : "airteltigo";
     const bundle = pickBundle(rng, network);
-    const phone = genPhone(rng, network);
+
+    const customer_phone = rng() < 0.7 ? pick(rng, DEMO_CUSTOMERS).phone : null;
+    // About half of account orders deliver to one of the customer's OWN saved
+    // lines (the rest are gifts/other numbers) — makes bundle usage tracking
+    // and auto-reload demo data coherent.
+    const ownLines = customer_phone ? (customerLines[customer_phone] || []) : [];
+    const phone =
+      customer_phone && ownLines.length && rng() < 0.55
+        ? pick(rng, ownLines)
+        : genPhone(rng, network);
 
     const roll = rng();
     const status =
@@ -228,8 +250,6 @@ function buildDemo({ now = new Date(), rngSeed = 20260807, orderCount = 52 } = {
       attempts = 1;
     }
 
-    const customer_phone = rng() < 0.7 ? pick(rng, DEMO_CUSTOMERS).phone : null;
-
     orders.push({
       reference,
       phone,
@@ -246,6 +266,86 @@ function buildDemo({ now = new Date(), rngSeed = 20260807, orderCount = 52 } = {
       created_at: createdIso,
       delivered_at,
     });
+  }
+
+  /* ---- bundle usage (one row per delivered order) ---- */
+  const bundle_usage = [];
+  for (const o of orders) {
+    if (o.status !== "delivered") continue;
+    const b = bundleByKey[`${o.network}:${o.size_mb}`];
+    const deliveredMs = new Date(o.delivered_at).getTime();
+    bundle_usage.push({
+      order_reference: o.reference,
+      phone: o.phone,
+      network: o.network,
+      size_mb: o.size_mb,
+      used_mb: round2(o.size_mb * (0.05 + rng() * 0.9)),
+      status: "active",
+      started_at: o.delivered_at,
+      expires_at: b && b.validity_days ? new Date(deliveredMs + b.validity_days * 86400000).toISOString() : null,
+      last_report_at: new Date(deliveredMs + (2 + rng() * 20) * 3600000).toISOString(),
+    });
+  }
+
+  /* ---- auto-reload opt-ins (explicit customer consent, stored rules) ---- */
+  const AR_SEED = [
+    // Ama — live rule on her OWN line, cooldown already over, current bundle at
+    // 97% → the cron fires the moment you hit /api/cron/autoreload.
+    { customer_phone: "0241234567", phone: "0241234567", relation: "self", bundle: "mtn:1024", trigger_percent: 10, momo_number: "0245678901", active: true, reload_count: 3, last_reload_at: at(2, 40), cooldown_hours_from_now: -2 },
+    // Kofi — live rule but inside cooldown → the cron skips it. The line is
+    // his shop's line (NOT his own number) → relation "other" (gift rule).
+    { customer_phone: "0209876543", phone: "0201122334", relation: "other", bundle: "telecel:10240", trigger_percent: 20, momo_number: "0505566778", active: true, reload_count: 1, last_reload_at: at(6, 30), cooldown_hours_from_now: 6 },
+    // Yaw — paused rule (opted out) for a family line → relation "other".
+    { customer_phone: "0502345678", phone: "0276655443", relation: "other", bundle: "airteltigo:1024", trigger_percent: 15, momo_number: "0501234321", active: false, reload_count: 2, last_reload_at: at(9, 120), cooldown_hours_from_now: null },
+  ];
+  const auto_reload = AR_SEED.map((a, i) => ({
+    customer_phone: a.customer_phone,
+    phone: a.phone,
+    relation: a.relation || (a.phone === a.customer_phone ? "self" : "other"),
+    network: a.bundle.split(":")[0],
+    bundle: a.bundle,
+    trigger_percent: a.trigger_percent,
+    momo_number: a.momo_number,
+    active: a.active,
+    reload_count: a.reload_count,
+    last_reload_at: a.last_reload_at,
+    last_triggered_at: null,
+    cooldown_until: a.cooldown_hours_from_now == null ? null : new Date(now.getTime() + a.cooldown_hours_from_now * 3600000).toISOString(),
+    created_at: at(14 - i * 3, Math.floor(rng() * 200)),
+  }));
+
+  // The CURRENT bundle on each auto-reload line is already near the trigger →
+  // the dashboard shows the real "low bundle" state and the ask prompt.
+  for (const a of auto_reload) {
+    const delivered = orders
+      .filter((o) => o.status === "delivered" && o.phone === a.phone)
+      .sort((x, y) => x.delivered_at.localeCompare(y.delivered_at));
+    if (!delivered.length) continue;
+    const newest = delivered[delivered.length - 1];
+    const u = bundle_usage.find((u2) => u2.order_reference === newest.reference);
+    if (u) {
+      u.used_mb = round2(u.size_mb * (a.trigger_percent >= 20 ? 0.86 : 0.97));
+      u.last_report_at = at(0, -Math.floor(rng() * 120));
+    }
+  }
+
+  // A "watch" example: one of the demo customers tops up someone else's line
+  // (others, no rule) that is nearly empty — the Auto-reload page shows the
+  // "track & auto top-up others" prompt so they don't miss. We target the
+  // LATEST bundle on that line (the page shows the newest bundle's usage).
+  const watchCandidates = bundle_usage.filter(
+    (u2) =>
+      !auto_reload.some((a) => a.phone === u2.phone) &&
+      SAVED_NUMBERS.some(
+        (s) => s.kind === "data" && s.phone === u2.phone && s.customer_phone !== s.phone
+      )
+  );
+  if (watchCandidates.length) {
+    const phone = watchCandidates[watchCandidates.length - 1].phone;
+    const rowsForPhone = bundle_usage.filter((u2) => u2.phone === phone);
+    const latest = rowsForPhone[rowsForPhone.length - 1]; // newest row = last pushed
+    latest.used_mb = round2(latest.size_mb * 0.93);
+    latest.last_report_at = at(0, -Math.floor(rng() * 60));
   }
 
   /* ---- float ledger (chronological, balances chained per network) ---- */
@@ -335,7 +435,7 @@ function buildDemo({ now = new Date(), rngSeed = 20260807, orderCount = 52 } = {
   });
   webhook_log.sort((a, b) => a.created_at.localeCompare(b.created_at));
 
-  return { customers, saved_numbers, orders, float_ledger, webhook_log };
+  return { customers, saved_numbers, orders, bundle_usage, auto_reload, float_ledger, webhook_log };
 }
 
 /* ---------- summary (for the CLI + dev-server banner) ---------- */
@@ -349,6 +449,8 @@ function summarize(data) {
     saved_numbers: data.saved_numbers.length,
     orders: data.orders.length,
     by_status: byStatus,
+    bundle_usage_rows: (data.bundle_usage || []).length,
+    auto_reload_rules: (data.auto_reload || []).length,
     float_ledger_entries: data.float_ledger.length,
     webhook_logs: data.webhook_log.length,
     final_float: finalFloat,
