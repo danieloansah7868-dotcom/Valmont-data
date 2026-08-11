@@ -15,6 +15,8 @@ begin;
 
 -- 1) New retail prices + sort order for every size in the lineup
 --    (updates whichever of them already exist; never touches cost_price).
+--    NB: the correlation with the UPDATE target (b) must live in WHERE —
+--    Postgres forbids referencing it inside a FROM-clause JOIN ... ON.
 update public.bundles b
 set    sell_price = v.sell_price,
        sort_order = v.sort_order,
@@ -34,9 +36,11 @@ from  (values
   (30720, 140.00, 12),
   (40960, 180.00, 13),
   (51200, 220.00, 14)
-) as v(size_mb, sell_price, sort_order)
-join  public.networks n on n.code = 'mtn' and n.id = b.network_id
-where b.size_mb = v.size_mb;
+) as v(size_mb, sell_price, sort_order),
+      public.networks n
+where n.code = 'mtn'
+  and n.id = b.network_id
+  and b.size_mb = v.size_mb;
 
 -- 2) Insert the sizes the live DB doesn't have yet
 --    (cost = RemaData public wholesale estimate).
