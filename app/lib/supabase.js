@@ -8,7 +8,7 @@
    ============================================================================ */
 
 const MOCK = process.env.SUPABASE_MOCK === "1";
-const { buildDemo } = require("./demo-data");
+const { buildDemo, BUNDLES } = require("./demo-data");
 
 /* ---------------- real PostgREST ---------------- */
 async function rest(path, { method = "GET", body, headers = {} } = {}) {
@@ -55,22 +55,14 @@ const mockState = {
   _seq: { bundles: 0, customers: 0, saved_numbers: 0, sms_leads: 0, orders: 0, float_ledger: 0, webhook_log: 0 },
 };
 
-// Seed bundles mirroring supabase/schema.sql
+// Seed bundles mirroring supabase/schema.sql — single source of truth lives
+// in lib/demo-data.js (BUNDLES); keep schema.sql in step with it.
 (function seedBundles() {
-  const rows = [
-    // network, size_mb, validity_days, cost, sell, sort
-    ["mtn", 1024, null, 3.9, 4.2, 1], ["mtn", 2048, null, 8.1, 9.0, 2],
-    ["mtn", 3072, null, 11.9, 13.5, 3], ["mtn", 5120, null, 18.9, 20.5, 4],
-    ["mtn", 10240, null, 38.5, 43.0, 5], ["mtn", 20480, null, 73.0, 82.0, 6],
-    ["mtn", 30720, null, 111.0, 125.0, 7], ["mtn", 51200, null, 185.0, 201.0, 8],
-    ["mtn", 102400, null, 377.0, 407.0, 9],
-    ["telecel", 10240, 60, 35.5, 39.5, 1], ["telecel", 20480, 60, 67.8, 75.0, 2],
-    ["telecel", 30720, 60, 98.7, 110.0, 3], ["telecel", 51200, 60, 162.5, 180.0, 4],
-    ["telecel", 102400, 60, 367.0, 405.0, 5],
-    ["airteltigo", 1024, 60, 3.65, 4.0, 1], ["airteltigo", 5120, 60, 18.0, 19.9, 2],
-    ["airteltigo", 10240, 60, 35.5, 39.0, 3], ["airteltigo", 30720, 60, 106.0, 117.0, 4],
-    ["airteltigo", 51200, 60, 175.0, 193.0, 5],
-  ];
+  const sortSeen = {};
+  const rows = BUNDLES.map((b) => {
+    sortSeen[b.network] = (sortSeen[b.network] || 0) + 1;
+    return [b.network, b.size_mb, b.validity_days, b.cost, b.sell, sortSeen[b.network]];
+  });
   for (const [code, size_mb, validity_days, cost_price, sell_price, sort_order] of rows) {
     const net = mockState.networks.find((n) => n.code === code);
     mockState._seq.bundles += 1;

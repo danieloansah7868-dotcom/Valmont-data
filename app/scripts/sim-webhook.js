@@ -3,13 +3,13 @@
    Simulate a Valmont-Pay payment webhook (signed correctly with live contract)
    so you can test the delivery pipeline against local dev or live deployment:
 
-     node scripts/sim-webhook.js --ref VD-260806-4831 --amount 43
-     VALMONTPAY_WEBHOOK_SECRET=... node scripts/sim-webhook.js --ref VD-... --amount 43
+     node scripts/sim-webhook.js --ref VD-260806-4831 --amount 52
+     VALMONTPAY_WEBHOOK_SECRET=... node scripts/sim-webhook.js --ref VD-... --amount 52
      node scripts/sim-webhook.js --ref VD-TEST --base https://valmont-data.vercel.app
 
    Options:
      --ref           order reference (required)
-     --amount        amount to send in GHS (defaults to order amount or 43)
+     --amount        amount to send in GHS (defaults to order amount or 52)
      --provider-ref  payment reference (default: auto VP-TEST-...)
      --base          server base (default http://localhost:8787)
      --bad-signature sends an invalid signature (tests the 401 path)
@@ -28,7 +28,7 @@ const secret = process.env.VALMONTPAY_WEBHOOK_SECRET || "dev-webhook-secret";
 const base = String(args.base || "http://localhost:8787").replace(/\/$/, "");
 const ref = args.ref;
 if (!ref) {
-  console.error("Usage: node scripts/sim-webhook.js --ref VD-260806-4831 [--amount 43] [--base URL]");
+  console.error("Usage: node scripts/sim-webhook.js --ref VD-260806-4831 [--amount 52] [--base URL]");
   process.exit(1);
 }
 
@@ -48,7 +48,7 @@ if (!ref) {
       // ignore fetch errors, fall back to default
     }
     if (amount === undefined) {
-      amount = 43; // default fallback amount
+      amount = 52; // default fallback amount
     }
   }
 

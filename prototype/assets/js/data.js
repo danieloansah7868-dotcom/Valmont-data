@@ -14,11 +14,11 @@ window.VD_DATA = {
   /* account / member prices (reseller tier) */
   bundles: {
     mtn: [
-      { gb: 1,  price: 4.10  }, { gb: 2,  price: 8.50  }, { gb: 3,  price: 12.50 },
-      { gb: 4,  price: 16.80 }, { gb: 5,  price: 20.50 }, { gb: 6,  price: 24.00 },
-      { gb: 8,  price: 32.00 }, { gb: 10, price: 40.50 }, { gb: 15, price: 57.00 },
-      { gb: 20, price: 77.00 }, { gb: 25, price: 96.00 }, { gb: 30, price: 117.00 },
-      { gb: 40, price: 155.00}, { gb: 50, price: 195.00}, { gb: 100, price: 407.00 }
+      { gb: 1,  price: 5.50  }, { gb: 2,  price: 11.00 }, { gb: 3,  price: 16.00 },
+      { gb: 4,  price: 21.50 }, { gb: 5,  price: 26.50 }, { gb: 6,  price: 33.00 },
+      { gb: 8,  price: 40.50 }, { gb: 10, price: 49.00 }, { gb: 15, price: 71.00 },
+      { gb: 20, price: 88.00 }, { gb: 25, price: 109.00}, { gb: 30, price: 133.00 },
+      { gb: 40, price: 172.00}, { gb: 50, price: 211.00 }
     ],
     telecel: [
       { gb: 10, price: 38.50 }, { gb: 15, price: 54.85 }, { gb: 20, price: 73.80 },
@@ -38,11 +38,11 @@ window.VD_DATA = {
   /* guest prices shown on /buy (no-account checkout) */
   guest: {
     mtn: [
-      { gb: 1, price: 4.20 }, { gb: 2, price: 9.00 }, { gb: 3, price: 13.50 },
-      { gb: 4, price: 19.00 }, { gb: 5, price: 23.00 }, { gb: 6, price: 27.00 },
-      { gb: 8, price: 36.00 }, { gb: 10, price: 43.00 }, { gb: 15, price: 62.00 },
-      { gb: 20, price: 82.00 }, { gb: 25, price: 103.00 }, { gb: 30, price: 125.00 },
-      { gb: 50, price: 201.00 }
+      { gb: 1, price: 6.00 }, { gb: 2, price: 12.00 }, { gb: 3, price: 17.00 },
+      { gb: 4, price: 23.00 }, { gb: 5, price: 28.00 }, { gb: 6, price: 35.00 },
+      { gb: 8, price: 43.00 }, { gb: 10, price: 52.00 }, { gb: 15, price: 75.00 },
+      { gb: 20, price: 93.00 }, { gb: 25, price: 115.00 }, { gb: 30, price: 140.00 },
+      { gb: 40, price: 180.00 }, { gb: 50, price: 220.00 }
     ],
     telecel: [
       { gb: 10, price: 39.50 }, { gb: 15, price: 56.00 }, { gb: 20, price: 75.00 },

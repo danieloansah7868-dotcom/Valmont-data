@@ -53,7 +53,7 @@ CODE_ACC_NOAUTH=$(curl -s -o /dev/null -w '%{http_code}' "$B/api/account")
 ck "account endpoint without token rejected (401)" "$CODE_ACC_NOAUTH" "401"
 
 # Authed order with 0 float (Telecel has 0 float) -> 422
-CODE_FLOAT0=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/orders" -H "$J" -H "Authorization: Bearer $CTOK" -d '{"bundle_id":10,"phone":"0201112222"}')
+CODE_FLOAT0=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/orders" -H "$J" -H "Authorization: Bearer $CTOK" -d '{"bundle_id":15,"phone":"0201112222"}')
 ck "authed order rejected when float is 0 (422)" "$CODE_FLOAT0" "422"
 
 # Now top up telecel and airteltigo float for remaining tests
@@ -61,13 +61,13 @@ curl -s -X POST "$B/api/admin/float/topup" -H "$J" -H "Authorization: Bearer $TO
 curl -s -X POST "$B/api/admin/float/topup" -H "$J" -H "Authorization: Bearer $TOK" -d '{"network":"airteltigo","amount":100}' >/dev/null
 
 echo "── 4. order creation + webhook delivery ──"
-R=$(curl -s -X POST "$B/api/orders" -H "$J" -H "Authorization: Bearer $CTOK" -d '{"bundle_id":5,"phone":"0241112222"}')   # 10GB MTN 43.00
+R=$(curl -s -X POST "$B/api/orders" -H "$J" -H "Authorization: Bearer $CTOK" -d '{"bundle_id":8,"phone":"0241112222"}')   # 10GB MTN 52.00
 REF=$(echo "$R" | jqget "['reference']")
 ck "order created" "$(echo "$R" | jqget "['dev']")" "True"
 R=$(curl -s "$B/api/orders?reference=$REF")
 ck "order status pending" "$(echo "$R" | jqget "['order']['status']")" "pending"
 
-R=$(sim --ref "$REF" --amount 43)
+R=$(sim --ref "$REF" --amount 52)
 ck "webhook handled" "$(echo "$R" | jqget "['handled']")" "True"
 R=$(curl -s "$B/api/orders?reference=$REF")
 ck "order delivered" "$(echo "$R" | jqget "['order']['status']")" "delivered"
@@ -76,7 +76,7 @@ R=$(curl -s "$B/api/admin/float" -H "Authorization: Bearer $TOK")
 ck "float debited (200-38.5=161.5)" "$(echo "$R" | jqget "['balances'][0]['balance']")" "161.5"
 
 echo "── 5. idempotency (duplicate webhook) ──"
-R=$(sim --ref "$REF" --amount 43 --duplicate)
+R=$(sim --ref "$REF" --amount 52 --duplicate)
 DUP=$(echo "$R" | jqget "['duplicate']['duplicate']")
 ck "duplicate webhook detected" "$DUP" "True"
 R=$(curl -s "$B/api/admin/float" -H "Authorization: Bearer $TOK")
@@ -86,7 +86,7 @@ echo "── 6. signature + amount guards ──"
 CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/valmontpay/webhook" -H "Content-Type: application/json" -H "x-valmontpay-signature: deadbeef" -d '{"event":"charge.success"}')
 ck "bad signature → 401" "$CODE" "401"
 
-R=$(curl -s -X POST "$B/api/orders" -H "$J" -H "Authorization: Bearer $CTOK" -d '{"bundle_id":10,"phone":"0241112222"}')  # 10GB telecel
+R=$(curl -s -X POST "$B/api/orders" -H "$J" -H "Authorization: Bearer $CTOK" -d '{"bundle_id":15,"phone":"0241112222"}')  # 10GB telecel
 REF2=$(echo "$R" | jqget "['reference']")
 sim --ref "$REF2" --wrong-amount >/dev/null
 R=$(curl -s "$B/api/orders?reference=$REF2")
@@ -99,7 +99,7 @@ ck "invalid phone rejected" "$CODE" "400"
 echo "── 8. retry path (…0000 numbers fail attempt 1 → retry succeeds) ──"
 R=$(curl -s -X POST "$B/api/orders" -H "$J" -H "Authorization: Bearer $CTOK" -d '{"bundle_id":1,"phone":"0551110000"}')  # 1GB MTN
 REF3=$(echo "$R" | jqget "['reference']")
-sim --ref "$REF3" --amount 4.20 >/dev/null
+sim --ref "$REF3" --amount 6 >/dev/null
 R=$(curl -s "$B/api/orders?reference=$REF3")
 ck "first attempt failed" "$(echo "$R" | jqget "['order']['status']")" "failed"
 ck "attempts recorded = 1" "$(echo "$R" | jqget "['order']['attempts']")" "1"

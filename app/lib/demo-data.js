@@ -8,8 +8,9 @@
 
    Deterministic: the same anchor date always yields the same rows, so seeds,
    verifications and tests can assert exact numbers. Networks & bundles are
-   NOT generated here — they come from the base seed in supabase/schema.sql
-   (mirrored in lib/supabase.js). Orders reference bundles by (network, size_mb)
+   NOT generated here — BUNDLES below mirrors the base seed in
+   supabase/schema.sql and lib/supabase.js imports it from here (keep all three
+   in step). Orders reference bundles by (network, size_mb)
    and customers by phone; each consumer resolves those to ids its own way
    (mock ids in supabase.js, subselects in the generated SQL).
    ============================================================================ */
@@ -44,15 +45,20 @@ const NETWORK_CODES = ["mtn", "telecel", "airteltigo"];
 
 const BUNDLES = [
   // network, size_mb, validity_days, cost_price, sell_price
-  { network: "mtn",       size_mb: 1024,  validity_days: null, cost: 3.9,   sell: 4.2 },
-  { network: "mtn",       size_mb: 2048,  validity_days: null, cost: 8.1,   sell: 9.0 },
-  { network: "mtn",       size_mb: 3072,  validity_days: null, cost: 11.9,  sell: 13.5 },
-  { network: "mtn",       size_mb: 5120,  validity_days: null, cost: 18.9,  sell: 20.5 },
-  { network: "mtn",       size_mb: 10240, validity_days: null, cost: 38.5,  sell: 43.0 },
-  { network: "mtn",       size_mb: 20480, validity_days: null, cost: 73.0,  sell: 82.0 },
-  { network: "mtn",       size_mb: 30720, validity_days: null, cost: 111.0, sell: 125.0 },
-  { network: "mtn",       size_mb: 51200, validity_days: null, cost: 185.0, sell: 201.0 },
-  { network: "mtn",       size_mb: 102400, validity_days: null, cost: 377.0, sell: 407.0 },
+  { network: "mtn",       size_mb: 1024,  validity_days: null, cost: 3.9,   sell: 6.0 },
+  { network: "mtn",       size_mb: 2048,  validity_days: null, cost: 8.1,   sell: 12.0 },
+  { network: "mtn",       size_mb: 3072,  validity_days: null, cost: 11.9,  sell: 17.0 },
+  { network: "mtn",       size_mb: 4096,  validity_days: null, cost: 16.6,  sell: 23.0 },
+  { network: "mtn",       size_mb: 5120,  validity_days: null, cost: 18.9,  sell: 28.0 },
+  { network: "mtn",       size_mb: 6144,  validity_days: null, cost: 24.5,  sell: 35.0 },
+  { network: "mtn",       size_mb: 8192,  validity_days: null, cost: 32.6,  sell: 43.0 },
+  { network: "mtn",       size_mb: 10240, validity_days: null, cost: 38.5,  sell: 52.0 },
+  { network: "mtn",       size_mb: 15360, validity_days: null, cost: 58.0,  sell: 75.0 },
+  { network: "mtn",       size_mb: 20480, validity_days: null, cost: 73.0,  sell: 93.0 },
+  { network: "mtn",       size_mb: 25600, validity_days: null, cost: 98.0,  sell: 115.0 },
+  { network: "mtn",       size_mb: 30720, validity_days: null, cost: 111.0, sell: 140.0 },
+  { network: "mtn",       size_mb: 40960, validity_days: null, cost: 159.0, sell: 180.0 },
+  { network: "mtn",       size_mb: 51200, validity_days: null, cost: 185.0, sell: 220.0 },
   { network: "telecel",   size_mb: 10240, validity_days: 60,   cost: 35.5,  sell: 39.5 },
   { network: "telecel",   size_mb: 20480, validity_days: 60,   cost: 67.8,  sell: 75.0 },
   { network: "telecel",   size_mb: 30720, validity_days: 60,   cost: 98.7,  sell: 110.0 },
