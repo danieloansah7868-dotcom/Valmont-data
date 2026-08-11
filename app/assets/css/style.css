@@ -91,6 +91,80 @@ section { padding: 48px 0; }
   .nav-links a { padding: 8px 9px; font-size: 13px; }
 }
 
+/* ---------- continuous scrolling ticker marquee (infinite smooth loop, pause on hover) ---------- */
+.marquee,
+.ticker {
+  background: linear-gradient(90deg, rgba(11, 26, 56, 0.98), rgba(16, 34, 70, 0.98));
+  border-bottom: 1px solid var(--line);
+  overflow: hidden;
+  white-space: nowrap;
+  position: relative;
+  z-index: 49;
+}
+.marquee-track,
+.ticker-track {
+  display: flex;
+  width: max-content;
+  animation: marquee-scroll 30s linear infinite;
+}
+.marquee:hover .marquee-track,
+.marquee:hover .ticker-track,
+.ticker:hover .marquee-track,
+.ticker:hover .ticker-track {
+  animation-play-state: paused;
+}
+.marquee-content,
+.ticker-content {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  padding: 10px 14px;
+  flex: none;
+}
+.marquee-item,
+.ticker-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--soft);
+  flex: none;
+  white-space: nowrap;
+}
+.marquee-item b,
+.ticker-item b {
+  color: var(--white);
+}
+.marquee-link,
+.ticker-link {
+  color: var(--orange);
+  font-weight: 900;
+  text-decoration: none;
+  margin-left: 6px;
+  transition: var(--transition);
+}
+.marquee-link:hover,
+.ticker-link:hover {
+  color: var(--orange-2);
+  text-decoration: underline;
+}
+.marquee-dot,
+.ticker-dot {
+  color: var(--muted);
+  opacity: 0.45;
+  font-size: 14px;
+  flex: none;
+}
+@keyframes marquee-scroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+@media (max-width: 720px) {
+  .marquee-content, .ticker-content { gap: 18px; padding: 9px 10px; }
+  .marquee-item, .ticker-item { font-size: 12.5px; }
+}
+
 /* ---------- buttons ---------- */
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 26px; border-radius: 999px; border: none; cursor: pointer; font-weight: 800; font-size: 15px; font-family: inherit; transition: var(--transition); line-height: 1.2; text-decoration: none; }
 .btn-orange { background: var(--orange); color: #1a0f00; box-shadow: 0 8px 24px var(--orange-glow); }

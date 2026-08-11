@@ -895,7 +895,7 @@
     localStorage.setItem("vd_referrer", urlRef);
   }
 
-  // Wire quick links
+  // Wire quick links + marquee ticker
   document.addEventListener("DOMContentLoaded", () => {
     $("#linkReferEarn")?.addEventListener("click", (e) => {
       e.preventDefault();
@@ -905,6 +905,17 @@
       e.preventDefault();
       openReferModal();
     });
+    // Marquee ticker "Claim your free data →" triggers Refer & Earn modal
+    $("#tickerClaimBtn")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      openReferModal();
+    });
+    document.querySelectorAll(".ticker-clone-link").forEach((a) =>
+      a.addEventListener("click", (e) => {
+        e.preventDefault();
+        openReferModal();
+      })
+    );
     $$('a[href="#refer"]').forEach((a) =>
       a.addEventListener("click", (e) => {
         e.preventDefault();
