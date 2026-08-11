@@ -32,6 +32,7 @@ The **webhook handler is the heart of the system** (`api/valmontpay/webhook.js`)
 | `lib/` | `supabase.js` (data layer + mock), `valmontpay.js` (client + HMAC-SHA512), `supplier.js` (adapter), `orders.js` (engine), `phones.js`, `notify.js`, `auth.js` |
 | `supabase/schema.sql` | Tables (`customers`, `saved_numbers`, `sms_leads`, `orders`, `float_ledger`, etc.), RLS, functions, seeds — run once in Supabase |
 | `supabase/seed-demo.sql` | **Demo seed** for DEMO/STAGING Supabase — customers, orders, float, webhook log (generated, self-skipping) |
+| `supabase/migrations/` | **Live-DB changes** (price/lineup updates etc.) — idempotent SQL, run in the Supabase SQL editor; the base seed's `on conflict do nothing` never updates existing rows |
 | `scripts/dev-server.js` | Zero-dependency local server (mock DB) |
 | `scripts/seed-demo.js` | Demo data: seed the mock DB (`SEED_DEMO=1`), verify consistency, or regenerate `supabase/seed-demo.sql` |
 | `scripts/sim-webhook.js` | Sign + send a fake payment webhook to test delivery |

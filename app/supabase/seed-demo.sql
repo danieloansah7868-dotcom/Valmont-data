@@ -77,11 +77,11 @@ begin
   -- orders (bundle/network/customer ids resolved from the base seed)
   insert into public.orders (reference, phone, bundle_id, network_id, amount, cost_price, status, provider_reference, supplier_ref, supplier_response, attempts, customer_id, created_at, delivered_at)
   select 'VD-260802-6799', '0552485428',
-         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 2048),
+         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 3072),
          (select id from public.networks where code = 'mtn'),
-         9.00, 8.10, 'delivered',
+         17.00, 11.90, 'delivered',
          'VP-260802-VMDF', 'REM-56167617',
-         '{"driver":"remadata","order_id":"REM-56167617","status":"success","network":"mtn","size_mb":2048,"phone":"0552485428"}'::jsonb,
+         '{"driver":"remadata","order_id":"REM-56167617","status":"success","network":"mtn","size_mb":3072,"phone":"0552485428"}'::jsonb,
          1,
          (select id from public.customers where phone = '0551112233'),
          '2026-08-02T09:49:23.595Z', '2026-08-02T09:53:31.122Z';
@@ -107,9 +107,9 @@ begin
          '2026-08-01T21:07:21.287Z', NULL;
   insert into public.orders (reference, phone, bundle_id, network_id, amount, cost_price, status, provider_reference, supplier_ref, supplier_response, attempts, customer_id, created_at, delivered_at)
   select 'VD-260715-1136', '0547813553',
-         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 5120),
+         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 8192),
          (select id from public.networks where code = 'mtn'),
-         20.50, 18.90, 'delivering',
+         43.00, 32.60, 'delivering',
          'VP-260715-YKYW', NULL,
          NULL,
          1,
@@ -139,7 +139,7 @@ begin
   select 'VD-260724-1077', '0548021645',
          (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 1024),
          (select id from public.networks where code = 'mtn'),
-         4.20, 3.90, 'delivered',
+         6.00, 3.90, 'delivered',
          'VP-260724-854T', 'REM-59290565',
          '{"driver":"remadata","order_id":"REM-59290565","status":"success","network":"mtn","size_mb":1024,"phone":"0548021645"}'::jsonb,
          1,
@@ -157,61 +157,61 @@ begin
          '2026-07-19T13:53:07.675Z', NULL;
   insert into public.orders (reference, phone, bundle_id, network_id, amount, cost_price, status, provider_reference, supplier_ref, supplier_response, attempts, customer_id, created_at, delivered_at)
   select 'VD-260801-7267', '0249942834',
-         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 30720),
+         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 25600),
          (select id from public.networks where code = 'mtn'),
-         125.00, 111.00, 'delivered',
+         115.00, 98.00, 'delivered',
          'VP-260801-W3AJ', 'REM-88774302',
-         '{"driver":"remadata","order_id":"REM-88774302","status":"success","network":"mtn","size_mb":30720,"phone":"0249942834"}'::jsonb,
+         '{"driver":"remadata","order_id":"REM-88774302","status":"success","network":"mtn","size_mb":25600,"phone":"0249942834"}'::jsonb,
          1,
          NULL,
          '2026-08-01T11:57:30.663Z', '2026-08-01T12:02:28.734Z';
   insert into public.orders (reference, phone, bundle_id, network_id, amount, cost_price, status, provider_reference, supplier_ref, supplier_response, attempts, customer_id, created_at, delivered_at)
   select 'VD-260721-6676', '0253939638',
-         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 51200),
+         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 25600),
          (select id from public.networks where code = 'mtn'),
-         201.00, 185.00, 'delivered',
+         115.00, 98.00, 'delivered',
          'VP-260721-L8JR', 'REM-82737055',
-         '{"driver":"remadata","order_id":"REM-82737055","status":"success","network":"mtn","size_mb":51200,"phone":"0253939638"}'::jsonb,
+         '{"driver":"remadata","order_id":"REM-82737055","status":"success","network":"mtn","size_mb":25600,"phone":"0253939638"}'::jsonb,
          1,
          NULL,
          '2026-07-21T04:08:09.786Z', '2026-07-21T04:12:14.234Z';
   insert into public.orders (reference, phone, bundle_id, network_id, amount, cost_price, status, provider_reference, supplier_ref, supplier_response, attempts, customer_id, created_at, delivered_at)
   select 'VD-260805-5407', '0250702083',
-         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 51200),
+         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 40960),
          (select id from public.networks where code = 'mtn'),
-         201.00, 185.00, 'delivered',
+         180.00, 159.00, 'delivered',
          'VP-260805-UCMU', 'REM-80028858',
-         '{"driver":"remadata","order_id":"REM-80028858","status":"success","network":"mtn","size_mb":51200,"phone":"0250702083"}'::jsonb,
+         '{"driver":"remadata","order_id":"REM-80028858","status":"success","network":"mtn","size_mb":40960,"phone":"0250702083"}'::jsonb,
          2,
          NULL,
          '2026-08-05T08:31:37.948Z', '2026-08-05T08:34:13.789Z';
   insert into public.orders (reference, phone, bundle_id, network_id, amount, cost_price, status, provider_reference, supplier_ref, supplier_response, attempts, customer_id, created_at, delivered_at)
   select 'VD-260709-9135', '0543101013',
-         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 2048),
+         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 3072),
          (select id from public.networks where code = 'mtn'),
-         9.00, 8.10, 'refunded',
+         17.00, 11.90, 'refunded',
          'VP-260709-HUND', NULL,
-         '{"refunded":true,"reason":"Amount mismatch: webhook 19.00 vs order 9.00"}'::jsonb,
+         '{"refunded":true,"reason":"Amount mismatch: webhook 27.00 vs order 17.00"}'::jsonb,
          1,
          (select id from public.customers where phone = '0241234567'),
          '2026-07-09T12:07:42.573Z', NULL;
   insert into public.orders (reference, phone, bundle_id, network_id, amount, cost_price, status, provider_reference, supplier_ref, supplier_response, attempts, customer_id, created_at, delivered_at)
   select 'VD-260731-3025', '0596710542',
-         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 2048),
+         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 3072),
          (select id from public.networks where code = 'mtn'),
-         9.00, 8.10, 'delivered',
+         17.00, 11.90, 'delivered',
          'VP-260731-QS2W', 'REM-83121925',
-         '{"driver":"remadata","order_id":"REM-83121925","status":"success","network":"mtn","size_mb":2048,"phone":"0596710542"}'::jsonb,
+         '{"driver":"remadata","order_id":"REM-83121925","status":"success","network":"mtn","size_mb":3072,"phone":"0596710542"}'::jsonb,
          1,
          (select id from public.customers where phone = '0551112233'),
          '2026-07-31T20:09:40.048Z', '2026-07-31T20:11:10.612Z';
   insert into public.orders (reference, phone, bundle_id, network_id, amount, cost_price, status, provider_reference, supplier_ref, supplier_response, attempts, customer_id, created_at, delivered_at)
   select 'VD-260724-5552', '0550640824',
-         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 51200),
+         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 25600),
          (select id from public.networks where code = 'mtn'),
-         201.00, 185.00, 'delivered',
+         115.00, 98.00, 'delivered',
          'VP-260724-H7LM', 'REM-73268060',
-         '{"driver":"remadata","order_id":"REM-73268060","status":"success","network":"mtn","size_mb":51200,"phone":"0550640824"}'::jsonb,
+         '{"driver":"remadata","order_id":"REM-73268060","status":"success","network":"mtn","size_mb":25600,"phone":"0550640824"}'::jsonb,
          1,
          NULL,
          '2026-07-24T01:53:17.424Z', '2026-07-24T01:57:11.659Z';
@@ -237,9 +237,9 @@ begin
          '2026-07-13T18:55:35.326Z', '2026-07-13T18:57:52.825Z';
   insert into public.orders (reference, phone, bundle_id, network_id, amount, cost_price, status, provider_reference, supplier_ref, supplier_response, attempts, customer_id, created_at, delivered_at)
   select 'VD-260802-1953', '0551319287',
-         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 1024),
+         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 2048),
          (select id from public.networks where code = 'mtn'),
-         4.20, 3.90, 'failed',
+         12.00, 8.10, 'failed',
          'VP-260802-VR33', NULL,
          '{"ok":false,"error":"Provider gateway timeout (HTTP 504)","raw":{"driver":"mock","order":"VD-260802-1953"}}'::jsonb,
          1,
@@ -277,9 +277,9 @@ begin
          '2026-07-27T10:41:58.088Z', '2026-07-27T10:45:54.485Z';
   insert into public.orders (reference, phone, bundle_id, network_id, amount, cost_price, status, provider_reference, supplier_ref, supplier_response, attempts, customer_id, created_at, delivered_at)
   select 'VD-260803-6770', '0548983574',
-         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 3072),
+         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 5120),
          (select id from public.networks where code = 'mtn'),
-         13.50, 11.90, 'pending',
+         28.00, 18.90, 'pending',
          NULL, NULL,
          NULL,
          0,
@@ -287,41 +287,41 @@ begin
          '2026-08-03T16:08:03.547Z', NULL;
   insert into public.orders (reference, phone, bundle_id, network_id, amount, cost_price, status, provider_reference, supplier_ref, supplier_response, attempts, customer_id, created_at, delivered_at)
   select 'VD-260710-1262', '0559527926',
-         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 1024),
+         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 2048),
          (select id from public.networks where code = 'mtn'),
-         4.20, 3.90, 'delivered',
+         12.00, 8.10, 'delivered',
          'VP-260710-Y8CT', 'REM-68453707',
-         '{"driver":"remadata","order_id":"REM-68453707","status":"success","network":"mtn","size_mb":1024,"phone":"0559527926"}'::jsonb,
+         '{"driver":"remadata","order_id":"REM-68453707","status":"success","network":"mtn","size_mb":2048,"phone":"0559527926"}'::jsonb,
          2,
          NULL,
          '2026-07-10T13:20:22.616Z', '2026-07-10T13:21:38.144Z';
   insert into public.orders (reference, phone, bundle_id, network_id, amount, cost_price, status, provider_reference, supplier_ref, supplier_response, attempts, customer_id, created_at, delivered_at)
   select 'VD-260727-9003', '0543673931',
-         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 3072),
+         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 5120),
          (select id from public.networks where code = 'mtn'),
-         13.50, 11.90, 'refunded',
+         28.00, 18.90, 'refunded',
          'VP-260727-N9VC', NULL,
-         '{"refunded":true,"reason":"Amount mismatch: webhook 23.50 vs order 13.50"}'::jsonb,
+         '{"refunded":true,"reason":"Amount mismatch: webhook 38.00 vs order 28.00"}'::jsonb,
          1,
          NULL,
          '2026-07-27T00:28:23.688Z', NULL;
   insert into public.orders (reference, phone, bundle_id, network_id, amount, cost_price, status, provider_reference, supplier_ref, supplier_response, attempts, customer_id, created_at, delivered_at)
   select 'VD-260715-9243', '0597640793',
-         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 3072),
+         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 5120),
          (select id from public.networks where code = 'mtn'),
-         13.50, 11.90, 'delivered',
+         28.00, 18.90, 'delivered',
          'VP-260715-HQDE', 'REM-11056494',
-         '{"driver":"remadata","order_id":"REM-11056494","status":"success","network":"mtn","size_mb":3072,"phone":"0597640793"}'::jsonb,
+         '{"driver":"remadata","order_id":"REM-11056494","status":"success","network":"mtn","size_mb":5120,"phone":"0597640793"}'::jsonb,
          1,
          NULL,
          '2026-07-15T19:07:48.746Z', '2026-07-15T19:11:47.269Z';
   insert into public.orders (reference, phone, bundle_id, network_id, amount, cost_price, status, provider_reference, supplier_ref, supplier_response, attempts, customer_id, created_at, delivered_at)
   select 'VD-260729-3201', '0246114181',
-         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 30720),
+         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 20480),
          (select id from public.networks where code = 'mtn'),
-         125.00, 111.00, 'delivered',
+         93.00, 73.00, 'delivered',
          'VP-260729-F8NA', 'REM-79861899',
-         '{"driver":"remadata","order_id":"REM-79861899","status":"success","network":"mtn","size_mb":30720,"phone":"0246114181"}'::jsonb,
+         '{"driver":"remadata","order_id":"REM-79861899","status":"success","network":"mtn","size_mb":20480,"phone":"0246114181"}'::jsonb,
          1,
          NULL,
          '2026-07-29T21:33:27.880Z', '2026-07-29T21:38:09.766Z';
@@ -337,31 +337,31 @@ begin
          '2026-07-27T09:26:59.084Z', NULL;
   insert into public.orders (reference, phone, bundle_id, network_id, amount, cost_price, status, provider_reference, supplier_ref, supplier_response, attempts, customer_id, created_at, delivered_at)
   select 'VD-260713-3162', '0544943270',
-         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 5120),
+         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 6144),
          (select id from public.networks where code = 'mtn'),
-         20.50, 18.90, 'delivered',
+         35.00, 24.50, 'delivered',
          'VP-260713-SA9Z', 'REM-71141100',
-         '{"driver":"remadata","order_id":"REM-71141100","status":"success","network":"mtn","size_mb":5120,"phone":"0544943270"}'::jsonb,
+         '{"driver":"remadata","order_id":"REM-71141100","status":"success","network":"mtn","size_mb":6144,"phone":"0544943270"}'::jsonb,
          1,
          NULL,
          '2026-07-13T11:40:24.954Z', '2026-07-13T11:44:13.368Z';
   insert into public.orders (reference, phone, bundle_id, network_id, amount, cost_price, status, provider_reference, supplier_ref, supplier_response, attempts, customer_id, created_at, delivered_at)
   select 'VD-260803-8396', '0259220694',
-         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 51200),
+         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 25600),
          (select id from public.networks where code = 'mtn'),
-         201.00, 185.00, 'delivered',
+         115.00, 98.00, 'delivered',
          'VP-260803-7687', 'REM-58651514',
-         '{"driver":"remadata","order_id":"REM-58651514","status":"success","network":"mtn","size_mb":51200,"phone":"0259220694"}'::jsonb,
+         '{"driver":"remadata","order_id":"REM-58651514","status":"success","network":"mtn","size_mb":25600,"phone":"0259220694"}'::jsonb,
          1,
          (select id from public.customers where phone = '0551112233'),
          '2026-08-03T01:23:34.754Z', '2026-08-03T01:25:13.649Z';
   insert into public.orders (reference, phone, bundle_id, network_id, amount, cost_price, status, provider_reference, supplier_ref, supplier_response, attempts, customer_id, created_at, delivered_at)
   select 'VD-260805-5459', '0553932662',
-         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 2048),
+         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 3072),
          (select id from public.networks where code = 'mtn'),
-         9.00, 8.10, 'delivered',
+         17.00, 11.90, 'delivered',
          'VP-260805-9S49', 'REM-13666935',
-         '{"driver":"remadata","order_id":"REM-13666935","status":"success","network":"mtn","size_mb":2048,"phone":"0553932662"}'::jsonb,
+         '{"driver":"remadata","order_id":"REM-13666935","status":"success","network":"mtn","size_mb":3072,"phone":"0553932662"}'::jsonb,
          1,
          (select id from public.customers where phone = '0551112233'),
          '2026-08-05T08:10:23.460Z', '2026-08-05T08:13:59.311Z';
@@ -387,11 +387,11 @@ begin
          '2026-07-29T09:24:01.415Z', NULL;
   insert into public.orders (reference, phone, bundle_id, network_id, amount, cost_price, status, provider_reference, supplier_ref, supplier_response, attempts, customer_id, created_at, delivered_at)
   select 'VD-260726-6264', '0542206368',
-         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 3072),
+         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 4096),
          (select id from public.networks where code = 'mtn'),
-         13.50, 11.90, 'delivered',
+         23.00, 16.60, 'delivered',
          'VP-260726-2QLD', 'REM-62276177',
-         '{"driver":"remadata","order_id":"REM-62276177","status":"success","network":"mtn","size_mb":3072,"phone":"0542206368"}'::jsonb,
+         '{"driver":"remadata","order_id":"REM-62276177","status":"success","network":"mtn","size_mb":4096,"phone":"0542206368"}'::jsonb,
          1,
          NULL,
          '2026-07-26T22:12:09.519Z', '2026-07-26T22:16:22.650Z';
@@ -399,7 +399,7 @@ begin
   select 'VD-260728-8685', '0251769282',
          (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 1024),
          (select id from public.networks where code = 'mtn'),
-         4.20, 3.90, 'delivered',
+         6.00, 3.90, 'delivered',
          'VP-260728-CS2V', 'REM-27980222',
          '{"driver":"remadata","order_id":"REM-27980222","status":"success","network":"mtn","size_mb":1024,"phone":"0251769282"}'::jsonb,
          1,
@@ -407,11 +407,11 @@ begin
          '2026-07-28T03:58:18.923Z', '2026-07-28T04:00:19.158Z';
   insert into public.orders (reference, phone, bundle_id, network_id, amount, cost_price, status, provider_reference, supplier_ref, supplier_response, attempts, customer_id, created_at, delivered_at)
   select 'VD-260719-9473', '0546730315',
-         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 51200),
+         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 40960),
          (select id from public.networks where code = 'mtn'),
-         201.00, 185.00, 'delivered',
+         180.00, 159.00, 'delivered',
          'VP-260719-K5WD', 'REM-25367931',
-         '{"driver":"remadata","order_id":"REM-25367931","status":"success","network":"mtn","size_mb":51200,"phone":"0546730315"}'::jsonb,
+         '{"driver":"remadata","order_id":"REM-25367931","status":"success","network":"mtn","size_mb":40960,"phone":"0546730315"}'::jsonb,
          1,
          (select id from public.customers where phone = '0551112233'),
          '2026-07-19T05:50:51.093Z', '2026-07-19T05:55:00.709Z';
@@ -427,21 +427,21 @@ begin
          '2026-07-30T14:39:37.571Z', '2026-07-30T14:44:35.047Z';
   insert into public.orders (reference, phone, bundle_id, network_id, amount, cost_price, status, provider_reference, supplier_ref, supplier_response, attempts, customer_id, created_at, delivered_at)
   select 'VD-260718-8268', '0243516073',
-         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 5120),
+         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 6144),
          (select id from public.networks where code = 'mtn'),
-         20.50, 18.90, 'delivered',
+         35.00, 24.50, 'delivered',
          'VP-260718-8M8L', 'REM-23095717',
-         '{"driver":"remadata","order_id":"REM-23095717","status":"success","network":"mtn","size_mb":5120,"phone":"0243516073"}'::jsonb,
+         '{"driver":"remadata","order_id":"REM-23095717","status":"success","network":"mtn","size_mb":6144,"phone":"0243516073"}'::jsonb,
          1,
          (select id from public.customers where phone = '0241234567'),
          '2026-07-18T00:48:12.163Z', '2026-07-18T00:49:51.095Z';
   insert into public.orders (reference, phone, bundle_id, network_id, amount, cost_price, status, provider_reference, supplier_ref, supplier_response, attempts, customer_id, created_at, delivered_at)
   select 'VD-260729-3564', '0541588083',
-         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 102400),
+         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 40960),
          (select id from public.networks where code = 'mtn'),
-         407.00, 377.00, 'delivered',
+         180.00, 159.00, 'delivered',
          'VP-260729-7ZT5', 'REM-52600859',
-         '{"driver":"remadata","order_id":"REM-52600859","status":"success","network":"mtn","size_mb":102400,"phone":"0541588083"}'::jsonb,
+         '{"driver":"remadata","order_id":"REM-52600859","status":"success","network":"mtn","size_mb":40960,"phone":"0541588083"}'::jsonb,
          1,
          (select id from public.customers where phone = '0551112233'),
          '2026-07-29T00:04:10.828Z', '2026-07-29T00:08:56.612Z';
@@ -449,7 +449,7 @@ begin
   select 'VD-260722-2776', '0592329429',
          (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 20480),
          (select id from public.networks where code = 'mtn'),
-         82.00, 73.00, 'delivered',
+         93.00, 73.00, 'delivered',
          'VP-260722-VSP8', 'REM-15496577',
          '{"driver":"remadata","order_id":"REM-15496577","status":"success","network":"mtn","size_mb":20480,"phone":"0592329429"}'::jsonb,
          1,
@@ -457,11 +457,11 @@ begin
          '2026-07-22T21:47:39.419Z', '2026-07-22T21:52:12.104Z';
   insert into public.orders (reference, phone, bundle_id, network_id, amount, cost_price, status, provider_reference, supplier_ref, supplier_response, attempts, customer_id, created_at, delivered_at)
   select 'VD-260728-7387', '0245802849',
-         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 20480),
+         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 15360),
          (select id from public.networks where code = 'mtn'),
-         82.00, 73.00, 'delivered',
+         75.00, 58.00, 'delivered',
          'VP-260728-MLTZ', 'REM-70207104',
-         '{"driver":"remadata","order_id":"REM-70207104","status":"success","network":"mtn","size_mb":20480,"phone":"0245802849"}'::jsonb,
+         '{"driver":"remadata","order_id":"REM-70207104","status":"success","network":"mtn","size_mb":15360,"phone":"0245802849"}'::jsonb,
          1,
          NULL,
          '2026-07-28T16:12:12.804Z', '2026-07-28T16:13:29.343Z';
@@ -487,11 +487,11 @@ begin
          '2026-07-11T05:29:22.130Z', '2026-07-11T05:31:31.840Z';
   insert into public.orders (reference, phone, bundle_id, network_id, amount, cost_price, status, provider_reference, supplier_ref, supplier_response, attempts, customer_id, created_at, delivered_at)
   select 'VD-260709-7022', '0240234001',
-         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 3072),
+         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 4096),
          (select id from public.networks where code = 'mtn'),
-         13.50, 11.90, 'delivered',
+         23.00, 16.60, 'delivered',
          'VP-260709-JCAX', 'REM-25662719',
-         '{"driver":"remadata","order_id":"REM-25662719","status":"success","network":"mtn","size_mb":3072,"phone":"0240234001"}'::jsonb,
+         '{"driver":"remadata","order_id":"REM-25662719","status":"success","network":"mtn","size_mb":4096,"phone":"0240234001"}'::jsonb,
          1,
          (select id from public.customers where phone = '0273344556'),
          '2026-07-09T20:05:53.528Z', '2026-07-09T20:07:01.958Z';
@@ -519,7 +519,7 @@ begin
   select 'VD-260722-4734', '0540777221',
          (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 1024),
          (select id from public.networks where code = 'mtn'),
-         4.20, 3.90, 'delivered',
+         6.00, 3.90, 'delivered',
          'VP-260722-YHPU', 'REM-86423489',
          '{"driver":"remadata","order_id":"REM-86423489","status":"success","network":"mtn","size_mb":1024,"phone":"0540777221"}'::jsonb,
          1,
@@ -527,11 +527,11 @@ begin
          '2026-07-22T05:55:14.638Z', '2026-07-22T05:57:18.642Z';
   insert into public.orders (reference, phone, bundle_id, network_id, amount, cost_price, status, provider_reference, supplier_ref, supplier_response, attempts, customer_id, created_at, delivered_at)
   select 'VD-260727-3857', '0546204333',
-         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 3072),
+         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 4096),
          (select id from public.networks where code = 'mtn'),
-         13.50, 11.90, 'delivered',
+         23.00, 16.60, 'delivered',
          'VP-260727-VD5J', 'REM-81507938',
-         '{"driver":"remadata","order_id":"REM-81507938","status":"success","network":"mtn","size_mb":3072,"phone":"0546204333"}'::jsonb,
+         '{"driver":"remadata","order_id":"REM-81507938","status":"success","network":"mtn","size_mb":4096,"phone":"0546204333"}'::jsonb,
          2,
          (select id from public.customers where phone = '0551112233'),
          '2026-07-27T10:40:55.317Z', '2026-07-27T10:42:17.402Z';
@@ -547,11 +547,11 @@ begin
          '2026-08-03T04:25:35.459Z', NULL;
   insert into public.orders (reference, phone, bundle_id, network_id, amount, cost_price, status, provider_reference, supplier_ref, supplier_response, attempts, customer_id, created_at, delivered_at)
   select 'VD-260710-2221', '0559060868',
-         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 30720),
+         (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 25600),
          (select id from public.networks where code = 'mtn'),
-         125.00, 111.00, 'refunded',
+         115.00, 98.00, 'refunded',
          'VP-260710-RU72', NULL,
-         '{"refunded":true,"reason":"Amount mismatch: webhook 135.00 vs order 125.00"}'::jsonb,
+         '{"refunded":true,"reason":"Amount mismatch: webhook 125.00 vs order 115.00"}'::jsonb,
          1,
          (select id from public.customers where phone = '0209876543'),
          '2026-07-10T17:01:00.625Z', NULL;
@@ -579,7 +579,7 @@ begin
   select 'VD-260804-8677', '0555117998',
          (select b.id from public.bundles b join public.networks n on n.id = b.network_id where n.code = 'mtn' and b.size_mb = 1024),
          (select id from public.networks where code = 'mtn'),
-         4.20, 3.90, 'pending',
+         6.00, 3.90, 'pending',
          NULL, NULL,
          NULL,
          0,
@@ -610,11 +610,11 @@ begin
          NULL,
          'Initial float (demo seed)', '2026-07-06T22:21:31.939Z';
   insert into public.float_ledger (network_id, direction, amount, balance_after, order_id, note, created_at)
-  select (select id from public.networks where code = 'mtn'), 'debit', 11.90, 2988.10,
+  select (select id from public.networks where code = 'mtn'), 'debit', 16.60, 2983.40,
          (select id from public.orders where reference = 'VD-260709-7022'),
          'Delivery cost', '2026-07-09T20:07:53.528Z';
   insert into public.float_ledger (network_id, direction, amount, balance_after, order_id, note, created_at)
-  select (select id from public.networks where code = 'mtn'), 'debit', 3.90, 2984.20,
+  select (select id from public.networks where code = 'mtn'), 'debit', 8.10, 2975.30,
          (select id from public.orders where reference = 'VD-260710-1262'),
          'Delivery cost', '2026-07-10T13:22:22.616Z';
   insert into public.float_ledger (network_id, direction, amount, balance_after, order_id, note, created_at)
@@ -626,7 +626,7 @@ begin
          (select id from public.orders where reference = 'VD-260711-7252'),
          'Delivery cost', '2026-07-11T12:34:13.272Z';
   insert into public.float_ledger (network_id, direction, amount, balance_after, order_id, note, created_at)
-  select (select id from public.networks where code = 'mtn'), 'debit', 18.90, 2965.30,
+  select (select id from public.networks where code = 'mtn'), 'debit', 24.50, 2950.80,
          (select id from public.orders where reference = 'VD-260713-3162'),
          'Delivery cost', '2026-07-13T11:42:24.954Z';
   insert into public.float_ledger (network_id, direction, amount, balance_after, order_id, note, created_at)
@@ -634,19 +634,19 @@ begin
          (select id from public.orders where reference = 'VD-260713-3259'),
          'Delivery cost', '2026-07-13T18:57:35.326Z';
   insert into public.float_ledger (network_id, direction, amount, balance_after, order_id, note, created_at)
-  select (select id from public.networks where code = 'mtn'), 'debit', 11.90, 2953.40,
+  select (select id from public.networks where code = 'mtn'), 'debit', 18.90, 2931.90,
          (select id from public.orders where reference = 'VD-260715-9243'),
          'Delivery cost', '2026-07-15T19:09:48.746Z';
   insert into public.float_ledger (network_id, direction, amount, balance_after, order_id, note, created_at)
-  select (select id from public.networks where code = 'mtn'), 'topup', 1000.00, 3953.40,
+  select (select id from public.networks where code = 'mtn'), 'topup', 1000.00, 3931.90,
          NULL,
          'Restock — MTN float', '2026-07-17T18:19:31.939Z';
   insert into public.float_ledger (network_id, direction, amount, balance_after, order_id, note, created_at)
-  select (select id from public.networks where code = 'mtn'), 'debit', 18.90, 3934.50,
+  select (select id from public.networks where code = 'mtn'), 'debit', 24.50, 3907.40,
          (select id from public.orders where reference = 'VD-260718-8268'),
          'Delivery cost', '2026-07-18T00:50:12.163Z';
   insert into public.float_ledger (network_id, direction, amount, balance_after, order_id, note, created_at)
-  select (select id from public.networks where code = 'mtn'), 'debit', 185.00, 3749.50,
+  select (select id from public.networks where code = 'mtn'), 'debit', 159.00, 3748.40,
          (select id from public.orders where reference = 'VD-260719-9473'),
          'Delivery cost', '2026-07-19T05:52:51.093Z';
   insert into public.float_ledger (network_id, direction, amount, balance_after, order_id, note, created_at)
@@ -658,23 +658,23 @@ begin
          (select id from public.orders where reference = 'VD-260720-5622'),
          'Delivery cost', '2026-07-20T03:03:34.080Z';
   insert into public.float_ledger (network_id, direction, amount, balance_after, order_id, note, created_at)
-  select (select id from public.networks where code = 'mtn'), 'debit', 185.00, 3564.50,
+  select (select id from public.networks where code = 'mtn'), 'debit', 98.00, 3650.40,
          (select id from public.orders where reference = 'VD-260721-6676'),
          'Delivery cost', '2026-07-21T04:10:09.786Z';
   insert into public.float_ledger (network_id, direction, amount, balance_after, order_id, note, created_at)
-  select (select id from public.networks where code = 'mtn'), 'debit', 3.90, 3560.60,
+  select (select id from public.networks where code = 'mtn'), 'debit', 3.90, 3646.50,
          (select id from public.orders where reference = 'VD-260722-4734'),
          'Delivery cost', '2026-07-22T05:57:14.638Z';
   insert into public.float_ledger (network_id, direction, amount, balance_after, order_id, note, created_at)
-  select (select id from public.networks where code = 'mtn'), 'debit', 73.00, 3487.60,
+  select (select id from public.networks where code = 'mtn'), 'debit', 73.00, 3573.50,
          (select id from public.orders where reference = 'VD-260722-2776'),
          'Delivery cost', '2026-07-22T21:49:39.419Z';
   insert into public.float_ledger (network_id, direction, amount, balance_after, order_id, note, created_at)
-  select (select id from public.networks where code = 'mtn'), 'debit', 185.00, 3302.60,
+  select (select id from public.networks where code = 'mtn'), 'debit', 98.00, 3475.50,
          (select id from public.orders where reference = 'VD-260724-5552'),
          'Delivery cost', '2026-07-24T01:55:17.424Z';
   insert into public.float_ledger (network_id, direction, amount, balance_after, order_id, note, created_at)
-  select (select id from public.networks where code = 'mtn'), 'debit', 3.90, 3298.70,
+  select (select id from public.networks where code = 'mtn'), 'debit', 3.90, 3471.60,
          (select id from public.orders where reference = 'VD-260724-1077'),
          'Delivery cost', '2026-07-24T03:03:08.424Z';
   insert into public.float_ledger (network_id, direction, amount, balance_after, order_id, note, created_at)
@@ -682,7 +682,7 @@ begin
          NULL,
          'Restock — Telecel float', '2026-07-24T19:17:31.939Z';
   insert into public.float_ledger (network_id, direction, amount, balance_after, order_id, note, created_at)
-  select (select id from public.networks where code = 'mtn'), 'debit', 11.90, 3286.80,
+  select (select id from public.networks where code = 'mtn'), 'debit', 16.60, 3455.00,
          (select id from public.orders where reference = 'VD-260726-6264'),
          'Delivery cost', '2026-07-26T22:14:09.519Z';
   insert into public.float_ledger (network_id, direction, amount, balance_after, order_id, note, created_at)
@@ -690,7 +690,7 @@ begin
          (select id from public.orders where reference = 'VD-260727-2365'),
          'Delivery cost', '2026-07-27T03:26:21.973Z';
   insert into public.float_ledger (network_id, direction, amount, balance_after, order_id, note, created_at)
-  select (select id from public.networks where code = 'mtn'), 'debit', 11.90, 3274.90,
+  select (select id from public.networks where code = 'mtn'), 'debit', 16.60, 3438.40,
          (select id from public.orders where reference = 'VD-260727-3857'),
          'Delivery cost', '2026-07-27T10:42:55.317Z';
   insert into public.float_ledger (network_id, direction, amount, balance_after, order_id, note, created_at)
@@ -702,7 +702,7 @@ begin
          (select id from public.orders where reference = 'VD-260727-8610'),
          'Delivery cost', '2026-07-27T23:12:04.671Z';
   insert into public.float_ledger (network_id, direction, amount, balance_after, order_id, note, created_at)
-  select (select id from public.networks where code = 'mtn'), 'debit', 3.90, 3271.00,
+  select (select id from public.networks where code = 'mtn'), 'debit', 3.90, 3434.50,
          (select id from public.orders where reference = 'VD-260728-8685'),
          'Delivery cost', '2026-07-28T04:00:18.923Z';
   insert into public.float_ledger (network_id, direction, amount, balance_after, order_id, note, created_at)
@@ -710,11 +710,11 @@ begin
          (select id from public.orders where reference = 'VD-260728-4279'),
          'Delivery cost', '2026-07-28T05:19:23.800Z';
   insert into public.float_ledger (network_id, direction, amount, balance_after, order_id, note, created_at)
-  select (select id from public.networks where code = 'mtn'), 'debit', 73.00, 3198.00,
+  select (select id from public.networks where code = 'mtn'), 'debit', 58.00, 3376.50,
          (select id from public.orders where reference = 'VD-260728-7387'),
          'Delivery cost', '2026-07-28T16:14:12.804Z';
   insert into public.float_ledger (network_id, direction, amount, balance_after, order_id, note, created_at)
-  select (select id from public.networks where code = 'mtn'), 'debit', 377.00, 2821.00,
+  select (select id from public.networks where code = 'mtn'), 'debit', 159.00, 3217.50,
          (select id from public.orders where reference = 'VD-260729-3564'),
          'Delivery cost', '2026-07-29T00:06:10.828Z';
   insert into public.float_ledger (network_id, direction, amount, balance_after, order_id, note, created_at)
@@ -726,7 +726,7 @@ begin
          NULL,
          'Restock — AirtelTigo float', '2026-07-29T18:21:31.939Z';
   insert into public.float_ledger (network_id, direction, amount, balance_after, order_id, note, created_at)
-  select (select id from public.networks where code = 'mtn'), 'debit', 111.00, 2710.00,
+  select (select id from public.networks where code = 'mtn'), 'debit', 73.00, 3144.50,
          (select id from public.orders where reference = 'VD-260729-3201'),
          'Delivery cost', '2026-07-29T21:35:27.880Z';
   insert into public.float_ledger (network_id, direction, amount, balance_after, order_id, note, created_at)
@@ -734,23 +734,23 @@ begin
          (select id from public.orders where reference = 'VD-260730-5308'),
          'Delivery cost', '2026-07-30T14:41:37.571Z';
   insert into public.float_ledger (network_id, direction, amount, balance_after, order_id, note, created_at)
-  select (select id from public.networks where code = 'mtn'), 'debit', 8.10, 2701.90,
+  select (select id from public.networks where code = 'mtn'), 'debit', 11.90, 3132.60,
          (select id from public.orders where reference = 'VD-260731-3025'),
          'Delivery cost', '2026-07-31T20:11:40.048Z';
   insert into public.float_ledger (network_id, direction, amount, balance_after, order_id, note, created_at)
-  select (select id from public.networks where code = 'mtn'), 'debit', 111.00, 2590.90,
+  select (select id from public.networks where code = 'mtn'), 'debit', 98.00, 3034.60,
          (select id from public.orders where reference = 'VD-260801-7267'),
          'Delivery cost', '2026-08-01T11:59:30.663Z';
   insert into public.float_ledger (network_id, direction, amount, balance_after, order_id, note, created_at)
-  select (select id from public.networks where code = 'mtn'), 'debit', 8.10, 2582.80,
+  select (select id from public.networks where code = 'mtn'), 'debit', 11.90, 3022.70,
          (select id from public.orders where reference = 'VD-260802-6799'),
          'Delivery cost', '2026-08-02T09:51:23.595Z';
   insert into public.float_ledger (network_id, direction, amount, balance_after, order_id, note, created_at)
-  select (select id from public.networks where code = 'mtn'), 'debit', 185.00, 2397.80,
+  select (select id from public.networks where code = 'mtn'), 'debit', 98.00, 2924.70,
          (select id from public.orders where reference = 'VD-260803-8396'),
          'Delivery cost', '2026-08-03T01:25:34.754Z';
   insert into public.float_ledger (network_id, direction, amount, balance_after, order_id, note, created_at)
-  select (select id from public.networks where code = 'mtn'), 'topup', 500.00, 2897.80,
+  select (select id from public.networks where code = 'mtn'), 'topup', 500.00, 3424.70,
          NULL,
          'Restock — MTN float', '2026-08-03T17:56:31.939Z';
   insert into public.float_ledger (network_id, direction, amount, balance_after, order_id, note, created_at)
@@ -762,11 +762,11 @@ begin
          (select id from public.orders where reference = 'VD-260804-9820'),
          'Delivery cost', '2026-08-04T16:43:12.248Z';
   insert into public.float_ledger (network_id, direction, amount, balance_after, order_id, note, created_at)
-  select (select id from public.networks where code = 'mtn'), 'debit', 8.10, 2889.70,
+  select (select id from public.networks where code = 'mtn'), 'debit', 11.90, 3412.80,
          (select id from public.orders where reference = 'VD-260805-5459'),
          'Delivery cost', '2026-08-05T08:12:23.460Z';
   insert into public.float_ledger (network_id, direction, amount, balance_after, order_id, note, created_at)
-  select (select id from public.networks where code = 'mtn'), 'debit', 185.00, 2704.70,
+  select (select id from public.networks where code = 'mtn'), 'debit', 159.00, 3253.80,
          (select id from public.orders where reference = 'VD-260805-5407'),
          'Delivery cost', '2026-08-05T08:33:37.948Z';
   insert into public.float_ledger (network_id, direction, amount, balance_after, order_id, note, created_at)
@@ -776,31 +776,31 @@ begin
 
   -- audit log (forged callbacks & unknown-order entries included on purpose)
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
-  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260709-HUND","reference":"VD-260709-9135","amount":9,"currency":"GHS"}'::jsonb, true, 'amount mismatch → refunded', '2026-07-09T12:13:35.601Z');
+  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260709-HUND","reference":"VD-260709-9135","amount":17,"currency":"GHS"}'::jsonb, true, 'amount mismatch → refunded', '2026-07-09T12:13:35.601Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
-  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260709-JCAX","reference":"VD-260709-7022","amount":13.5,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-09T20:09:45.528Z');
+  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260709-JCAX","reference":"VD-260709-7022","amount":23,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-09T20:09:45.528Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
-  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260710-Y8CT","reference":"VD-260710-1262","amount":4.2,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-10T13:25:53.253Z');
+  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260710-Y8CT","reference":"VD-260710-1262","amount":12,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-10T13:25:53.253Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
-  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260710-RU72","reference":"VD-260710-2221","amount":125,"currency":"GHS"}'::jsonb, true, 'amount mismatch → refunded', '2026-07-10T17:04:06.136Z');
+  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260710-RU72","reference":"VD-260710-2221","amount":115,"currency":"GHS"}'::jsonb, true, 'amount mismatch → refunded', '2026-07-10T17:04:06.136Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
   values (true, '{"event":"payment.succeeded","provider_reference":"VP-260711-T8JB","reference":"VD-260711-3773","amount":180,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-11T05:32:03.164Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
   values (true, '{"event":"payment.succeeded","provider_reference":"VP-260711-BEAN","reference":"VD-260711-7252","amount":110,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-11T12:37:24.823Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
-  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260713-SA9Z","reference":"VD-260713-3162","amount":20.5,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-13T11:42:46.057Z');
+  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260713-SA9Z","reference":"VD-260713-3162","amount":35,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-13T11:42:46.057Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
   values (true, '{"event":"payment.succeeded","provider_reference":"VP-260713-3VVE","reference":"VD-260713-3259","amount":75,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-13T18:57:44.946Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
-  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260715-YKYW","reference":"VD-260715-1136","amount":20.5,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-15T03:21:18.910Z');
+  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260715-YKYW","reference":"VD-260715-1136","amount":43,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-15T03:21:18.910Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
-  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260715-HQDE","reference":"VD-260715-9243","amount":13.5,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-15T19:10:47.481Z');
+  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260715-HQDE","reference":"VD-260715-9243","amount":28,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-15T19:10:47.481Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
   values (true, '{"event":"payment.succeeded","provider_reference":"VP-260717-G5K3","reference":"VD-260717-5520","amount":110,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-17T07:07:40.541Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
-  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260718-8M8L","reference":"VD-260718-8268","amount":20.5,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-18T00:53:35.852Z');
+  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260718-8M8L","reference":"VD-260718-8268","amount":35,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-18T00:53:35.852Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
-  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260719-K5WD","reference":"VD-260719-9473","amount":201,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-19T05:55:22.367Z');
+  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260719-K5WD","reference":"VD-260719-9473","amount":180,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-19T05:55:22.367Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
   values (true, '{"event":"payment.succeeded","provider_reference":"VP-260719-MCV4","reference":"VD-260719-1165","amount":39.5,"currency":"GHS"}'::jsonb, true, 'amount mismatch → refunded', '2026-07-19T13:56:31.881Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
@@ -810,61 +810,61 @@ begin
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
   values (true, '{"event":"payment.succeeded","provider_reference":"VP-260720-SPS7","reference":"VD-260720-5622","amount":39.5,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-20T03:05:27.088Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
-  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260721-L8JR","reference":"VD-260721-6676","amount":201,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-21T04:12:34.319Z');
+  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260721-L8JR","reference":"VD-260721-6676","amount":115,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-21T04:12:34.319Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
-  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260722-YHPU","reference":"VD-260722-4734","amount":4.2,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-22T05:59:52.866Z');
+  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260722-YHPU","reference":"VD-260722-4734","amount":6,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-22T05:59:52.866Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
-  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260722-VSP8","reference":"VD-260722-2776","amount":82,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-22T21:52:49.696Z');
+  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260722-VSP8","reference":"VD-260722-2776","amount":93,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-22T21:52:49.696Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
-  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260724-H7LM","reference":"VD-260724-5552","amount":201,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-24T01:57:25.402Z');
+  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260724-H7LM","reference":"VD-260724-5552","amount":115,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-24T01:57:25.402Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
-  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260724-854T","reference":"VD-260724-1077","amount":4.2,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-24T03:03:45.728Z');
+  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260724-854T","reference":"VD-260724-1077","amount":6,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-24T03:03:45.728Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
-  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260726-2QLD","reference":"VD-260726-6264","amount":13.5,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-26T22:15:00.877Z');
+  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260726-2QLD","reference":"VD-260726-6264","amount":23,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-26T22:15:00.877Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
-  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260727-N9VC","reference":"VD-260727-9003","amount":13.5,"currency":"GHS"}'::jsonb, true, 'amount mismatch → refunded', '2026-07-27T00:32:13.928Z');
+  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260727-N9VC","reference":"VD-260727-9003","amount":28,"currency":"GHS"}'::jsonb, true, 'amount mismatch → refunded', '2026-07-27T00:32:13.928Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
   values (true, '{"event":"payment.succeeded","provider_reference":"VP-260727-UZRT","reference":"VD-260727-2365","amount":75,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-27T03:27:11.092Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
   values (true, '{"event":"payment.succeeded","provider_reference":"VP-260727-HTNQ","reference":"VD-260727-9088","amount":39.5,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-27T09:29:05.279Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
-  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260727-VD5J","reference":"VD-260727-3857","amount":13.5,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-27T10:44:56.154Z');
+  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260727-VD5J","reference":"VD-260727-3857","amount":23,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-27T10:44:56.154Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
   values (true, '{"event":"payment.succeeded","provider_reference":"VP-260727-WWCL","reference":"VD-260727-2157","amount":39,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-27T10:46:47.296Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
   values (true, '{"event":"payment.succeeded","provider_reference":"VP-260727-D32J","reference":"VD-260727-8610","amount":39.5,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-27T23:12:11.712Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
-  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260728-CS2V","reference":"VD-260728-8685","amount":4.2,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-28T04:01:32.358Z');
+  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260728-CS2V","reference":"VD-260728-8685","amount":6,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-28T04:01:32.358Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
   values (true, '{"event":"payment.succeeded","provider_reference":"VP-260728-SYQ7","reference":"VD-260728-4279","amount":39,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-28T05:20:34.627Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
-  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260728-MLTZ","reference":"VD-260728-7387","amount":82,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-28T16:15:19.856Z');
+  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260728-MLTZ","reference":"VD-260728-7387","amount":75,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-28T16:15:19.856Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
-  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260729-7ZT5","reference":"VD-260729-3564","amount":407,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-29T00:07:54.076Z');
+  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260729-7ZT5","reference":"VD-260729-3564","amount":180,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-29T00:07:54.076Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
   values (true, '{"event":"payment.succeeded","provider_reference":"VP-260729-B4K6","reference":"VD-260729-3626","amount":405,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-29T03:28:52.277Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
-  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260729-F8NA","reference":"VD-260729-3201","amount":125,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-29T21:36:40.748Z');
+  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260729-F8NA","reference":"VD-260729-3201","amount":93,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-29T21:36:40.748Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
   values (true, '{"event":"payment.succeeded","provider_reference":"VP-260730-WLLS","reference":"VD-260730-5308","amount":110,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-30T14:45:17.425Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
   values (true, '{"event":"payment.failed","provider_reference":"VP-260730-FFFF","reference":"VD-260730-0000","amount":39.5,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-30T18:26:31.939Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
-  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260731-QS2W","reference":"VD-260731-3025","amount":9,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-31T20:11:57.744Z');
+  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260731-QS2W","reference":"VD-260731-3025","amount":17,"currency":"GHS"}'::jsonb, true, NULL, '2026-07-31T20:11:57.744Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
   values (true, '{"event":"payment.succeeded","provider_reference":"VP-260801-KUQN","reference":"VD-260801-1186","amount":405,"currency":"GHS"}'::jsonb, true, NULL, '2026-08-01T08:57:03.379Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
-  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260801-W3AJ","reference":"VD-260801-7267","amount":125,"currency":"GHS"}'::jsonb, true, NULL, '2026-08-01T12:01:10.609Z');
+  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260801-W3AJ","reference":"VD-260801-7267","amount":115,"currency":"GHS"}'::jsonb, true, NULL, '2026-08-01T12:01:10.609Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
   values (true, '{"event":"payment.succeeded","provider_reference":"VP-260801-AH6A","reference":"VD-260801-9580","amount":405,"currency":"GHS"}'::jsonb, true, NULL, '2026-08-01T21:13:11.552Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
   values (true, '{"event":"payment.succeeded","provider_reference":"VP-260801-ZZZZ","reference":"VD-260801-0000","amount":19.9,"currency":"GHS"}'::jsonb, true, 'unknown order VD-260801-0000', '2026-08-01T22:13:31.939Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
-  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260802-VMDF","reference":"VD-260802-6799","amount":9,"currency":"GHS"}'::jsonb, true, NULL, '2026-08-02T09:51:48.012Z');
+  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260802-VMDF","reference":"VD-260802-6799","amount":17,"currency":"GHS"}'::jsonb, true, NULL, '2026-08-02T09:51:48.012Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
-  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260802-VR33","reference":"VD-260802-1953","amount":4.2,"currency":"GHS"}'::jsonb, true, NULL, '2026-08-02T12:30:24.109Z');
+  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260802-VR33","reference":"VD-260802-1953","amount":12,"currency":"GHS"}'::jsonb, true, NULL, '2026-08-02T12:30:24.109Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
-  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260803-7687","reference":"VD-260803-8396","amount":201,"currency":"GHS"}'::jsonb, true, NULL, '2026-08-03T01:27:48.970Z');
+  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260803-7687","reference":"VD-260803-8396","amount":115,"currency":"GHS"}'::jsonb, true, NULL, '2026-08-03T01:27:48.970Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
   values (true, '{"event":"payment.succeeded","provider_reference":"VP-260803-RJD5","reference":"VD-260803-4367","amount":405,"currency":"GHS"}'::jsonb, true, NULL, '2026-08-03T04:28:57.328Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
@@ -874,9 +874,9 @@ begin
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
   values (false, '{"event":"payment.succeeded","provider_reference":"VP-TEST-FORGED1","reference":"VD-260804-0000","amount":43,"currency":"GHS"}'::jsonb, true, 'invalid signature', '2026-08-04T19:49:31.939Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
-  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260805-9S49","reference":"VD-260805-5459","amount":9,"currency":"GHS"}'::jsonb, true, NULL, '2026-08-05T08:15:03.439Z');
+  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260805-9S49","reference":"VD-260805-5459","amount":17,"currency":"GHS"}'::jsonb, true, NULL, '2026-08-05T08:15:03.439Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
-  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260805-UCMU","reference":"VD-260805-5407","amount":201,"currency":"GHS"}'::jsonb, true, NULL, '2026-08-05T08:36:09.207Z');
+  values (true, '{"event":"payment.succeeded","provider_reference":"VP-260805-UCMU","reference":"VD-260805-5407","amount":180,"currency":"GHS"}'::jsonb, true, NULL, '2026-08-05T08:36:09.207Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
   values (true, '{"event":"payment.succeeded","provider_reference":"VP-260805-6H5R","reference":"VD-260805-5525","amount":405,"currency":"GHS"}'::jsonb, true, NULL, '2026-08-05T16:06:26.213Z');
   insert into public.webhook_log (signature_valid, payload, handled, error, created_at)
@@ -884,5 +884,5 @@ begin
 
   raise notice 'Valmont Data demo seed complete: % customers, % saved numbers, % orders, % float entries, % webhook logs (final float: MTN %, Telecel %, AirtelTigo %).',
     5, 16, 52, 44, 53,
-    2704.70, 1297.50, 2029.00;
+    3253.80, 1297.50, 2029.00;
 end $$;

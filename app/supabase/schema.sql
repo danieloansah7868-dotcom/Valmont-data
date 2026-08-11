@@ -222,16 +222,24 @@ on conflict (code) do nothing;
 insert into public.bundles (network_id, size_mb, validity_days, cost_price, sell_price, sort_order)
 select n.id, v.size_mb, v.validity_days, v.cost_price, v.sell_price, v.sort_order
 from (values
-  -- MTN — no expiry
-  ('mtn', 1024,  null, 3.90,  4.20,   1),
-  ('mtn', 2048,  null, 8.10,  9.00,   2),
-  ('mtn', 3072,  null, 11.90, 13.50,  3),
-  ('mtn', 5120,  null, 18.90, 20.50,  4),
-  ('mtn', 10240, null, 38.50, 43.00,  5),
-  ('mtn', 20480, null, 73.00, 82.00,  6),
-  ('mtn', 30720, null, 111.00,125.00, 7),
-  ('mtn', 51200, null, 185.00,201.00, 8),
-  ('mtn', 102400,null, 377.00,407.00, 9),
+  -- MTN — no expiry. Retail (sell_price) aligned 2026-08-11; lineup mirrors the
+  -- RemaData catalogue (1–50GB; 100GB dropped — supplier no longer lists it).
+  -- cost_price for newly added sizes = RemaData public wholesale; sync exact
+  -- API costs from the admin console once REMADATA_API_KEY is live.
+  ('mtn', 1024,  null, 3.90,  6.00,   1),
+  ('mtn', 2048,  null, 8.10,  12.00,  2),
+  ('mtn', 3072,  null, 11.90, 17.00,  3),
+  ('mtn', 4096,  null, 16.60, 23.00,  4),
+  ('mtn', 5120,  null, 18.90, 28.00,  5),
+  ('mtn', 6144,  null, 24.50, 35.00,  6),
+  ('mtn', 8192,  null, 32.60, 43.00,  7),
+  ('mtn', 10240, null, 38.50, 52.00,  8),
+  ('mtn', 15360, null, 58.00, 75.00,  9),
+  ('mtn', 20480, null, 73.00, 93.00,  10),
+  ('mtn', 25600, null, 98.00, 115.00, 11),
+  ('mtn', 30720, null, 111.00,140.00, 12),
+  ('mtn', 40960, null, 159.00,180.00, 13),
+  ('mtn', 51200, null, 185.00,220.00, 14),
   -- Telecel — 60-day rollover
   ('telecel', 10240, 60, 35.50, 39.50, 1),
   ('telecel', 20480, 60, 67.80, 75.00, 2),
