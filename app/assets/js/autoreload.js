@@ -94,7 +94,7 @@
         const u = l.usage;
         const relationTag = l.relation === "self"
           ? `<span class="line-label" style="color:var(--green);">✓ your line</span>`
-          : `<span class="line-label" style="color:var(--orange-2);">📤 not your line — data goes to ${l.phone}</span>`;
+          : `<span class="line-label" style="color:var(--orange-2);">📤 others — data goes to ${l.phone}</span>`;
         if (!u) {
           return `<div class="line-card">
             <div class="line-top">
@@ -106,13 +106,27 @@
         }
         const pct = u.percent_used;
         const bar = barClass(pct);
-        const ask = l.low && l.should_ask ? `
-          <div class="ask-box">
-            <div style="font-size:20px;">⚠️</div>
-            <div class="txt">Your <b>${mbLabel(u.size_mb)}</b> bundle on <b>${l.phone}</b> is at <b>${pct}% used</b> (${mbLabel(u.remaining_mb)} left).
-              It will run out soon — turn on Auto-reload and we'll top it up for you automatically.</div>
-            <button class="btn-mini on" data-enable-line="${l.phone}">Enable →</button>
-          </div>` : "";
+        let ask = "";
+        if (l.low && l.should_ask) {
+          // Own line, no rule → classic ask.
+          ask = `
+            <div class="ask-box">
+              <div style="font-size:20px;">⚠️</div>
+              <div class="txt">Your <b>${mbLabel(u.size_mb)}</b> bundle on <b>${l.phone}</b> is at <b>${pct}% used</b> (${mbLabel(u.remaining_mb)} left).
+                It will run out soon — turn on Auto-reload and we'll top it up for you automatically.</div>
+              <button class="btn-mini on" data-enable-line="${l.phone}">Enable →</button>
+            </div>`;
+        } else if (l.relation === "other" && l.low && !l.rule) {
+          // Others line, no rule → watch prompt: they want to track the other
+          // person's data so they don't miss, and top them up from their MoMo.
+          ask = `
+            <div class="ask-box">
+              <div style="font-size:20px;">📊</div>
+              <div class="txt"><b>${l.phone}</b> (others) has <b>${pct}%</b> of their <b>${mbLabel(u.size_mb)}</b> used — ${mbLabel(u.remaining_mb)} left.
+                We track it here so you don't miss — auto top-up <b>them</b> from your MoMo.</div>
+              <button class="btn-mini on" data-enable-line="${l.phone}">Enable →</button>
+            </div>`;
+        }
         const ruleNote = l.rule
           ? (l.rule.active
               ? `<div class="no-usage" style="margin-top:10px;color:var(--green);">✓ Auto-reload is ON for this line — the sweep will top it up when it drops below ${l.rule.trigger_percent}%.</div>`
@@ -152,7 +166,7 @@
         const cooldownLeft = relTime(r.cooldown_until);
         const recipientChip = r.is_own_line
           ? `<span class="meta-chip" style="color:var(--green);">✓ Your line</span>`
-          : `<span class="meta-chip" style="color:var(--orange-2);">📤 Delivers to ${r.phone} — NOT your line</span>`;
+          : `<span class="meta-chip" style="color:var(--orange-2);">📤 Others — tops up ${r.phone}</span>`;
         return `<div class="rule-card ${r.active ? "" : "paused"}">
           <div class="rule-top">
             <div>
@@ -204,15 +218,15 @@
     fillBundles();
     phoneSel.addEventListener("change", () => {
       fillBundles();
-      updateGiftBox();
+      updateOthersBox();
     });
   }
 
-  /* THE GIFT RULE — when the selected line is not the customer's own number,
-     show the warning + recipient-confirmation checkbox. The server enforces
-     this too (confirm_recipient), so a favour can never silently reload
-     someone else's line with the customer's money. */
-  function updateGiftBox() {
+  /* THE OTHERS RULE — when the selected line belongs to someone else
+     (girlfriend, family), show the warning + recipient-confirmation checkbox.
+     The server enforces this too (confirm_recipient), so topping up another
+     person's line is always a deliberate choice. */
+  function updateOthersBox() {
     const box = $("#ar-gift-box");
     const confirmCb = $("#ar-confirm-recipient");
     if (!box) return;
@@ -326,7 +340,7 @@
         toast(
           isOwnLine
             ? `✅ Auto-reload is on for ${phone} — we'll top up when only ${triggerPercent}% is left`
-            : `✅ Gift auto-reload on: ${phone} gets topped up from your MoMo when it drops below ${triggerPercent}%`
+            : `✅ Auto top-up on for ${phone} (others) — we'll top THEM up from your MoMo when only ${triggerPercent}% is left`
         );
         $("#ar-consent").checked = false;
         if ($("#ar-confirm-recipient")) $("#ar-confirm-recipient").checked = false;
@@ -419,7 +433,7 @@
         ${lines.slice(0, 4).map((l) => {
           const u = l.usage;
           const giftTag = l.relation === "other"
-            ? `<span style="color:var(--orange-2);font-size:10.5px;font-weight:800;margin-left:6px;">📤 not your line</span>`
+            ? `<span style="color:var(--orange-2);font-size:10.5px;font-weight:800;margin-left:6px;">📤 others</span>`
             : "";
           if (!u) return `<div style="display:flex;justify-content:space-between;gap:10px;font-size:13px;color:var(--muted);padding:8px 0;border-bottom:1px solid var(--line);">
             <b style="color:var(--soft);">${l.phone}</b><span>No bundle yet</span></div>`;

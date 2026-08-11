@@ -80,19 +80,26 @@ account panel, and offered as a checkbox in the buy flow). There the customer:
    and which **MoMo number is pre-authorized to be charged**;
 4. can pause / resume / remove the rule anytime.
 
-**The gift rule** — buying a bundle for someone else (a favour) must never
-silently reload *their* line with *your* money while you think it tops you up:
+**The others rule** — topping up someone else's line (your girlfriend, family,
+a shop line) is a first-class feature, and it is always explicit so it can
+never be confused with topping yourself up:
 
 - Every rule stores `relation`: `self` (the line is the customer's own number)
-  or `other` (a line they buy data for).
-- The **ask prompt only ever appears for the customer's OWN line** (`should_ask`
-  is false for `other` lines in both the page and the usage API).
-- The **buy-flow checkbox is only shown when the delivery number is the
-  customer's own line** — buying for someone else never offers auto-reload.
-- Opting in for an `other` line requires an extra **recipient confirmation**
-  ("I understand the data goes to 055…, not to me") — enforced server-side
-  (`confirm_recipient`), and rule cards / dashboards label such lines
-  "📤 not your line".
+  or `other` (a line they top up for someone else). Such lines are labelled
+  **"📤 others"** in the UI.
+- The **buy-flow checkbox offers auto-reload for your own line AND auto top-up
+  for the other person's number** — the label always names the recipient:
+  *"Auto top-up 055… (others) — when their data runs low, we top them up from
+  your MoMo. The data goes to 055…, not to you."* The checkbox itself carries
+  the recipient confirmation (`confirm_recipient` is sent with the opt-in).
+- **Others lines are tracked too** — the Auto-reload page shows live usage for
+  every line you top up, and when one is low with no rule it shows the
+  *"track & auto top-up others"* prompt, so you never miss when their data
+  runs out. (The `should_ask` flag on the usage API stays own-line only.)
+- Opting in for an `other` line on the Auto-reload page requires an extra
+  **recipient confirmation** ("I understand the data goes to 055…, not to me")
+  — enforced server-side (`confirm_recipient`), and rule cards / dashboards
+  label such lines "📤 others".
 
 **The engine** (`lib/autoreload.js`, swept by `api/cron/autoreload.js` every
 15 minutes) is conservative by design:
@@ -213,7 +220,7 @@ never run it against production). Demo logins are printed in the file header.
 
 ## Tested
 
-`scripts/test.sh` runs the full 82-check pipeline against the dev server (mock DB):
+`scripts/test.sh` runs the full 83-check pipeline against the dev server (mock DB):
 float guard (reject when 0 float, guest 401) → admin login/float top-up →
 customer signup (scrypt hash, 30-day token) → duplicate 409 → wrong credentials 401 →
 customer login → account gating 401 → authed 0-float 422 → order creation →
@@ -226,7 +233,7 @@ flags → opt-in guards (no consent 400, wrong-network bundle 400, re-opt-in upd
 cron triggers → auto-reload delivered via the real webhook pipeline → `reload_count`
 bumped → line usage reset → cooldown blocks a second sweep → pause stops sweeps →
 opt-out removes the rule → auth guards 401 →
-**gift lines**: relation `other`, never asked, `confirm_recipient` required (400 without) →
+**others lines**: relation `other`, never auto-asked, watch prompt when low, `confirm_recipient` required (400 without) →
 **live mode**: checkout + direct charge fail loudly (503) with no gateway keys.
 
 Run it with `npm test` (after starting `npm run dev`).

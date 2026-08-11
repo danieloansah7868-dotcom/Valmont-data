@@ -605,7 +605,7 @@
         ${firstMomo ? `
           <div class="field" style="margin-top:2px" id="bm-autoreload-row">
             <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-weight:normal;font-size:13px;line-height:1.45">
-              <input type="checkbox" id="bm-autoreload" style="margin-top:2px;accent-color:var(--orange);"> <span>⚡ Also turn on <b>Auto-reload</b> for <b>my line</b> — when this bundle runs low, we re-buy it automatically from your MoMo <b>${firstMomo}</b>. Opt in anytime at <b>Auto-reload</b>.</span>
+              <input type="checkbox" id="bm-autoreload" style="margin-top:2px;accent-color:var(--orange);"> <span id="bm-autoreload-label"></span>
             </label>
           </div>` : `
           <div class="field" style="margin-top:2px">
@@ -643,17 +643,19 @@
       hint.textContent = phoneInput.value.length ? "✓ Looks good" : "";
       next.disabled = !v.ok;
 
-      // THE GIFT RULE in the buy flow: auto-reload is ONLY offered when the
-      // delivery number is the buyer's OWN line. Buying for someone else never
-      // shows (or silently enables) auto-reload — otherwise the customer
-      // thinks the top-up reloads them, but it tops up the other person.
+      // Auto-reload checkbox — offered for BOTH your own line ("Auto-reload")
+      // and numbers you buy for someone else ("Auto top-up others", e.g. your
+      // girlfriend). The label always says clearly whose number gets the data,
+      // so a favour can never be confused with topping yourself up.
       const arRow = $("#bm-autoreload-row", m);
       if (arRow) {
-        const isOwnLine = v.ok && v.n === (state.customerInfo?.phone || "");
-        arRow.style.display = isOwnLine ? "" : "none";
-        if (!isOwnLine) {
-          const cb = $("#bm-autoreload", m);
-          if (cb) cb.checked = false;
+        arRow.style.display = v.ok ? "" : "none";
+        const label = $("#bm-autoreload-label", m);
+        if (label) {
+          const isOwnLine = v.ok && v.n === (state.customerInfo?.phone || "");
+          label.innerHTML = isOwnLine
+            ? `⚡ Also turn on <b>Auto-reload</b> for <b>my line</b> — when this bundle runs low, we re-buy it automatically from your MoMo <b>${firstMomo}</b>.`
+            : `⚡ <b>Auto top-up ${v.n} (others)</b> — when <b>their</b> data runs low, we top <b>them</b> up from your MoMo <b>${firstMomo}</b>. The data goes to <b>${v.n}</b>, not to you.`;
         }
       }
     }
@@ -675,15 +677,15 @@
       const v = validatePhone(phoneInput.value);
       if (!v.ok) return revalidate();
       const shouldSave = $("#bm-save-num", m)?.checked;
-      // Gift rule: never carry auto-reload to someone else's number even if
-      // the box was checked before the number was changed.
       const isOwnLine = v.n === (state.customerInfo?.phone || "");
-      const autoreload = ($("#bm-autoreload", m)?.checked || false) && isOwnLine;
-      showConfirm(v.n, shouldSave, autoreload, firstMomo);
+      // The checkbox covers BOTH cases: auto-reload for your own line, or
+      // auto top-up for someone else's number (their label says exactly that).
+      const autoreload = $("#bm-autoreload", m)?.checked || false;
+      showConfirm(v.n, shouldSave, autoreload, firstMomo, isOwnLine);
     });
   }
 
-  function showConfirm(phone, shouldSave, autoreload, firstMomo) {
+  function showConfirm(phone, shouldSave, autoreload, firstMomo, isOwnLine) {
     const b = state.selected;
     const m = $("#buyModal");
     m.innerHTML = `
@@ -696,7 +698,9 @@
           <div class="row"><span>Validity</span><b>${validityLabel(b.validity_days)}</b></div>
           <div class="row total"><span>Total</span><b>${fmt(b.price)}</b></div>
         </div>
-        ${autoreload ? `<div class="notice info" style="margin-top:12px">⚡ <b>Auto-reload on:</b> when this bundle runs low, we'll re-buy it from <b>${firstMomo}</b> automatically — you can opt out anytime.</div>` : ""}
+        ${autoreload ? (isOwnLine
+          ? `<div class="notice info" style="margin-top:12px">⚡ <b>Auto-reload on:</b> when your bundle on <b>${phone}</b> runs low, we'll re-buy it from <b>${firstMomo}</b> automatically — you can opt out anytime.</div>`
+          : `<div class="notice info" style="margin-top:12px">⚡ <b>Auto top-up on for ${phone} (others):</b> when <b>their</b> data runs low, we'll top <b>them</b> up from <b>your</b> MoMo <b>${firstMomo}</b>. The data goes to <b>${phone}</b>, not to you.</div>`) : ""}
         <div class="big-number">${phone}</div>
         <div class="notice" style="margin-top:12px"><b>Data goes to this number the moment payment confirms.</b> Wrong numbers are not refundable.</div>
         <button class="btn btn-orange btn-block" id="bm-pay" style="margin-top:14px">Confirm &amp; Pay →</button>
@@ -734,10 +738,11 @@
           return;
         }
 
-        // Auto-reload opt-in chosen in the buy flow: standing permission to
-        // re-buy this bundle from the saved MoMo when it runs low. Only ever
-        // for the customer's own line (phone === account phone).
-        if (autoreload && firstMomo && phone === (state.customerInfo?.phone || "")) {
+        // Auto-reload / auto top-up opt-in chosen in the buy flow: standing
+        // permission to re-buy this bundle from the saved MoMo when the line
+        // runs low. For someone else's number (others) the checkbox text
+        // already confirmed the recipient, so confirm_recipient is sent too.
+        if (autoreload && firstMomo) {
           fetch("/api/autoreload", {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${state.customerToken}` },
@@ -747,6 +752,7 @@
               trigger_percent: 10,
               momo_number: firstMomo,
               consent: true,
+              confirm_recipient: !isOwnLine,
             }),
           }).catch(() => {});
         }

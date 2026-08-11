@@ -182,7 +182,7 @@ async function post(req, res) {
   const relation = phoneCheck.normalized === (auth.phone || "") ? "self" : "other";
   if (relation === "other" && body.confirm_recipient !== true) {
     return json(res, 400, {
-      error: `${phoneCheck.normalized} is not your own number. Auto-reload will deliver the data to ${phoneCheck.normalized} (not to you) and charge your MoMo. Confirm that you understand before enabling it.`,
+      error: `${phoneCheck.normalized} is someone else's line (others). Auto top-up will deliver the data to ${phoneCheck.normalized} (not to you) and charge your MoMo. Confirm that you understand before enabling it.`,
       code: "RECIPIENT_CONFIRM_REQUIRED",
     });
   }

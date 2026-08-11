@@ -33,7 +33,7 @@ npm run dev                     # → http://localhost:8787 (in-memory DB, SUPAB
 In a second terminal (with the dev server still running):
 
 ```bash
-npm test                        # 82-check end-to-end suite — must be 82/82
+npm test                        # 83-check end-to-end suite — must be 83/83
 ```
 
 Then click through the business manually:
@@ -74,7 +74,7 @@ node scripts/sim-webhook.js --ref VD-... --wrong-amount    # auto-refund
 MOCK_FAIL_FIRST=1 npm run dev                              # delivery fails → retry via admin/cron
 ```
 
-**Do not proceed until `npm test` is green (82/82) and you have seen all failure
+**Do not proceed until `npm test` is green (83/83) and you have seen all failure
 paths behave as documented.**
 
 ---
@@ -242,7 +242,7 @@ an order — the race-condition path must **auto-refund** and mark the webhook
 
 ## 8 · Go-live checklist
 
-- [ ] `npm test` green locally (82/82)
+- [ ] `npm test` green locally (83/83)
 - [ ] `schema.sql` run in Supabase; RLS sanity-checked (customers & saved_numbers tables added)
 - [ ] All env vars set in Vercel; `SUPABASE_MOCK` **not** set
 - [ ] Valmont-Pay webhook registered + signature verified end-to-end

@@ -134,8 +134,10 @@
       </div>
       <h1>Auto-reload your data</h1>
       <p class="lead">
-        We track each of your data lines. When the bundle runs low, we ask — and if you've opted in,
-        we automatically buy the bundle again from your own MoMo, so you never run dry mid-work.
+        We track each of your data lines — yours <b>and</b> the lines you top up for
+        others (your girlfriend, family). When a bundle runs low we ask, and if
+        you've opted in we automatically buy it again from your MoMo — so you never
+        run dry, and you never miss when someone else's data runs out.
       </p>
     </div>
 
@@ -167,14 +169,14 @@
             <div class="hint" id="ar-phone-hint" style="font-size:12px;color:var(--muted);margin-top:5px;"></div>
           </div>
 
-          <!-- THE GIFT RULE: shown only when the selected line is NOT the
-               customer's own number — they must confirm the data goes to the
-               other person, or this is exactly how a favour silently drains
-               their MoMo onto someone else's line. -->
+          <!-- OTHERS RULE: shown when the selected line belongs to someone
+               else (girlfriend, family, shop). They confirm the data goes to
+               that person — this is also how you watch their data so you
+               never miss when it runs low. -->
           <div class="field" id="ar-gift-box" style="display:none;">
             <div class="notice warn" style="margin:0 0 10px;">
-              <b>⚠️ This is not your line.</b><br>
-              Auto-reload will deliver data to <b id="ar-gift-phone"></b> — the person who uses that
+              <b>⚠️ This line belongs to someone else (others).</b><br>
+              Auto top-up will deliver data to <b id="ar-gift-phone"></b> — the person who uses that
               number — and charge <b>YOUR</b> MoMo. It will <b>not</b> top you up.
             </div>
             <label class="consent-box" for="ar-confirm-recipient" style="margin:0;border-color:rgba(255,92,77,0.45);">

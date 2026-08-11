@@ -329,6 +329,25 @@ function buildDemo({ now = new Date(), rngSeed = 20260807, orderCount = 52 } = {
     }
   }
 
+  // A "watch" example: one of the demo customers tops up someone else's line
+  // (others, no rule) that is nearly empty — the Auto-reload page shows the
+  // "track & auto top-up others" prompt so they don't miss. We target the
+  // LATEST bundle on that line (the page shows the newest bundle's usage).
+  const watchCandidates = bundle_usage.filter(
+    (u2) =>
+      !auto_reload.some((a) => a.phone === u2.phone) &&
+      SAVED_NUMBERS.some(
+        (s) => s.kind === "data" && s.phone === u2.phone && s.customer_phone !== s.phone
+      )
+  );
+  if (watchCandidates.length) {
+    const phone = watchCandidates[watchCandidates.length - 1].phone;
+    const rowsForPhone = bundle_usage.filter((u2) => u2.phone === phone);
+    const latest = rowsForPhone[rowsForPhone.length - 1]; // newest row = last pushed
+    latest.used_mb = round2(latest.size_mb * 0.93);
+    latest.last_report_at = at(0, -Math.floor(rng() * 60));
+  }
+
   /* ---- float ledger (chronological, balances chained per network) ---- */
   const entries = [];
 

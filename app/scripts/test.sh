@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# Valmont Data — end-to-end test (82 checks). Start the dev server first:
+# Valmont Data — end-to-end test (83 checks). Start the dev server first:
 #   npm run dev   →  http://localhost:8787   (default mock DB)
 # The retry path is exercised deterministically via the built-in convention:
 # numbers ending 0000 fail their first delivery attempt (see lib/supplier.js).
@@ -236,7 +236,7 @@ ck "autoreload endpoint without token → 401" "$CODE_AR_NOAUTH" "401"
 CODE_USAGE_BADKEY=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/usage" -H "$J" -H "x-usage-key: wrong" -d '{"action":"report","phone":"0241112222","used_mb":10}')
 ck "usage report with wrong key → 401" "$CODE_USAGE_BADKEY" "401"
 
-echo "── 16. auto-reload: gift lines (buying FOR someone else) ──"
+echo "── 16. auto-reload: others lines (topping up FOR someone else) ──"
 # Raise the OWN line's usage again (its rule was removed at the end of §15)
 curl -s -X POST "$B/api/usage" -H "$J" -H "x-usage-key: dev-usage-key" -d '{"action":"report","phone":"0241112222","used_mb":1900}' >/dev/null
 # The customer saves someone else's line (e.g. "Mum's line") — a favour line
@@ -247,19 +247,20 @@ REF_GIFT=$(echo "$R" | jqget "['reference']")
 sim --ref "$REF_GIFT" --amount 9 >/dev/null
 curl -s -X POST "$B/api/usage" -H "$J" -H "x-usage-key: dev-usage-key" -d "{\"action\":\"report\",\"reference\":\"$REF_GIFT\",\"used_mb\":1900}" >/dev/null
 R_AR=$(curl -s "$B/api/autoreload" -H "Authorization: Bearer $CTOK")
-ck "gift line flagged as 'other'" "$(echo "$R_AR" | python3 -c "import sys,json;d=json.load(sys.stdin);l=[x for x in d['lines'] if x['phone']=='0559988776'][0];print(l['relation'])")" "other"
-ck "gift line NEVER shows the ask prompt" "$(echo "$R_AR" | python3 -c "import sys,json;d=json.load(sys.stdin);l=[x for x in d['lines'] if x['phone']=='0559988776'][0];print(l['should_ask'])")" "False"
+ck "others line flagged as 'other'" "$(echo "$R_AR" | python3 -c "import sys,json;d=json.load(sys.stdin);l=[x for x in d['lines'] if x['phone']=='0559988776'][0];print(l['relation'])")" "other"
+ck "others line never auto-asks" "$(echo "$R_AR" | python3 -c "import sys,json;d=json.load(sys.stdin);l=[x for x in d['lines'] if x['phone']=='0559988776'][0];print(l['should_ask'])")" "False"
+ck "others line is tracked (low usage surfaced)" "$(echo "$R_AR" | python3 -c "import sys,json;d=json.load(sys.stdin);l=[x for x in d['lines'] if x['phone']=='0559988776'][0];print(l['low'])")" "True"
 ck "own line still shows the ask prompt" "$(echo "$R_AR" | python3 -c "import sys,json;d=json.load(sys.stdin);l=[x for x in d['lines'] if x['phone']=='0241112222'][0];print(l['should_ask'])")" "True"
 
-# Opt-in for a gift line REQUIRES the recipient confirmation
+# Opt-in for an others line REQUIRES the recipient confirmation
 CODE_NOGIFT=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/autoreload" -H "$J" -H "Authorization: Bearer $CTOK" -d '{"phone":"0559988776","bundle_id":2,"trigger_percent":10,"momo_number":"0551112233","consent":true}')
-ck "gift opt-in without recipient confirm rejected (400)" "$CODE_NOGIFT" "400"
+ck "others opt-in without recipient confirm rejected (400)" "$CODE_NOGIFT" "400"
 R_GIFT=$(curl -s -X POST "$B/api/autoreload" -H "$J" -H "Authorization: Bearer $CTOK" -d '{"phone":"0559988776","bundle_id":2,"trigger_percent":10,"momo_number":"0551112233","consent":true,"confirm_recipient":true}')
-ck "gift opt-in with recipient confirm accepted" "$(echo "$R_GIFT" | jqget "['ok']")" "True"
-ck "gift rule stored with relation other" "$(echo "$R_GIFT" | jqget "['rule']['relation']")" "other"
+ck "others opt-in with recipient confirm accepted" "$(echo "$R_GIFT" | jqget "['ok']")" "True"
+ck "others rule stored with relation other" "$(echo "$R_GIFT" | jqget "['rule']['relation']")" "other"
 R_AR=$(curl -s "$B/api/autoreload" -H "Authorization: Bearer $CTOK")
-ck "gift rule shows as not-your-line" "$(echo "$R_AR" | python3 -c "import sys,json;d=json.load(sys.stdin);r=[x for x in d['rules'] if x['phone']=='0559988776'][0];print(r['is_own_line'])")" "False"
-# clean up the gift rule
+ck "others rule shows as not-your-line" "$(echo "$R_AR" | python3 -c "import sys,json;d=json.load(sys.stdin);r=[x for x in d['rules'] if x['phone']=='0559988776'][0];print(r['is_own_line'])")" "False"
+# clean up the others rule
 curl -s -X DELETE "$B/api/autoreload?id=$(echo "$R_GIFT" | jqget "['rule_id']")" -H "Authorization: Bearer $CTOK" >/dev/null
 
 echo "── 17. live gateway mode (no dev simulation) ──"
@@ -270,4 +271,4 @@ ck "live auto-reload charge without keys fails loudly (503)" "$LIVE_ERR2" "503"
 
 echo ""
 echo "RESULT: $PASS passed, $FAIL failed"
-[ "$FAIL" -eq 0 ] && [ "$PASS" -ge 82 ]
+[ "$FAIL" -eq 0 ] && [ "$PASS" -ge 83 ]
