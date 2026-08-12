@@ -53,6 +53,10 @@ The **webhook handler is the heart of the system** (`api/valmontpay/webhook.js`)
 | `scripts/build-icons.js` | Zero-dependency icon builder — regenerates the globe favicon/logo set (PNG/ICO) from `assets/img/favicon.svg` |
 | `assets/img/brand-logo.png`/`.svg` | **Brand banner** (gold constellation hexagon + VALMONT DATA wordmark) — header/footer logo, transparent |
 | `assets/img/favicon.svg` | Gold constellation mark — browser/PWA favicon; transparent PNG/ICO raster set alongside |
+| `manifest.json` | PWA manifest — standalone install, theme, 192/512 + maskable icons, app shortcuts (Buy / Track / Account) |
+| `sw.js` | Service worker — precached app shell, offline fallback, cache versioning (`CACHE_NAME`) |
+| `offline.html` | Self-contained offline shell shown when navigation can't reach the network |
+| `assets/js/pwa.js` | PWA bootstrap — SW registration, install card, update-to-refresh, offline pill |
 
 ## Non-negotiable requirements — how each is enforced
 
@@ -222,6 +226,34 @@ never run it against production). Demo logins are printed in the file header.
 
 ---
 
+## PWA — installable & offline-capable
+
+The storefront is a full Progressive Web App — no build step, no framework:
+
+- **Installable** — `manifest.json` (standalone display, 192/512 + maskable icons,
+  theme, `shortcuts` for Buy / Track / Account) plus `mobile-web-app-capable` /
+  iOS web-app metas on every page. Browsers fire `beforeinstallprompt`;
+  `assets/js/pwa.js` surfaces it as an in-house install card (re-asks weekly,
+  hidden on `/admin.html`).
+- **App shell** — `sw.js` precaches the static shell (pages, CSS, JS, icons,
+  manifest) on install and **versioned caches** (`CACHE_NAME`). Bump the cache
+  name whenever the shell changes — `activate()` deletes older caches.
+- **Offline** — navigations go network-first, then cached page, then the
+  self-contained `/offline.html` shell (auto-reloads on reconnect). Static
+  assets are cache-first with background refresh (SWR). `/api/*` is never
+  served from cache — live float/stock/orders only; the storefront already
+  renders its own offline/error states.
+- **Updates** — `updateViaCache: 'none'` + `no-cache` header on `/sw.js` (see
+  `vercel.json`) so new workers arrive promptly; `pwa.js` shows a one-tap
+  "New version is ready → Update" bar (`SKIP_WAITING` → reload).
+- **Awareness** — a red pill appears when the connection drops and a toast
+  confirms when it returns.
+
+Verify the whole surface with the `── 18. PWA surface` block of `npm test`.
+
+---
+---
+
 ## Deploy (Vercel + Supabase)
 
 1. **Supabase**: create project → SQL editor → paste `supabase/schema.sql` → run. (Tables + RLS + functions + seeds. Idempotent; adds `customers`, `saved_numbers`, `bundle_usage`, `auto_reload` and the rest.)
@@ -234,7 +266,7 @@ never run it against production). Demo logins are printed in the file header.
 
 ## Tested
 
-`scripts/test.sh` runs the full 83-check pipeline against the dev server (mock DB):
+`scripts/test.sh` runs the full 99-check pipeline against the dev server (mock DB):
 float guard (reject when 0 float, guest 401) → admin login/float top-up →
 customer signup (scrypt hash, 30-day token) → duplicate 409 → wrong credentials 401 →
 customer login → account gating 401 → authed 0-float 422 → order creation →

@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# Valmont Data — end-to-end test (83 checks). Start the dev server first:
+# Valmont Data — end-to-end test (99 checks). Start the dev server first:
 #   npm run dev   →  http://localhost:8787   (default mock DB)
 # The retry path is exercised deterministically via the built-in convention:
 # numbers ending 0000 fail their first delivery attempt (see lib/supplier.js).
@@ -269,6 +269,22 @@ ck "live mode without gateway keys fails loudly (503)" "$LIVE_ERR" "503"
 LIVE_ERR2=$(VALMONTPAY_MODE=live VALMONTPAY_API_KEY= VALMONTPAY_WEBHOOK_SECRET= node -e "const v=require('./lib/valmontpay');v.initiateCharge({reference:'VD-TEST-0000',amount:1,phone:'0241112222'}).then(()=>console.log('NOERR')).catch(e=>console.log(''+e.status))")
 ck "live auto-reload charge without keys fails loudly (503)" "$LIVE_ERR2" "503"
 
+echo "── 18. PWA surface (manifest, service worker, offline shell) ──"
+ck "manifest served" "$(curl -s -o /dev/null -w '%{http_code}' "$B/manifest.json")" "200"
+ck "manifest is a standalone PWA" "$(curl -s "$B/manifest.json" | jqget "['display']")" "standalone"
+ck "manifest declares install icons" "$(curl -s "$B/manifest.json" | python3 -c "import sys,json;print(len(json.load(sys.stdin)['icons'])>0)")" "True"
+ck "manifest declares app shortcuts" "$(curl -s "$B/manifest.json" | python3 -c "import sys,json;print(len(json.load(sys.stdin).get('shortcuts',[]))>=3)")" "True"
+SW=$(curl -s "$B/sw.js")
+ck "service worker served" "$(echo "$SW" | python3 -c "import sys;print('addEventListener' in sys.stdin.read())")" "True"
+ck "service worker precaches app shell" "$(echo "$SW" | python3 -c "import sys;print('APP_SHELL' in sys.stdin.read())")" "True"
+ck "offline shell page served" "$(curl -s -o /dev/null -w '%{http_code}' "$B/offline.html")" "200"
+ck "offline shell is self-contained (no external deps)" "$(curl -s "$B/offline.html" | grep -c 'src="http')" "0"
+ck "pwa.js registers the service worker" "$(curl -s "$B/assets/js/pwa.js" | grep -c "\.register('/sw\.js'")" "1"
+ck "install icon 192 served" "$(curl -s -o /dev/null -w '%{http_code}' "$B/assets/img/icon-192.png")" "200"
+ck "install icon 512 served" "$(curl -s -o /dev/null -w '%{http_code}' "$B/assets/img/icon-512.png")" "200"
+for p in / /status.html /signin.html /signup.html /dashboard.html; do
+  ck "page $p is installable (mobile-web-app-capable)" "$(curl -s "$B$p" | grep -c 'name="mobile-web-app-capable"')" "1"
+done
 echo ""
 echo "RESULT: $PASS passed, $FAIL failed"
-[ "$FAIL" -eq 0 ] && [ "$PASS" -ge 83 ]
+[ "$FAIL" -eq 0 ] && [ "$PASS" -ge 99 ]
