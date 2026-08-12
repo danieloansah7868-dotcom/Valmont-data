@@ -8,7 +8,7 @@
   <link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png">
   <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#0b1a38">
+  <meta name="theme-color" content="#0b1f3a">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -28,6 +28,15 @@
       margin-top: 30px;
       border-top: 2px solid var(--orange);
     }
+    .dash-card {
+      background: #112240;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 24px;
+      margin-top: 22px;
+    }
+    .dash-card h2 { font-size: 18px; font-weight: 700; color: var(--white); margin-bottom: 4px; }
+    .dash-card .sub { color: var(--muted); font-size: 13px; margin-bottom: 8px; }
     .quick-actions h2 {
       font-size: 18px;
       font-weight: 700;
@@ -270,11 +279,21 @@
         </a>
         <a href="#bulk" class="action-item">
           <div class="action-icon filled">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17" stroke="currentColor" stroke-width="2" fill="none"></polyline><polyline points="2 12 12 17 22 12" stroke="currentColor" stroke-width="2" fill="none"></polyline></svg>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 17" stroke="currentColor" stroke-width="2" fill="none"></polyline><polyline points="2 12 12 17 22 12" stroke="currentColor" stroke-width="2" fill="none"></polyline></svg>
           </div>
           Bulk
         </a>
+        <a href="autoreload.html" class="action-item">
+          <div class="action-icon filled" style="background:rgba(47,230,143,0.14);color:var(--green);">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+          </div>
+          Auto-reload
+        </a>
       </div>
+    </div>
+
+    <div class="dash-card" id="dashAutoreload">
+      <div class="sub">Loading your bundles…</div>
     </div>
   </main>
 
@@ -345,5 +364,6 @@
   <div class="modal-back" id="accountModal"></div>
   <script src="assets/js/storefront.js"></script>
   <script src="assets/js/pwa.js"></script>
+  <script src="assets/js/autoreload.js"></script>
 </body>
 </html>

@@ -27,15 +27,7 @@ Customer → bundle + number → Valmont-Pay checkout (MoMo/card)
 cd app
 cp .env.example .env.local      # defaults are fine for local
 npm run dev                     # → http://localhost:8787 (in-memory DB)
-npm test                        # 63-check end-to-end suite (start dev server first)
-```
-
-Storefront at `/`, order tracking at `/status.html`, admin console at
-`/admin.html` (dev password `admin123`). See [`app/README.md`](app/README.md)
-for the full tour, including how to simulate payments
-(`node scripts/sim-webhook.js --ref VD-260806-XXXX`) and exercise every
-failure path (duplicate webhook, bad signature, wrong amount, retry).
-
+npm test                        # 99-check end-to-end suite (start dev server first)
 Want a pre-populated storefront instead of an empty one?
 `cd app && SEED_DEMO=1 npm run dev` — loads ~50 realistic demo orders, 5 demo
 customer accounts (PINs in `app/README.md`), a consistent float ledger and the

@@ -71,6 +71,37 @@ create table if not exists public.sms_leads (
 );
 create index if not exists sms_leads_created_idx on public.sms_leads(created_at desc);
 
+-- ---------- AUTO-RELOAD (the user's opt-in — "auto top-up") ----------
+-- One rule per customer per data line. When the line's current bundle drops
+-- below trigger_percent (or expires), the cron re-buys `bundle_id` from the
+-- pre-authorized `momo_number` and delivers it to `phone`.
+--
+-- `relation` says who the phone belongs to:
+--   'self'  → the line is the customer's own number (phone = customers.phone)
+--   'other' → a line they buy data FOR (gift / favour / family line)
+-- The web NEVER auto-suggests auto-reload for 'other' lines, and creating a
+-- rule for one requires an explicit recipient confirmation (confirm_recipient)
+-- so a favour can't silently drain the customer's MoMo onto someone else's line.
+create table if not exists public.auto_reload (
+  id                bigint generated always as identity primary key,
+  customer_id       bigint not null references public.customers(id) on delete cascade,
+  phone             text not null check (phone ~ '^0[0-9]{9}$'),
+  relation          text not null default 'self' check (relation in ('self','other')),
+  network_id        bigint not null references public.networks(id),
+  bundle_id         bigint not null references public.bundles(id),
+  trigger_percent   integer not null default 10 check (trigger_percent between 1 and 50),
+  momo_number       text check (momo_number is null or momo_number ~ '^0[0-9]{9}$'),
+  active            boolean not null default true,
+  reload_count      integer not null default 0,
+  last_reload_at    timestamptz,                        -- last successful reload delivered
+  last_triggered_at timestamptz,                        -- last time the engine fired
+  cooldown_until    timestamptz,                        -- no new reload before this
+  created_at        timestamptz not null default now(),
+  updated_at        timestamptz not null default now(),
+  unique (customer_id, phone)
+);
+create index if not exists auto_reload_active_idx on public.auto_reload(active, id);
+
 -- ---------- ORDERS ----------
 create table if not exists public.orders (
   id                  bigint generated always as identity primary key,
@@ -87,6 +118,7 @@ create table if not exists public.orders (
   supplier_response   jsonb,                            -- full supplier reply for dispute settling
   attempts            integer not null default 0,
   customer_id         bigint references public.customers(id),
+  auto_reload_id      bigint references public.auto_reload(id),  -- set when this order was created by the auto-reload engine
   created_at          timestamptz not null default now(),
   delivered_at        timestamptz
 );
@@ -94,6 +126,26 @@ create index if not exists orders_status_idx      on public.orders(status);
 create index if not exists orders_created_idx    on public.orders(created_at desc);
 create index if not exists orders_provider_ref_idx on public.orders(provider_reference);
 create index if not exists orders_customer_idx   on public.orders(customer_id);
+
+-- ---------- BUNDLE USAGE (tracks each delivered bundle's data consumption) ----------
+-- One row per delivered order. `used_mb` is updated by usage reports (telco /
+-- supplier API in production, the sim-usage script in dev). The auto-reload
+-- engine watches the newest row per phone and fires when the bundle runs low.
+create table if not exists public.bundle_usage (
+  id             bigint generated always as identity primary key,
+  order_id       bigint not null references public.orders(id) on delete cascade,
+  phone          text not null check (phone ~ '^0[0-9]{9}$'),
+  network_id     bigint not null references public.networks(id),
+  size_mb        integer not null,
+  used_mb        numeric(12,2) not null default 0,
+  status         text not null default 'active' check (status in ('active','exhausted','expired')),
+  started_at     timestamptz not null default now(),
+  expires_at     timestamptz,                           -- null = no expiry (MTN)
+  last_report_at timestamptz,
+  created_at     timestamptz not null default now()
+);
+create index if not exists bundle_usage_phone_idx on public.bundle_usage(phone, id desc);
+create index if not exists bundle_usage_order_idx on public.bundle_usage(order_id);
 
 -- ---------- FLOAT LEDGER (every cedi of prepaid float, per network) ----------
 create table if not exists public.float_ledger (
@@ -175,6 +227,8 @@ alter table public.customers     enable row level security;
 alter table public.saved_numbers enable row level security;
 alter table public.sms_leads     enable row level security;
 alter table public.orders        enable row level security;
+alter table public.bundle_usage  enable row level security;
+alter table public.auto_reload   enable row level security;
 alter table public.float_ledger  enable row level security;
 alter table public.webhook_log   enable row level security;
 
@@ -188,6 +242,12 @@ revoke all on public.bundles from anon;
 -- anon: no access to customer accounts or saved numbers
 revoke all on public.customers from anon;
 revoke all on public.saved_numbers from anon;
+
+-- anon: no access to bundle usage or auto-reload opt-ins — both are managed
+-- server-side (usage reports come from the supplier integration, opt-ins from
+-- the authenticated customer API)
+revoke all on public.bundle_usage from anon;
+revoke all on public.auto_reload  from anon;
 
 -- anon: no direct access to SMS leads — opt-ins are written by the
 -- serverless function (service role) and exported from the admin console
@@ -222,16 +282,24 @@ on conflict (code) do nothing;
 insert into public.bundles (network_id, size_mb, validity_days, cost_price, sell_price, sort_order)
 select n.id, v.size_mb, v.validity_days, v.cost_price, v.sell_price, v.sort_order
 from (values
-  -- MTN — no expiry
-  ('mtn', 1024,  null, 3.90,  4.20,   1),
-  ('mtn', 2048,  null, 8.10,  9.00,   2),
-  ('mtn', 3072,  null, 11.90, 13.50,  3),
-  ('mtn', 5120,  null, 18.90, 20.50,  4),
-  ('mtn', 10240, null, 38.50, 43.00,  5),
-  ('mtn', 20480, null, 73.00, 82.00,  6),
-  ('mtn', 30720, null, 111.00,125.00, 7),
-  ('mtn', 51200, null, 185.00,201.00, 8),
-  ('mtn', 102400,null, 377.00,407.00, 9),
+  -- MTN — no expiry. Retail (sell_price) aligned 2026-08-11; lineup mirrors the
+  -- RemaData catalogue (1–50GB; 100GB dropped — supplier no longer lists it).
+  -- cost_price for newly added sizes = RemaData public wholesale; sync exact
+  -- API costs from the admin console once REMADATA_API_KEY is live.
+  ('mtn', 1024,  null, 3.90,  6.00,   1),
+  ('mtn', 2048,  null, 8.10,  12.00,  2),
+  ('mtn', 3072,  null, 11.90, 17.00,  3),
+  ('mtn', 4096,  null, 16.60, 23.00,  4),
+  ('mtn', 5120,  null, 18.90, 28.00,  5),
+  ('mtn', 6144,  null, 24.50, 35.00,  6),
+  ('mtn', 8192,  null, 32.60, 43.00,  7),
+  ('mtn', 10240, null, 38.50, 52.00,  8),
+  ('mtn', 15360, null, 58.00, 75.00,  9),
+  ('mtn', 20480, null, 73.00, 93.00,  10),
+  ('mtn', 25600, null, 98.00, 115.00, 11),
+  ('mtn', 30720, null, 111.00,140.00, 12),
+  ('mtn', 40960, null, 159.00,180.00, 13),
+  ('mtn', 51200, null, 185.00,220.00, 14),
   -- Telecel — 60-day rollover
   ('telecel', 10240, 60, 35.50, 39.50, 1),
   ('telecel', 20480, 60, 67.80, 75.00, 2),

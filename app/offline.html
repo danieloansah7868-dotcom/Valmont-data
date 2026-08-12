@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>You're offline — Valmont Data</title>
   <meta name="robots" content="noindex">
-  <meta name="theme-color" content="#0b1a38">
+  <meta name="theme-color" content="#0b1f3a">
   <!-- Fully self-contained (inline CSS/JS/SVG): served from the service-worker
        cache, so it must never depend on the network. -->
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
-      background: radial-gradient(1100px 500px at 85% -10%, rgba(245, 140, 20, 0.09), transparent 60%), #0b1a38;
+      background: radial-gradient(1100px 500px at 85% -10%, rgba(217, 119, 42, 0.09), transparent 60%), #0b1f3a;
       color: #c3cfe8;
       min-height: 100vh;
       display: flex;
@@ -24,7 +24,7 @@
     }
     .card {
       max-width: 420px;
-      background: #12234a;
+      background: #071428;
       border: 1px solid rgba(248, 250, 252, 0.09);
       border-radius: 26px;
       padding: 40px 32px;
@@ -37,11 +37,11 @@
       display: grid;
       place-items: center;
       border-radius: 20px;
-      background: #102246;
+      background: #0b1f3a;
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.06);
     }
     h1 { font-size: 24px; font-weight: 850; color: #f8fafc; letter-spacing: -0.4px; margin-bottom: 10px; }
-    h1 em { font-style: normal; color: #F58C14; }
+    h1 em { font-style: normal; color: #d9772a; }
     p { font-size: 15px; line-height: 1.6; color: #c3cfe8; margin-bottom: 8px; }
     .btn {
       display: inline-flex;
@@ -56,15 +56,15 @@
       font-weight: 800;
       font-size: 15px;
       font-family: inherit;
-      background: #F58C14;
+      background: #d9772a;
       color: #1a0f00;
-      box-shadow: 0 8px 24px rgba(245, 140, 20, 0.22);
+      box-shadow: 0 8px 24px rgba(217, 119, 42, 0.22);
       transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
       text-decoration: none;
     }
-    .btn:hover { background: #FFA53E; transform: translateY(-1px); }
+    .btn:hover { background: #e89a4f; transform: translateY(-1px); }
     .home { display: block; margin-top: 14px; font-size: 13.5px; color: #7f8fb4; text-decoration: none; }
-    .home:hover { color: #F58C14; }
+    .home:hover { color: #d9772a; }
     .pulse { animation: pulse 1.6s ease-in-out infinite; }
     @keyframes pulse { 50% { opacity: 0.45; } }
   </style>
@@ -74,19 +74,19 @@
     <div class="mark">
       <!-- gold constellation hexagon — inline so it renders with zero requests -->
       <svg width="52" height="52" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <g stroke="#F58C14" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+        <g stroke="#d9772a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
           <polygon points="50,8 86,29 86,71 50,92 14,71 14,29" fill="none" opacity="0.9"/>
           <line x1="50" y1="8" x2="86" y2="71"/>
           <line x1="86" y1="29" x2="14" y2="71"/>
           <line x1="14" y1="29" x2="50" y2="92"/>
         </g>
-        <circle cx="50" cy="8" r="5" fill="#F58C14"/>
-        <circle cx="86" cy="29" r="5" fill="#F58C14"/>
-        <circle cx="86" cy="71" r="5" fill="#F58C14"/>
-        <circle cx="50" cy="92" r="5" fill="#F58C14"/>
-        <circle cx="14" cy="71" r="5" fill="#F58C14"/>
-        <circle cx="14" cy="29" r="5" fill="#F58C14"/>
-        <circle cx="50" cy="50" r="5" fill="#F58C14" class="pulse"/>
+        <circle cx="50" cy="8" r="5" fill="#d9772a"/>
+        <circle cx="86" cy="29" r="5" fill="#d9772a"/>
+        <circle cx="86" cy="71" r="5" fill="#d9772a"/>
+        <circle cx="50" cy="92" r="5" fill="#d9772a"/>
+        <circle cx="14" cy="71" r="5" fill="#d9772a"/>
+        <circle cx="14" cy="29" r="5" fill="#d9772a"/>
+        <circle cx="50" cy="50" r="5" fill="#d9772a" class="pulse"/>
       </svg>
     </div>
     <h1>You're <em>offline</em></h1>

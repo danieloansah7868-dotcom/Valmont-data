@@ -8,7 +8,7 @@
    ============================================================================ */
 
 const MOCK = process.env.SUPABASE_MOCK === "1";
-const { buildDemo } = require("./demo-data");
+const { buildDemo, BUNDLES } = require("./demo-data");
 
 /* ---------------- real PostgREST ---------------- */
 async function rest(path, { method = "GET", body, headers = {} } = {}) {
@@ -50,27 +50,21 @@ const mockState = {
   saved_numbers: [],
   sms_leads: [],
   orders: [],
+  bundle_usage: [],
+  auto_reload: [],
   float_ledger: [],
   webhook_log: [],
-  _seq: { bundles: 0, customers: 0, saved_numbers: 0, sms_leads: 0, orders: 0, float_ledger: 0, webhook_log: 0 },
+  _seq: { bundles: 0, customers: 0, saved_numbers: 0, sms_leads: 0, orders: 0, bundle_usage: 0, auto_reload: 0, float_ledger: 0, webhook_log: 0 },
 };
 
-// Seed bundles mirroring supabase/schema.sql
+// Seed bundles mirroring supabase/schema.sql — single source of truth lives
+// in lib/demo-data.js (BUNDLES); keep schema.sql in step with it.
 (function seedBundles() {
-  const rows = [
-    // network, size_mb, validity_days, cost, sell, sort
-    ["mtn", 1024, null, 3.9, 4.2, 1], ["mtn", 2048, null, 8.1, 9.0, 2],
-    ["mtn", 3072, null, 11.9, 13.5, 3], ["mtn", 5120, null, 18.9, 20.5, 4],
-    ["mtn", 10240, null, 38.5, 43.0, 5], ["mtn", 20480, null, 73.0, 82.0, 6],
-    ["mtn", 30720, null, 111.0, 125.0, 7], ["mtn", 51200, null, 185.0, 201.0, 8],
-    ["mtn", 102400, null, 377.0, 407.0, 9],
-    ["telecel", 10240, 60, 35.5, 39.5, 1], ["telecel", 20480, 60, 67.8, 75.0, 2],
-    ["telecel", 30720, 60, 98.7, 110.0, 3], ["telecel", 51200, 60, 162.5, 180.0, 4],
-    ["telecel", 102400, 60, 367.0, 405.0, 5],
-    ["airteltigo", 1024, 60, 3.65, 4.0, 1], ["airteltigo", 5120, 60, 18.0, 19.9, 2],
-    ["airteltigo", 10240, 60, 35.5, 39.0, 3], ["airteltigo", 30720, 60, 106.0, 117.0, 4],
-    ["airteltigo", 51200, 60, 175.0, 193.0, 5],
-  ];
+  const sortSeen = {};
+  const rows = BUNDLES.map((b) => {
+    sortSeen[b.network] = (sortSeen[b.network] || 0) + 1;
+    return [b.network, b.size_mb, b.validity_days, b.cost, b.sell, sortSeen[b.network]];
+  });
   for (const [code, size_mb, validity_days, cost_price, sell_price, sort_order] of rows) {
     const net = mockState.networks.find((n) => n.code === code);
     mockState._seq.bundles += 1;
@@ -141,6 +135,13 @@ function mockInsert(from, row) {
   if (from === "sms_leads") {
     if (mockState.sms_leads.some((s) => s.phone === row.phone)) {
       const err = new Error("duplicate key value violates unique constraint on sms_leads_phone");
+      err.status = 409;
+      throw err;
+    }
+  }
+  if (from === "auto_reload") {
+    if (mockState.auto_reload.some((r) => r.customer_id === row.customer_id && r.phone === row.phone)) {
+      const err = new Error("duplicate key value violates unique constraint on auto_reload (customer_id, phone)");
       err.status = 409;
       throw err;
     }
@@ -296,6 +297,44 @@ function seedDemo(now = new Date()) {
     });
   }
 
+  for (const u of data.bundle_usage || []) {
+    mockState._seq.bundle_usage += 1;
+    mockState.bundle_usage.push({
+      id: mockState._seq.bundle_usage,
+      order_id: orderIdByRef[u.order_reference],
+      phone: u.phone,
+      network_id: networkIdByCode[u.network],
+      size_mb: u.size_mb,
+      used_mb: u.used_mb,
+      status: u.status,
+      started_at: u.started_at,
+      expires_at: u.expires_at,
+      last_report_at: u.last_report_at,
+      created_at: u.started_at,
+    });
+  }
+
+  for (const a of data.auto_reload || []) {
+    mockState._seq.auto_reload += 1;
+    mockState.auto_reload.push({
+      id: mockState._seq.auto_reload,
+      customer_id: customerIdByPhone[a.customer_phone],
+      phone: a.phone,
+      relation: a.relation || (a.phone === a.customer_phone ? "self" : "other"),
+      network_id: networkIdByCode[a.network],
+      bundle_id: bundleIdByKey[a.bundle],
+      trigger_percent: a.trigger_percent,
+      momo_number: a.momo_number,
+      active: a.active,
+      reload_count: a.reload_count,
+      last_reload_at: a.last_reload_at,
+      last_triggered_at: a.last_triggered_at,
+      cooldown_until: a.cooldown_until,
+      created_at: a.created_at,
+      updated_at: a.created_at,
+    });
+  }
+
   for (const f of data.float_ledger) {
     mockState._seq.float_ledger += 1;
     mockState.float_ledger.push({
@@ -328,6 +367,8 @@ function seedDemo(now = new Date()) {
       customers: data.customers.length,
       saved_numbers: data.saved_numbers.length,
       orders: data.orders.length,
+      bundle_usage: (data.bundle_usage || []).length,
+      auto_reload: (data.auto_reload || []).length,
       float_ledger: data.float_ledger.length,
       webhook_log: data.webhook_log.length,
     },

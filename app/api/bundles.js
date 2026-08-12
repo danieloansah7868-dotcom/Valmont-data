@@ -20,7 +20,7 @@ async function handler(req, res) {
   const bundles = await db.select({
     from: "bundles",
     where: { is_active: "eq.true" },
-    select: "id,network_id,size_mb,validity_days,sell_price,sort_order",
+    select: "id,network_id,size_mb,validity_days,sell_price,sort_order,cost_price",
     order: "network_id.asc,sort_order.asc",
   });
 

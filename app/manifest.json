@@ -10,8 +10,8 @@
   "orientation": "portrait",
   "lang": "en",
   "dir": "ltr",
-  "background_color": "#0b1a38",
-  "theme_color": "#0b1a38",
+  "background_color": "#0b1f3a",
+  "theme_color": "#0b1f3a",
   "categories": ["shopping", "utilities"],
   "icons": [
     {
