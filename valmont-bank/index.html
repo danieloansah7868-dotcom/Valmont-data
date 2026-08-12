@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Valmont Bank — SaveSmart · Automate your savings</title>
+<meta name="description" content="Valmont Bank SaveSmart: track spending, kill bad habits, and automate your savings with round-ups, weekly vault transfers and payday rules.">
+<meta name="theme-color" content="#0b1f3a">
+<link rel="icon" href="logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ══════════ NAV ══════════ -->
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="#home" data-nav="home">
+      <img src="logo.svg" alt="Valmont Bank constellation mark" class="logo">
+      <span class="text-col">
+        <span class="wordmark">VALMONT <em>BANK</em></span>
+        <small>SaveSmart · Valmont Group</small>
+      </span>
+    </a>
+    <nav class="nav-links" id="navLinks">
+      <a href="#home" data-nav="home" class="active">Home</a>
+      <a href="#spending" data-nav="spending">Spending</a>
+      <a href="#automate" data-nav="automate">Automate</a>
+      <a href="#goals" data-nav="goals">Goals</a>
+      <a href="#insights" data-nav="insights">Insights</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap" id="app">
+
+  <!-- ══════════ HOME ══════════ -->
+  <section id="view-home" class="view active">
+    <p class="k" id="greeting">Akwaaba</p>
+    <h1 class="t">Your money, on <em>autopilot.</em></h1>
+    <p class="lead">Spend mindfully, save automatically. Valmont Bank moves money into your Vault before your habits get to it.</p>
+
+    <!-- hero vault card -->
+    <div class="hero-card">
+      <div class="hero-top">
+        <div>
+          <span class="chip-label">💰 Savings Vault</span>
+          <div class="vault-balance" id="vaultBalance">GH₵0.00</div>
+          <div class="vault-sub" id="vaultSub">Start by turning on an automation rule →</div>
+        </div>
+        <svg class="hero-ring" viewBox="0 0 120 120" aria-hidden="true">
+          <circle class="ring-bg" cx="60" cy="60" r="52"></circle>
+          <circle class="ring-fg" id="heroRing" cx="60" cy="60" r="52"></circle>
+        </svg>
+      </div>
+      <div class="hero-actions">
+        <button class="btn btn-primary" data-open="modal-expense">＋ Log a spend</button>
+        <button class="btn btn-ghost" data-open="modal-income">💵 Money in</button>
+        <button class="btn btn-ghost" id="btnRunAuto">⚡ Run automation</button>
+      </div>
+    </div>
+
+    <!-- stat grid -->
+    <div class="grid-3">
+      <div class="stat-card">
+        <span class="stat-label">Spent this month</span>
+        <span class="stat-val" id="statSpent">GH₵0</span>
+        <div class="bar"><div class="bar-fill" id="budgetBar" style="width:0%"></div></div>
+        <span class="stat-sub" id="statBudget">of GH₵0 budget</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Safe to spend / day</span>
+        <span class="stat-val green" id="statSafe">GH₵0</span>
+        <span class="stat-sub" id="statDays">— days left this month</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Saved this month</span>
+        <span class="stat-val gold" id="statSaved">GH₵0</span>
+        <span class="stat-sub" id="statStreak">0 saves so far 🔥</span>
+      </div>
+    </div>
+
+    <!-- active rules -->
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Your automations</h2>
+        <a href="#automate" data-nav="automate" class="mini-link">Manage →</a>
+      </div>
+      <div id="homeRules" class="rule-chips"></div>
+    </div>
+
+    <!-- recent activity -->
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Recent activity</h2>
+        <button class="mini-link as-btn" id="btnSeed">Load demo data</button>
+      </div>
+      <ul class="activity" id="homeActivity"></ul>
+    </div>
+  </section>
+
+  <!-- ══════════ SPENDING ══════════ -->
+  <section id="view-spending" class="view">
+    <p class="k">Habit control</p>
+    <h1 class="t">Where is the money <em>going?</em></h1>
+    <p class="lead">Every spend you log instantly checks against your category caps. Go over, and Valmont Bank calls you out — before it becomes a habit.</p>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2>This month by category</h2>
+        <button class="btn btn-primary btn-sm" data-open="modal-expense">＋ Log a spend</button>
+      </div>
+      <div id="catList" class="cat-list"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Monthly spending cap</h2>
+      </div>
+      <p class="muted-line">Total cap: <strong id="totalCapLabel">GH₵0</strong> · Edit category caps with ✏️ — overshooting a cap turns it red and pings you.</p>
+      <ul class="activity" id="spendActivity"></ul>
+    </div>
+  </section>
+
+  <!-- ══════════ AUTOMATE ══════════ -->
+  <section id="view-automate" class="view">
+    <p class="k">Set it &amp; forget it</p>
+    <h1 class="t">Savings that <em>happen without you.</em></h1>
+    <p class="lead">Turn on a rule once. Valmont Bank sweeps money into your Vault automatically — the same way auto-reload keeps your data on.</p>
+
+    <!-- payday rule -->
+    <div class="rule-card" id="rulePayday">
+      <div class="rule-info">
+        <span class="rule-icon">💵</span>
+        <div>
+          <h3>Pay Yourself First</h3>
+          <p>Every time money comes in, auto-move a slice to the Vault <em>before</em> you can spend it.</p>
+          <div class="rule-config">
+            Save <input type="number" id="paydayPct" min="1" max="50" value="10" class="inline-input"> % of every income
+          </div>
+        </div>
+      </div>
+      <label class="switch"><input type="checkbox" id="tglPayday"><span></span></label>
+    </div>
+
+    <!-- round-up rule -->
+    <div class="rule-card" id="ruleRoundup">
+      <div class="rule-info">
+        <span class="rule-icon">🪙</span>
+        <div>
+          <h3>Round-Up Spare Change</h3>
+          <p>Each spend is rounded up to the nearest GH₵5 — the difference silently lands in your Vault. Spend GH₵17.50, save GH₵2.50.</p>
+          <div class="rule-config">
+            Round up to nearest GH₵
+            <select id="roundupUnit" class="inline-input">
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="5" selected>5</option>
+              <option value="10">10</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <label class="switch"><input type="checkbox" id="tglRoundup"><span></span></label>
+    </div>
+
+    <!-- weekly rule -->
+    <div class="rule-card" id="ruleWeekly">
+      <div class="rule-info">
+        <span class="rule-icon">📅</span>
+        <div>
+          <h3>Weekly Vault Sweep</h3>
+          <p>A fixed amount moves to your Vault every week — like a standing order from yourself, to yourself.</p>
+          <div class="rule-config">
+            GH₵ <input type="number" id="weeklyAmt" min="1" value="50" class="inline-input"> every
+            <select id="weeklyDay" class="inline-input">
+              <option value="0">Sunday</option><option value="1">Monday</option>
+              <option value="2">Tuesday</option><option value="3">Wednesday</option>
+              <option value="4">Thursday</option><option value="5" selected>Friday</option>
+              <option value="6">Saturday</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <label class="switch"><input type="checkbox" id="tglWeekly"><span></span></label>
+    </div>
+
+    <div class="projection panel">
+      <div class="panel-head"><h2>📈 Your 12-month projection</h2></div>
+      <div class="grid-3">
+        <div class="stat-card"><span class="stat-label">From rules</span><span class="stat-val gold" id="projRules">GH₵0</span><span class="stat-sub">per year, if rules stay on</span></div>
+        <div class="stat-card"><span class="stat-label">From habit cuts</span><span class="stat-val green" id="projCut">GH₵0</span><span class="stat-sub" id="projCutSub">cut your top habit by 20%</span></div>
+        <div class="stat-card"><span class="stat-label">Projected total</span><span class="stat-val" id="projTotal">GH₵0</span><span class="stat-sub">in 12 months</span></div>
+      </div>
+      <button class="btn btn-primary" id="btnRunAuto2">⚡ Run due automations now</button>
+      <p class="fine">Prototype simulation — weekly sweeps show a MoMo-style approval prompt. Wire to Valmont-Pay in the real build.</p>
+    </div>
+  </section>
+
+  <!-- ══════════ GOALS ══════════ -->
+  <section id="view-goals" class="view">
+    <p class="k">Aim at something</p>
+    <h1 class="t">Save with a <em>reason.</em></h1>
+    <p class="lead">Emergency fund, new phone, December travel — move Vault money into named goals and watch the bars fill up.</p>
+    <button class="btn btn-primary" data-open="modal-goal">＋ New goal</button>
+    <div class="grid-2" id="goalsGrid" style="margin-top:22px"></div>
+  </section>
+
+  <!-- ══════════ INSIGHTS ══════════ -->
+  <section id="view-insights" class="view">
+    <p class="k">Know yourself</p>
+    <h1 class="t">Your habits, <em>decoded.</em></h1>
+    <p class="lead">Valmont Bank reads your spending log and tells you exactly which habit to attack first.</p>
+    <div class="panel"><div class="panel-head"><h2>💡 Smart insights</h2></div><div id="insightList" class="insight-list"></div></div>
+    <div class="panel">
+      <div class="panel-head"><h2>📊 Last 7 days</h2></div>
+      <div class="week-chart" id="weekChart"></div>
+    </div>
+    <div class="panel danger-zone">
+      <div class="panel-head"><h2>Data</h2></div>
+      <button class="btn btn-ghost" id="btnExport">⬇ Export my data (JSON)</button>
+      <button class="btn btn-danger" id="btnReset">🗑 Reset everything</button>
+    </div>
+  </section>
+
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <p>© 2026 <strong>Valmont Bank</strong> · Valmont Group of Companies · Accra, Ghana 🇬🇭</p>
+    <p class="fine">Front-end prototype — data lives in your browser (localStorage). No real money moves.</p>
+  </div>
+</footer>
+
+<!-- ══════════ MODALS ══════════ -->
+<div class="modal-back" id="modal-expense" role="dialog" aria-modal="true" aria-label="Log a spend">
+  <div class="modal">
+    <h2>💸 Log a spend</h2>
+    <label>Amount (GH₵)<input type="number" id="expAmount" min="0.01" step="0.01" placeholder="0.00" inputmode="decimal"></label>
+    <label>Category<select id="expCat"></select></label>
+    <label>Note (optional)<input type="text" id="expNote" placeholder="e.g. waakye at Osu" maxlength="60"></label>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-close>Cancel</button>
+      <button class="btn btn-primary" id="btnAddExpense">Log it</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-back" id="modal-income" role="dialog" aria-modal="true" aria-label="Money in">
+  <div class="modal">
+    <h2>💵 Money came in</h2>
+    <label>Amount (GH₵)<input type="number" id="incAmount" min="0.01" step="0.01" placeholder="0.00" inputmode="decimal"></label>
+    <label>Source (optional)<input type="text" id="incNote" placeholder="e.g. August salary" maxlength="60"></label>
+    <p class="fine" id="paydayPreview"></p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-close>Cancel</button>
+      <button class="btn btn-primary" id="btnAddIncome">Add</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-back" id="modal-goal" role="dialog" aria-modal="true" aria-label="New goal">
+  <div class="modal">
+    <h2>🎯 New savings goal</h2>
+    <label>Name<input type="text" id="goalName" placeholder="e.g. Emergency fund" maxlength="40"></label>
+    <label>Target (GH₵)<input type="number" id="goalTarget" min="1" step="0.01" placeholder="2000"></label>
+    <label>Emoji<input type="text" id="goalEmoji" maxlength="2" placeholder="🛡️" value="🎯"></label>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-close>Cancel</button>
+      <button class="btn btn-primary" id="btnAddGoal">Create goal</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-back" id="modal-momo" role="dialog" aria-modal="true" aria-label="Approve transfer">
+  <div class="modal momo-modal">
+    <div class="momo-head">MoMo prompt <span class="momo-sim">simulation</span></div>
+    <p class="momo-text" id="momoText">Valmont Bank requests GH₵50.00 → your Savings Vault</p>
+    <div class="momo-amount" id="momoAmount">GH₵50.00</div>
+    <div class="modal-actions">
+      <button class="btn btn-danger" id="momoDecline">Decline</button>
+      <button class="btn btn-primary" id="momoApprove">Approve ✅</button>
+    </div>
+    <p class="fine">In production this is a real MTN MoMo / Telecel Cash PIN prompt via Valmont-Pay.</p>
+  </div>
+</div>
+
+<div class="modal-back" id="modal-onboard" role="dialog" aria-modal="true" aria-label="Welcome">
+  <div class="modal">
+    <img src="logo.svg" alt="" class="onboard-logo">
+    <h2>Welcome to <em class="gold-text">Valmont Bank</em></h2>
+    <p class="fine" style="text-align:center">Two quick things and your automated savings account is live:</p>
+    <label>What should we call you?<input type="text" id="obName" placeholder="Kwame" maxlength="30"></label>
+    <label>Monthly spending cap (GH₵)<input type="number" id="obBudget" min="0" step="0.01" placeholder="1500"></label>
+    <div class="modal-actions">
+      <button class="btn btn-primary full" id="btnOnboard">Open my account 🚀</button>
+    </div>
+  </div>
+</div>
+
+<div class="toasts" id="toasts"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
