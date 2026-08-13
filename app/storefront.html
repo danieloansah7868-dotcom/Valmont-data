@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Buy Data | Valmont Data</title>
+  <meta name="description" content="Buy MTN, Telecel and AirtelTigo data bundles instantly. Cheap, fast, reliable.">
+  <link rel="icon" type="image/svg+xml" href="assets/img/favicon.svg">
+  <style>
+    :root { --navy: #0b1a38; --orange: #ff8c00; --white: #f8fafc; --gray: #64748b; --green: #22c55e; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--navy); color: var(--white); min-height: 100vh; }
+    .container { max-width: 640px; margin: 0 auto; padding: 20px 16px; }
+    .store-header { text-align: center; padding: 32px 0 16px; }
+    .store-header h1 { font-size: 28px; margin-bottom: 4px; }
+    .store-header .tagline { color: var(--gray); font-size: 15px; }
+    .store-header .owner { font-size: 13px; color: var(--gray); margin-top: 8px; }
+    .networks { display: flex; gap: 8px; margin: 20px 0; }
+    .net-tab { flex: 1; padding: 12px; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; background: transparent; color: var(--white); font-size: 14px; font-weight: 600; cursor: pointer; text-align: center; }
+    .net-tab.active { background: var(--orange); border-color: var(--orange); }
+    .bundles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 20px; }
+    .bundle { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 16px; cursor: pointer; text-align: center; transition: all 0.15s; }
+    .bundle:hover { border-color: var(--orange); background: rgba(255,140,0,0.05); }
+    .bundle.selected { border-color: var(--orange); background: rgba(255,140,0,0.1); }
+    .bundle .size { font-size: 20px; font-weight: 700; }
+    .bundle .price { font-size: 15px; color: var(--orange); margin-top: 4px; font-weight: 600; }
+    .bundle .validity { font-size: 11px; color: var(--gray); margin-top: 2px; }
+    .form-section { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+    .form-section h3 { font-size: 16px; margin-bottom: 12px; }
+    .field { margin-bottom: 14px; }
+    .field label { display: block; font-size: 13px; color: var(--gray); margin-bottom: 4px; }
+    .field input { width: 100%; padding: 12px; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; background: rgba(255,255,255,0.05); color: var(--white); font-size: 16px; }
+    .field input:focus { outline: none; border-color: var(--orange); }
+    .btn { display: block; width: 100%; padding: 14px; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; text-align: center; }
+    .btn-primary { background: var(--orange); color: white; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .order-summary { background: rgba(255,140,0,0.1); border: 1px solid rgba(255,140,0,0.3); border-radius: 8px; padding: 14px; margin-bottom: 16px; }
+    .order-summary .row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 14px; }
+    .order-summary .total { font-weight: 700; font-size: 16px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px; margin-top: 8px; }
+    .msg { padding: 12px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; display: none; }
+    .msg.error { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #ef4444; display: block; }
+    .msg.success { background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); color: var(--green); display: block; }
+    .powered-by { text-align: center; font-size: 12px; color: var(--gray); padding: 20px 0; }
+    .powered-by a { color: var(--orange); text-decoration: none; }
+    .loading { text-align: center; padding: 60px 0; color: var(--gray); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="store-header">
+      <h1 id="storeName">Loading...</h1>
+      <div class="tagline" id="storeTagline"></div>
+      <div class="owner" id="storeOwner"></div>
+    </div>
+
+    <div id="msg" class="msg"></div>
+
+    <div id="content">
+      <div class="networks" id="networkTabs"></div>
+      <div class="bundles" id="bundleGrid">
+        <div class="loading">Loading bundles...</div>
+      </div>
+
+      <div class="form-section" id="orderForm" style="display:none">
+        <h3>Complete your order</h3>
+        <div class="field">
+          <label for="phone">Phone number to receive data</label>
+          <input type="tel" id="phone" placeholder="0241234567" maxlength="10">
+        </div>
+        <div class="order-summary" id="summary"></div>
+        <button class="btn btn-primary" id="buyBtn" onclick="placeOrder()">Pay with MoMo</button>
+      </div>
+    </div>
+
+    <div class="powered-by">
+      Powered by <a href="/">Valmont Data</a> · MTN · Telecel · AirtelTigo
+    </div>
+  </div>
+
+  <script>
+    let bundles = [];
+    let selectedBundle = null;
+    let storeData = null;
+    let activeNetwork = 'mtn';
+
+    // Extract slug from URL: /s/ama-data → ama-data
+    function getSlug() {
+      const path = location.pathname;
+      const match = /\/s\/([a-z0-9-]+)/i.exec(path);
+      return match ? match[1] : new URLSearchParams(location.search).get('slug');
+    }
+
+    function showMsg(text, type) {
+      const el = document.getElementById('msg');
+      el.textContent = text;
+      el.className = 'msg ' + type;
+      if (type === 'success') setTimeout(() => { el.className = 'msg'; }, 8000);
+    }
+
+    function formatSize(mb) {
+      if (mb >= 1024) { const gb = mb / 1024; return (gb % 1 === 0 ? gb : gb.toFixed(1)) + 'GB'; }
+      return mb + 'MB';
+    }
+
+    function formatPrice(n) { return 'GH₵' + Number(n).toFixed(2); }
+
+    async function loadStore() {
+      const slug = getSlug();
+      if (!slug) {
+        showMsg('Store not found', 'error');
+        return;
+      }
+      try {
+        const res = await fetch('/api/store/public?slug=' + encodeURIComponent(slug));
+        if (!res.ok) { showMsg('Store not found', 'error'); return; }
+        const data = await res.json();
+        storeData = data.store;
+        document.getElementById('storeName').textContent = storeData.store_name;
+        document.getElementById('storeTagline').textContent = storeData.tagline || '';
+        document.getElementById('storeOwner').textContent = 'By ' + storeData.owner_name;
+        document.title = storeData.store_name + ' | Buy Data';
+        loadBundles();
+      } catch {
+        showMsg('Could not load store', 'error');
+      }
+    }
+
+    async function loadBundles() {
+      try {
+        const res = await fetch('/api/bundles');
+        const data = await res.json();
+        bundles = data.bundles || [];
+        renderNetworkTabs();
+        renderBundles();
+      } catch {
+        showMsg('Could not load bundles', 'error');
+      }
+    }
+
+    function renderNetworkTabs() {
+      const networks = [...new Set(bundles.map(b => b.network))];
+      const tabs = document.getElementById('networkTabs');
+      tabs.innerHTML = networks.map(n => {
+        const label = n === 'mtn' ? 'MTN' : n === 'telecel' ? 'Telecel' : 'AirtelTigo';
+        return `<button class="net-tab ${n === activeNetwork ? 'active' : ''}" onclick="switchNetwork('${n}')">${label}</button>`;
+      }).join('');
+    }
+
+    function switchNetwork(network) {
+      activeNetwork = network;
+      selectedBundle = null;
+      document.getElementById('orderForm').style.display = 'none';
+      renderNetworkTabs();
+      renderBundles();
+    }
+
+    function renderBundles() {
+      const filtered = bundles.filter(b => b.network === activeNetwork && b.available !== false);
+      const grid = document.getElementById('bundleGrid');
+      if (!filtered.length) {
+        grid.innerHTML = '<div style="grid-column:span 2;text-align:center;color:var(--gray);padding:20px">No bundles available for this network</div>';
+        return;
+      }
+      grid.innerHTML = filtered.map(b => `
+        <div class="bundle ${selectedBundle?.id === b.id ? 'selected' : ''}" onclick="selectBundle(${b.id})">
+          <div class="size">${formatSize(b.size_mb)}</div>
+          <div class="price">${formatPrice(applyMarkup(b.sell_price))}</div>
+          <div class="validity">${b.validity_days ? b.validity_days + '-day' : 'No expiry'}</div>
+        </div>
+      `).join('');
+    }
+
+    function applyMarkup(basePrice) {
+      if (!storeData) return basePrice;
+      return Number((Number(basePrice) * (1 + storeData.markup_percent / 100)).toFixed(2));
+    }
+
+    function selectBundle(id) {
+      selectedBundle = bundles.find(b => b.id === id);
+      renderBundles();
+      showOrderForm();
+    }
+
+    function showOrderForm() {
+      if (!selectedBundle) return;
+      const form = document.getElementById('orderForm');
+      form.style.display = 'block';
+      const price = applyMarkup(selectedBundle.sell_price);
+      document.getElementById('summary').innerHTML = `
+        <div class="row"><span>${formatSize(selectedBundle.size_mb)} ${selectedBundle.network.toUpperCase()}</span><span>${formatPrice(price)}</span></div>
+        <div class="row total"><span>Total</span><span>${formatPrice(price)}</span></div>
+      `;
+      form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    async function placeOrder() {
+      const phone = document.getElementById('phone').value.trim();
+      if (!/^0\d{9}$/.test(phone)) {
+        showMsg('Please enter a valid Ghana phone number (e.g. 0241234567)', 'error');
+        return;
+      }
+      if (!selectedBundle) return;
+
+      const token = localStorage.getItem('vd_token');
+      if (!token) {
+        showMsg('Please sign in first — go to the main site to create an account', 'error');
+        return;
+      }
+
+      const btn = document.getElementById('buyBtn');
+      btn.disabled = true;
+      btn.textContent = 'Processing...';
+
+      try {
+        const res = await fetch('/api/orders', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer ' + token,
+          },
+          body: JSON.stringify({
+            bundle_id: selectedBundle.id,
+            phone: phone,
+            store_slug: getSlug(),
+          }),
+        });
+        const data = await res.json();
+        if (data.checkout_url) {
+          window.location.href = data.checkout_url;
+        } else if (data.dev) {
+          showMsg('Order created! Reference: ' + data.reference + ' (dev mode — simulate payment)', 'success');
+          window.location.href = '/status.html?reference=' + data.reference;
+        } else {
+          showMsg(data.error || 'Order failed', 'error');
+        }
+      } catch {
+        showMsg('Network error — try again', 'error');
+      }
+      btn.disabled = false;
+      btn.textContent = 'Pay with MoMo';
+    }
+
+    loadStore();
+  </script>
+</body>
+</html>

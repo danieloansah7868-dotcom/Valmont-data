@@ -20,6 +20,9 @@ process.env.AUTORELOAD_COOLDOWN_MINUTES = process.env.AUTORELOAD_COOLDOWN_MINUTE
 // VALMONTPAY_MODE=live and leave AUTORELOAD_SIMULATE unset — no simulation.
 process.env.VALMONTPAY_MODE = process.env.VALMONTPAY_MODE || "dev";
 process.env.AUTORELOAD_SIMULATE = process.env.AUTORELOAD_SIMULATE || "1";
+process.env.WHATSAPP_MODE = process.env.WHATSAPP_MODE || "mock";
+process.env.SMS_PROVIDER = process.env.SMS_PROVIDER || "mock";
+process.env.REFERRAL_CREDIT_AMOUNT = process.env.REFERRAL_CREDIT_AMOUNT || "2.00";
 
 const http = require("http");
 const fs = require("fs");
@@ -55,6 +58,18 @@ const routes = {
   "DELETE /api/account/saved": accountRouter,
   "POST /api/account/optin": accountRouter,
   "POST /api/valmontpay/webhook": require("../api/valmontpay/webhook.js"),
+  "GET /api/whatsapp/webhook": require("../api/whatsapp/webhook.js"),
+  "POST /api/whatsapp/webhook": require("../api/whatsapp/webhook.js"),
+  "GET /api/referrals": require("../api/referrals.js"),
+  "POST /api/referrals/claim": require("../api/referrals.js"),
+  "GET /api/referrals/credits": require("../api/referrals.js"),
+  "GET /api/referrals/verify": require("../api/referrals.js"),
+  "GET /api/store": require("../api/store.js"),
+  "POST /api/store": require("../api/store.js"),
+  "GET /api/store/check": require("../api/store.js"),
+  "GET /api/store/earnings": require("../api/store.js"),
+  "GET /api/store/orders": require("../api/store.js"),
+  "GET /api/store/public": require("../api/store.js"),
   "POST /api/admin/login": adminRouter,
   "GET /api/admin/float": adminRouter,
   "POST /api/admin/float/topup": adminRouter,

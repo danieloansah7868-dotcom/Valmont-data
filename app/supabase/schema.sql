@@ -269,6 +269,167 @@ revoke all on public.webhook_log  from anon;
 grant select on public.v_bundles to anon;
 
 -- ============================================================================
+-- WHATSAPP SESSIONS (conversation state for the WhatsApp ordering bot)
+-- ============================================================================
+-- Each WhatsApp number gets one row. `state` drives the conversation flow;
+-- `context` holds the current selections (network, bundle, phone, etc.).
+-- `updated_at` is bumped on every message so stale sessions can be pruned.
+create table if not exists public.whatsapp_sessions (
+  id            bigint generated always as identity primary key,
+  phone         text not null unique check (phone ~ '^[0-9]{7,15}$'),  -- WhatsApp wa_id (international, no +)
+  state         text not null default 'idle',
+  context       jsonb not null default '{}',
+  customer_id   bigint references public.customers(id),
+  last_message  text,
+  updated_at    timestamptz not null default now(),
+  created_at    timestamptz not null default now()
+);
+create index if not exists whatsapp_sessions_updated_idx on public.whatsapp_sessions(updated_at desc);
+
+-- ============================================================================
+-- REFERRALS (referral program — earn credit when friends buy)
+-- ============================================================================
+-- Each customer has a unique referral_code (set on the customers table).
+-- When a new customer signs up with that code, a row is created here.
+-- When the referred customer completes their first purchase, both parties
+-- get credit (stored in referral_credits).
+
+-- Referral tracking: who referred whom
+create table if not exists public.referrals (
+  id                bigint generated always as identity primary key,
+  referrer_id       bigint not null references public.customers(id),
+  referred_id       bigint not null references public.customers(id) unique,  -- one referrer per customer
+  first_order_id    bigint references public.orders(id),                      -- set when the first purchase completes
+  status            text not null default 'pending'
+                    check (status in ('pending','rewarded','expired')),
+  created_at        timestamptz not null default now(),
+  rewarded_at       timestamptz
+);
+create index if not exists referrals_referrer_idx on public.referrals(referrer_id);
+
+-- Referral credits: a small ledger of earned credits per customer.
+-- `balance` is the sum of all credit entries minus debits (applied to orders).
+create table if not exists public.referral_credits (
+  id            bigint generated always as identity primary key,
+  customer_id   bigint not null references public.customers(id),
+  direction     text not null check (direction in ('earn','spend')),
+  amount        numeric(12,2) not null,
+  balance_after numeric(12,2) not null,
+  referral_id   bigint references public.referrals(id),
+  order_id      bigint references public.orders(id),   -- set when spent on an order
+  note          text,
+  created_at    timestamptz not null default now()
+);
+create index if not exists referral_credits_customer_idx on public.referral_credits(customer_id, id desc);
+
+-- Current credit balance for a customer.
+create or replace function public.current_referral_credit(p_customer_id bigint)
+returns numeric language sql stable as $$
+  select coalesce((select balance_after from public.referral_credits
+                   where customer_id = p_customer_id order by id desc limit 1), 0);
+$$;
+
+-- Add referral columns to customers table (idempotent).
+alter table public.customers add column if not exists referral_code text unique;
+alter table public.customers add column if not exists referred_by   text;  -- the referral_code used at signup
+
+-- ============================================================================
+-- WHATSAPP LOG (audit trail for outgoing WhatsApp messages)
+-- ============================================================================
+create table if not exists public.whatsapp_log (
+  id              bigint generated always as identity primary key,
+  direction       text not null check (direction in ('inbound','outbound')),
+  phone           text not null,
+  message_type    text,
+  message_body    text,
+  status          text,
+  error           text,
+  created_at      timestamptz not null default now()
+);
+create index if not exists whatsapp_log_phone_idx on public.whatsapp_log(phone, id desc);
+
+-- ============================================================================
+-- RLS (additional tables)
+-- ============================================================================
+alter table public.whatsapp_sessions enable row level security;
+alter table public.whatsapp_log      enable row level security;
+alter table public.referrals         enable row level security;
+alter table public.referral_credits  enable row level security;
+
+-- anon: no access to WhatsApp sessions or logs (server-side only)
+revoke all on public.whatsapp_sessions from anon;
+revoke all on public.whatsapp_log      from anon;
+revoke all on public.referrals         from anon;
+revoke all on public.referral_credits  from anon;
+
+-- ============================================================================
+-- RESELLERS (agent/reseller program — earn margin on every bundle sold)
+-- ============================================================================
+-- Each reseller is a customer who has opened a storefront. They set a markup %
+-- on top of the base sell_price, and earn the difference on every order placed
+-- through their store link. The store slug is the URL path: /s/{slug}.
+create table if not exists public.resellers (
+  id              bigint generated always as identity primary key,
+  customer_id     bigint not null references public.customers(id) unique,  -- one store per customer
+  store_name      text not null,
+  slug            text not null unique check (slug ~ '^[a-z0-9]([a-z0-9-]*[a-z0-9])?$' and length(slug) between 3 and 40),
+  tagline         text,
+  markup_percent  numeric(5,2) not null default 10 check (markup_percent between 0 and 100),
+  status          text not null default 'active' check (status in ('active','suspended','closed')),
+  total_orders    integer not null default 0,
+  total_revenue   numeric(12,2) not null default 0,
+  total_earnings  numeric(12,2) not null default 0,
+  momo_number     text check (momo_number is null or momo_number ~ '^0[0-9]{9}$'),  -- payout MoMo
+  created_at      timestamptz not null default now(),
+  updated_at      timestamptz not null default now()
+);
+create index if not exists resellers_slug_idx on public.resellers(slug);
+create index if not exists resellers_customer_idx on public.resellers(customer_id);
+
+-- Reseller earnings ledger: every cedi earned, paid out, or pending.
+create table if not exists public.reseller_earnings (
+  id              bigint generated always as identity primary key,
+  reseller_id     bigint not null references public.resellers(id),
+  order_id        bigint references public.orders(id),
+  direction       text not null check (direction in ('earn','payout','adjustment')),
+  amount          numeric(12,2) not null,
+  balance_after   numeric(12,2) not null,
+  note            text,
+  created_at      timestamptz not null default now()
+);
+create index if not exists reseller_earnings_idx on public.reseller_earnings(reseller_id, id desc);
+
+-- Current reseller balance (earnings minus payouts).
+create or replace function public.current_reseller_balance(p_reseller_id bigint)
+returns numeric language sql stable as $$
+  select coalesce((select balance_after from public.reseller_earnings
+                   where reseller_id = p_reseller_id order by id desc limit 1), 0);
+$$;
+
+-- ============================================================================
+-- ORDER EXTENSIONS (channel tracking + referral credits + reseller attribution)
+-- ============================================================================
+-- channel: which surface the order was placed from (web, whatsapp, api, store)
+-- whatsapp_from: the wa_id if the order came from WhatsApp (for delivery confirmations)
+-- credit_applied: how much referral credit was deducted from the checkout amount
+-- reseller_id: which reseller store the customer came through (null = direct)
+alter table public.orders add column if not exists channel         text not null default 'web';
+alter table public.orders add column if not exists whatsapp_from   text;
+alter table public.orders add column if not exists credit_applied  numeric(12,2) not null default 0;
+alter table public.orders add column if not exists reseller_id     bigint references public.resellers(id);
+
+-- RLS for reseller tables
+alter table public.resellers         enable row level security;
+alter table public.reseller_earnings enable row level security;
+revoke all on public.resellers         from anon;
+revoke all on public.reseller_earnings from anon;
+
+-- anon: read public store pages (active stores only, safe columns)
+drop policy if exists resellers_anon_select on public.resellers;
+create policy resellers_anon_select on public.resellers for select to anon
+  using (status = 'active');
+
+-- ============================================================================
 -- SEEDS
 -- ============================================================================
 insert into public.networks (code, name, is_active) values

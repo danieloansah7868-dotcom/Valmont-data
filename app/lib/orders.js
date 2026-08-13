@@ -48,7 +48,7 @@ async function addFloatEntry(networkId, direction, amount, orderId, note) {
 /* ---------- create ---------- */
 async function createOrder(bundle, phone, networkId, customerId = null, opts = {}) {
   const reference = genReference();
-  await db.insert("orders", {
+  const row = {
     reference,
     phone,
     bundle_id: bundle.id,
@@ -58,7 +58,16 @@ async function createOrder(bundle, phone, networkId, customerId = null, opts = {
     status: "pending",
     customer_id: customerId || null,
     auto_reload_id: opts.autoReloadId || null,
-  });
+    channel: opts.channel || "web",
+    whatsapp_from: opts.whatsappFrom || null,
+    credit_applied: opts.creditApplied || 0,
+    reseller_id: opts.resellerId || null,
+  };
+  // Reduce checkout amount by referral credit applied
+  if (opts.creditApplied && opts.creditApplied > 0) {
+    row.amount = Math.max(0, Number(bundle.sell_price) - Number(opts.creditApplied));
+  }
+  await db.insert("orders", row);
   return findOrderByReference(reference);
 }
 
@@ -79,6 +88,47 @@ async function claimOrder(orderId, providerReference) {
 /* ---------- status ---------- */
 async function setStatus(orderId, status, extra = {}) {
   await db.update("orders", { status, ...extra }, { id: `eq.${orderId}` });
+}
+
+/* ---------- reseller earnings ---------- */
+async function creditResellerEarning(order) {
+  const resellers = await db.select({ from: "resellers", where: { id: `eq.${order.reseller_id}` } });
+  if (!resellers.length) return null;
+  const reseller = resellers[0];
+
+  // Earning = the reseller's markup portion
+  // The customer paid (sell_price + markup), reseller earns the markup
+  const basePrice = Number(order.amount) - Number(order.credit_applied || 0);
+  const markupFraction = Number(reseller.markup_percent) / 100;
+  // The markup was on top of sell_price, so the earning is: sell_price * markup%
+  // But order.amount is already the reduced amount (sell_price - credit_applied).
+  // We need the original sell_price to calculate correctly.
+  const bundle = await findBundleById(order.bundle_id);
+  if (!bundle) return null;
+  const earning = Number(Number(bundle.sell_price * markupFraction).toFixed(2));
+  if (earning <= 0) return null;
+
+  const currentBal = Number(await db.rpc("current_reseller_balance", { p_reseller_id: reseller.id }) || 0);
+  const newBal = currentBal + earning;
+
+  await db.insert("reseller_earnings", {
+    reseller_id: reseller.id,
+    order_id: order.id,
+    direction: "earn",
+    amount: earning,
+    balance_after: newBal,
+    note: `Order ${order.reference} — ${Number(reseller.markup_percent)}% markup`,
+  });
+
+  // Update reseller stats
+  await db.update("resellers", {
+    total_orders: Number(reseller.total_orders || 0) + 1,
+    total_revenue: Number(reseller.total_revenue || 0) + Number(order.amount),
+    total_earnings: Number(reseller.total_earnings || 0) + earning,
+    updated_at: new Date().toISOString(),
+  }, { id: `eq.${reseller.id}` });
+
+  return { reseller_id: reseller.id, earning, balance: newBal };
 }
 
 /* ---------- delivery ---------- */
@@ -119,7 +169,25 @@ async function deliverOrder(order) {
       delivered_at: nowIso,
     });
     await addFloatEntry(order.network_id, "debit", order.cost_price, order.id, "delivery cost");
-    await notify.receipt({ ...order, ...full, supplier_ref: result.supplier_ref });
+    await notify.receipt({
+      ...order, ...full,
+      supplier_ref: result.supplier_ref,
+      whatsapp_from: order.whatsapp_from || null,
+      channel: order.channel || "web",
+    });
+
+    // Referral program: reward both parties on first delivery
+    const referrals = require("./referrals");
+    await referrals.rewardFirstOrder(order.id).catch((e) =>
+      console.error("[referrals] reward error", e.message)
+    );
+
+    // Reseller earnings: credit the reseller's margin on this order
+    if (order.reseller_id) {
+      await creditResellerEarning(order).catch((e) =>
+        console.error("[reseller] earning error", e.message)
+      );
+    }
 
     // Usage tracking: every delivered bundle gets a bundle_usage row the
     // auto-reload engine (and the dashboard) watches.

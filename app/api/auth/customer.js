@@ -56,6 +56,7 @@ async function handler(req, res) {
   const emailRaw = body.email || (body.identifier && body.identifier.includes("@") ? body.identifier.trim() : null);
   const secret = body.pin || body.password || body.pass || "";
   const name = (body.name || "").trim() || null;
+  const referralCode = (body.referral_code || body.referral || "").trim() || null;
 
   let validatedPhone = null;
   if (phoneRaw) {
@@ -130,6 +131,12 @@ async function handler(req, res) {
         phone: validatedPhone,
         label: "My line",
       }).catch(() => {});
+    }
+
+    // Record referral if a referral code was provided
+    if (referralCode && created?.id) {
+      const referrals = require("../../lib/referrals");
+      await referrals.recordReferral(referralCode, created.id).catch(() => {});
     }
 
     const firstName = extractFirstName(created.name, created.email, created.phone);

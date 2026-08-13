@@ -54,7 +54,13 @@ const mockState = {
   auto_reload: [],
   float_ledger: [],
   webhook_log: [],
-  _seq: { bundles: 0, customers: 0, saved_numbers: 0, sms_leads: 0, orders: 0, bundle_usage: 0, auto_reload: 0, float_ledger: 0, webhook_log: 0 },
+  whatsapp_sessions: [],
+  whatsapp_log: [],
+  referrals: [],
+  referral_credits: [],
+  resellers: [],
+  reseller_earnings: [],
+  _seq: { bundles: 0, customers: 0, saved_numbers: 0, sms_leads: 0, orders: 0, bundle_usage: 0, auto_reload: 0, float_ledger: 0, webhook_log: 0, whatsapp_sessions: 0, whatsapp_log: 0, referrals: 0, referral_credits: 0, resellers: 0, reseller_earnings: 0 },
 };
 
 // Seed bundles mirroring supabase/schema.sql — single source of truth lives
@@ -146,6 +152,39 @@ function mockInsert(from, row) {
       throw err;
     }
   }
+  if (from === "whatsapp_sessions") {
+    if (mockState.whatsapp_sessions.some((s) => s.phone === row.phone)) {
+      const err = new Error("duplicate key value violates unique constraint on whatsapp_sessions phone");
+      err.status = 409;
+      throw err;
+    }
+  }
+  if (from === "referrals") {
+    if (mockState.referrals.some((r) => r.referred_id === row.referred_id)) {
+      const err = new Error("duplicate key value violates unique constraint on referrals referred_id");
+      err.status = 409;
+      throw err;
+    }
+  }
+  if (from === "customers" && row.referral_code) {
+    if (mockState.customers.some((c) => c.referral_code === row.referral_code)) {
+      const err = new Error("duplicate key value violates unique constraint on customers referral_code");
+      err.status = 409;
+      throw err;
+    }
+  }
+  if (from === "resellers") {
+    if (row.slug && mockState.resellers.some((r) => r.slug === row.slug)) {
+      const err = new Error("duplicate key value violates unique constraint on resellers slug");
+      err.status = 409;
+      throw err;
+    }
+    if (row.customer_id && mockState.resellers.some((r) => r.customer_id === row.customer_id)) {
+      const err = new Error("duplicate key value violates unique constraint on resellers customer_id");
+      err.status = 409;
+      throw err;
+    }
+  }
   for (const uniq of ["reference", "provider_reference"]) {
     if (row[uniq] != null && (mockState[from] || []).some((r) => r[uniq] === row[uniq])) {
       const err = new Error(`duplicate key value violates unique constraint on ${uniq}`);
@@ -207,6 +246,16 @@ function mockRpc(name, args = {}) {
       created_at: new Date().toISOString(),
     });
     return bal;
+  }
+  if (name === "current_referral_credit") {
+    const cid = Number(args.p_customer_id);
+    const rows = mockState.referral_credits.filter((f) => f.customer_id === cid);
+    return rows.length ? rows[rows.length - 1].balance_after : 0;
+  }
+  if (name === "current_reseller_balance") {
+    const rid = Number(args.p_reseller_id);
+    const rows = mockState.reseller_earnings.filter((e) => e.reseller_id === rid);
+    return rows.length ? rows[rows.length - 1].balance_after : 0;
   }
   if (name === "daily_pnl") {
     const days = Number(args.p_days || 30);

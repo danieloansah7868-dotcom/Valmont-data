@@ -33,6 +33,8 @@ The **webhook handler is the heart of the system** (`api/valmontpay/webhook.js`)
 | `autoreload.html` | **The opt-in place** — per-line usage tracking, active rules (pause/resume/remove), and the consent form (line, bundle, threshold, pre-authorized MoMo) |
 | `admin.html` | Admin console — float, orders + retry, P&L, SMS leads export (1-click copy), webhook audit |
 | `api/valmontpay/webhook.js` | ⚠️ Payment webhook: signature verify → idempotent claim → float guard → delivery |
+| `api/whatsapp/webhook.js` | 📱 WhatsApp ordering bot: Meta Cloud API webhook → conversation engine → orders |
+| `api/referrals.js` | 🎁 Referral program: codes, credits, stats (customer-authenticated) |
 | `api/orders.js` | Create order (compulsory customer token, float guard #1, Valmont-Pay checkout) + public status |
 | `api/auth/customer.js` | Customer signup & login (scrypt password/PIN hash, 30-day HMAC token) |
 | `api/account.js` | Customer profile, time greeting ("Good morning, Kofi"), saved data/MoMo numbers (10/kind cap), order history, `POST /optin` (public SMS marketing opt-in) |
@@ -42,7 +44,7 @@ The **webhook handler is the heart of the system** (`api/valmontpay/webhook.js`)
 | `api/admin/*` | Login, float (+top-up), orders (+retry), P&L, SMS leads (`GET /sms-leads`), webhook log |
 | `api/cron/retry.js` | Daily cron (07:00 UTC) on Vercel Hobby + optional 15-min GitHub Actions pinger: retry failed deliveries (max 3), low-float alert |
 | `api/cron/autoreload.js` | **Auto-reload sweep**: daily Vercel cron (Hobby-compatible) — watches active rules, re-buys low/expired bundles from pre-authorized MoMos via the normal webhook pipeline. Dev/demo: `curl /api/cron/autoreload` |
-| `lib/` | `supabase.js` (data layer + mock), `valmontpay.js` (client + HMAC-SHA512, incl. `initiateCharge` direct MoMo charge), `supplier.js` (adapter), `orders.js` (engine — creates `bundle_usage` on delivery), `autoreload.js` (engine — thresholds, cooldown, in-flight guard, dev webhook simulation), `phones.js`, `notify.js`, `auth.js` |
+| `lib/` | `supabase.js` (data layer + mock), `valmontpay.js` (client + HMAC-SHA512, incl. `initiateCharge` direct MoMo charge), `supplier.js` (adapter), `orders.js` (engine — creates `bundle_usage` on delivery), `autoreload.js` (engine — thresholds, cooldown, in-flight guard, dev webhook simulation), `whatsapp.js` (WhatsApp Cloud API client), `whatsapp-bot.js` (conversation engine), `referrals.js` (referral codes + credits), `sms.js` (SMS providers: Arkesel/mNotify/Hubtel), `phones.js`, `notify.js` (+ SMS on delivery), `auth.js` |
 | `supabase/schema.sql` | Tables (`customers`, `saved_numbers`, `sms_leads`, `orders`, `bundle_usage`, `auto_reload`, `float_ledger`, etc.), RLS, functions, seeds — run once in Supabase |
 | `supabase/seed-demo.sql` | **Demo seed** for DEMO/STAGING Supabase — customers, orders, bundle usage, auto-reload rules, float, webhook log (generated, self-skipping) |
 | `supabase/migrations/` | **Live-DB changes** (price/lineup updates etc.) — idempotent SQL, run in the Supabase SQL editor; the base seed's `on conflict do nothing` never updates existing rows |
@@ -53,10 +55,6 @@ The **webhook handler is the heart of the system** (`api/valmontpay/webhook.js`)
 | `scripts/build-icons.js` | Zero-dependency icon builder — regenerates the globe favicon/logo set (PNG/ICO) from `assets/img/favicon.svg` |
 | `assets/img/brand-logo.png`/`.svg` | **Brand banner** (gold constellation hexagon + VALMONT DATA wordmark) — header/footer logo, transparent |
 | `assets/img/favicon.svg` | Gold constellation mark — browser/PWA favicon; transparent PNG/ICO raster set alongside |
-| `manifest.json` | PWA manifest — standalone install, theme, 192/512 + maskable icons, app shortcuts (Buy / Track / Account) |
-| `sw.js` | Service worker — precached app shell, offline fallback, cache versioning (`CACHE_NAME`) |
-| `offline.html` | Self-contained offline shell shown when navigation can't reach the network |
-| `assets/js/pwa.js` | PWA bootstrap — SW registration, install card, update-to-refresh, offline pill |
 
 ## Non-negotiable requirements — how each is enforced
 
@@ -226,34 +224,6 @@ never run it against production). Demo logins are printed in the file header.
 
 ---
 
-## PWA — installable & offline-capable
-
-The storefront is a full Progressive Web App — no build step, no framework:
-
-- **Installable** — `manifest.json` (standalone display, 192/512 + maskable icons,
-  theme, `shortcuts` for Buy / Track / Account) plus `mobile-web-app-capable` /
-  iOS web-app metas on every page. Browsers fire `beforeinstallprompt`;
-  `assets/js/pwa.js` surfaces it as an in-house install card (re-asks weekly,
-  hidden on `/admin.html`).
-- **App shell** — `sw.js` precaches the static shell (pages, CSS, JS, icons,
-  manifest) on install and **versioned caches** (`CACHE_NAME`). Bump the cache
-  name whenever the shell changes — `activate()` deletes older caches.
-- **Offline** — navigations go network-first, then cached page, then the
-  self-contained `/offline.html` shell (auto-reloads on reconnect). Static
-  assets are cache-first with background refresh (SWR). `/api/*` is never
-  served from cache — live float/stock/orders only; the storefront already
-  renders its own offline/error states.
-- **Updates** — `updateViaCache: 'none'` + `no-cache` header on `/sw.js` (see
-  `vercel.json`) so new workers arrive promptly; `pwa.js` shows a one-tap
-  "New version is ready → Update" bar (`SKIP_WAITING` → reload).
-- **Awareness** — a red pill appears when the connection drops and a toast
-  confirms when it returns.
-
-Verify the whole surface with the `── 18. PWA surface` block of `npm test`.
-
----
----
-
 ## Deploy (Vercel + Supabase)
 
 1. **Supabase**: create project → SQL editor → paste `supabase/schema.sql` → run. (Tables + RLS + functions + seeds. Idempotent; adds `customers`, `saved_numbers`, `bundle_usage`, `auto_reload` and the rest.)
@@ -264,9 +234,87 @@ Verify the whole surface with the `── 18. PWA surface` block of `npm test`.
 
 ---
 
+## WhatsApp Ordering
+
+Customers can buy data bundles by chatting on WhatsApp — no browser needed.
+
+**Setup:**
+1. Create a WhatsApp Business app at [developers.facebook.com](https://developers.facebook.com)
+2. Get a permanent System User token (never expires)
+3. Set `WHATSAPP_MODE=live`, `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID`
+4. Set the webhook URL to `https://<your-domain>/api/whatsapp/webhook`
+5. Set `WHATSAPP_VERIFY_TOKEN` (must match both sides)
+
+**Conversation flows:**
+- **Menu**: Customer sends "hi" → bot shows Buy Data / Track Order / Help buttons
+- **Guided**: Tap Buy Data → pick network → pick bundle → enter phone → confirm → pay
+- **Quick order**: Type "2gb mtn 0241234567" → bot parses it → confirm → pay
+- **Tracking**: Type "track VD-260812-1234" → bot shows order status
+
+**Integration:** WhatsApp orders create real orders through the same pipeline — same float guard, same payment webhook, same delivery, same idempotency. In dev mode (`WHATSAPP_MODE=mock`), messages log to console.
+
+**Test it locally:**
+```bash
+curl -X POST http://localhost:8787/api/whatsapp/webhook \
+  -H "Content-Type: application/json" \
+  -d '{"entry":[{"changes":[{"field":"messages","value":{"messages":[{"from":"233241112222","type":"text","text":{"body":"hi"}}]}}]}]}'
+```
+
+---
+
+## Referral Program
+
+Customers earn GH₵2 credit when their friends make their first purchase.
+
+**Flow:**
+1. Each customer gets a unique referral code (e.g., `KOFI-A3X2`) — auto-generated on first access
+2. Share link: `valmontdata.com/r/KOFI-A3X2`
+3. New customer signs up with the code → referral tracked
+4. First purchase by referred customer → both parties earn GH₵2 credit
+5. Credits auto-apply to future orders (discount at checkout)
+
+**API endpoints:**
+- `GET /api/referrals` — customer's referral stats (code, credits, referral count)
+- `GET /api/referrals/credits` — credit balance + history
+- `POST /api/referrals/claim` — claim a referral code
+- `GET /api/referrals/verify?code=XXX` — public: verify a code exists
+
+**Configuration:**
+- `REFERRAL_CREDIT_AMOUNT` — GHS per successful referral (default 2.00)
+- `REFERRAL_MAX_CREDIT` — max GHS a customer can hold (default 50.00)
+
+**Safeguards:** Self-referral blocked, one referrer per customer, credit cap prevents abuse.
+
+---
+
+## SMS Notifications
+
+Transactional SMS (delivery confirmations, refunds) sent automatically to customers.
+
+**Providers (Ghana-based):**
+- **Arkesel** — `sms.arkesel.com` (cheapest)
+- **mNotify** — `mnotify.com`
+- **Hubtel** — `hubtel.com`
+- **Mock** — log to console (default in dev)
+
+**Configuration:**
+```bash
+SMS_PROVIDER=arkesel      # or mnotify | hubtel | mock
+SMS_API_KEY=your-key
+SMS_SENDER_ID=ValmontData  # max 11 chars
+```
+
+**Automatic triggers:**
+- Order delivered → "✅ Your 5GB MTN bundle has been delivered to 0241234567. Ref: VD-..."
+- Order refunded → "↩️ Order VD-... refunded. Your MoMo has been credited back."
+
+SMS is wired into the existing `notify.js` system — fires in parallel with webhooks, never blocks the order pipeline. In mock mode (default), messages log to console.
+
+---
+
 ## Tested
 
-`scripts/test.sh` runs the full 99-check pipeline against the dev server (mock DB):
+`scripts/test.sh` runs the full 104-check pipeline against the dev server (mock DB):
 float guard (reject when 0 float, guest 401) → admin login/float top-up →
 customer signup (scrypt hash, 30-day token) → duplicate 409 → wrong credentials 401 →
 customer login → account gating 401 → authed 0-float 422 → order creation →
@@ -280,7 +328,10 @@ cron triggers → auto-reload delivered via the real webhook pipeline → `reloa
 bumped → line usage reset → cooldown blocks a second sweep → pause stops sweeps →
 opt-out removes the rule → auth guards 401 →
 **others lines**: relation `other`, never auto-asked, watch prompt when low, `confirm_recipient` required (400 without) →
-**live mode**: checkout + direct charge fail loudly (503) with no gateway keys.
+**live mode**: checkout + direct charge fail loudly (503) with no gateway keys →
+**WhatsApp**: webhook verification (GET challenge) → wrong verify token 403 → inbound text/button messages accepted → quick orders → track orders → help/cancel commands →
+**Referrals**: code generation → verification → signup with referral code → self-referral blocked → credit balance → auth guards →
+**SMS**: mock mode → template rendering → provider config.
 
 Run it with `npm test` (after starting `npm run dev`).
 
