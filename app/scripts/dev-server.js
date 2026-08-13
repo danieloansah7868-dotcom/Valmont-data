@@ -42,8 +42,11 @@ if (process.env.SEED_DEMO === "1") {
 const adminRouter = require("../api/admin.js");
 const accountRouter = require("../api/account.js");
 const authRouter = require("../api/auth/customer.js");
+const cronRouter = require("../api/cron.js");
 
-/* route → handler module (mirrors Vercel's consolidated /api folder) */
+/* route → handler module (mirrors Vercel's consolidated /api folder).
+   Public URLs stay the same; OTP/referrals/store/cron are merged into
+   fewer files so Vercel Hobby stays under the 12-function cap. */
 const routes = {
   "GET /api/bundles": require("../api/bundles.js"),
   "GET /api/orders": require("../api/orders.js"),
@@ -51,8 +54,8 @@ const routes = {
   "POST /api/auth/customer": authRouter,
   "POST /api/auth/customer/signup": authRouter,
   "POST /api/auth/customer/login": authRouter,
-  "POST /api/auth/otp/send": require("../api/auth/otp.js"),
-  "POST /api/auth/otp/verify": require("../api/auth/otp.js"),
+  "POST /api/auth/otp/send": authRouter,
+  "POST /api/auth/otp/verify": authRouter,
   "GET /api/account": accountRouter,
   "POST /api/account": accountRouter,
   "DELETE /api/account": accountRouter,
@@ -62,16 +65,16 @@ const routes = {
   "POST /api/valmontpay/webhook": require("../api/valmontpay/webhook.js"),
   "GET /api/whatsapp/webhook": require("../api/whatsapp/webhook.js"),
   "POST /api/whatsapp/webhook": require("../api/whatsapp/webhook.js"),
-  "GET /api/referrals": require("../api/referrals.js"),
-  "POST /api/referrals/claim": require("../api/referrals.js"),
-  "GET /api/referrals/credits": require("../api/referrals.js"),
-  "GET /api/referrals/verify": require("../api/referrals.js"),
-  "GET /api/store": require("../api/store.js"),
-  "POST /api/store": require("../api/store.js"),
-  "GET /api/store/check": require("../api/store.js"),
-  "GET /api/store/earnings": require("../api/store.js"),
-  "GET /api/store/orders": require("../api/store.js"),
-  "GET /api/store/public": require("../api/store.js"),
+  "GET /api/referrals": accountRouter,
+  "POST /api/referrals/claim": accountRouter,
+  "GET /api/referrals/credits": accountRouter,
+  "GET /api/referrals/verify": accountRouter,
+  "GET /api/store": accountRouter,
+  "POST /api/store": accountRouter,
+  "GET /api/store/check": accountRouter,
+  "GET /api/store/earnings": accountRouter,
+  "GET /api/store/orders": accountRouter,
+  "GET /api/store/public": accountRouter,
   "POST /api/admin/login": adminRouter,
   "GET /api/admin/float": adminRouter,
   "POST /api/admin/float/topup": adminRouter,
@@ -87,14 +90,17 @@ const routes = {
   "GET /api/admin/bundles": adminRouter,
   "POST /api/admin/bundles": adminRouter,
   "POST /api/admin/bundles/update-prices": adminRouter,
-  "GET /api/cron/retry": require("../api/cron/retry.js"),
+  "GET /api/cron": cronRouter,
+  "POST /api/cron": cronRouter,
+  "GET /api/cron/retry": cronRouter,
+  "POST /api/cron/retry": cronRouter,
+  "GET /api/cron/autoreload": cronRouter,
+  "POST /api/cron/autoreload": cronRouter,
   "GET /api/autoreload": require("../api/autoreload.js"),
   "POST /api/autoreload": require("../api/autoreload.js"),
   "DELETE /api/autoreload": require("../api/autoreload.js"),
   "GET /api/usage": require("../api/usage.js"),
   "POST /api/usage": require("../api/usage.js"),
-  "GET /api/cron/autoreload": require("../api/cron/autoreload.js"),
-  "POST /api/cron/autoreload": require("../api/cron/autoreload.js"),
 };
 
 const MIME = {
