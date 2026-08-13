@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Open a Reseller Store | Valmont Data</title>
+  <meta name="description" content="Start a data reselling business in Ghana. Open your own storefront, set your markup, and earn on every bundle sold through your link.">
+  <link rel="icon" type="image/svg+xml" href="assets/img/favicon.svg">
+  <style>
+    :root { --navy: #0b1a38; --orange: #ff8c00; --white: #f8fafc; --gray: #64748b; --green: #22c55e; --red: #ef4444; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--navy); color: var(--white); min-height: 100vh; }
+    .container { max-width: 640px; margin: 0 auto; padding: 20px 16px; }
+    .header { text-align: center; padding: 32px 0 24px; }
+    .header img { height: 44px; margin-bottom: 16px; }
+    .header h1 { font-size: 24px; margin-bottom: 8px; }
+    .header p { color: var(--gray); font-size: 15px; }
+    .card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 24px; margin-bottom: 16px; }
+    .card h2 { font-size: 18px; margin-bottom: 16px; }
+    .field { margin-bottom: 16px; }
+    .field label { display: block; font-size: 13px; color: var(--gray); margin-bottom: 6px; font-weight: 500; }
+    .field input, .field textarea { width: 100%; padding: 12px; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; background: rgba(255,255,255,0.05); color: var(--white); font-size: 15px; }
+    .field input:focus, .field textarea:focus { outline: none; border-color: var(--orange); }
+    .field .hint { font-size: 12px; color: var(--gray); margin-top: 4px; }
+    .field .slug-preview { font-size: 13px; color: var(--orange); margin-top: 4px; }
+    .field .slug-available { color: var(--green); }
+    .field .slug-taken { color: var(--red); }
+    .btn { display: block; width: 100%; padding: 14px; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; text-align: center; }
+    .btn-primary { background: var(--orange); color: white; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-ghost { background: transparent; border: 1px solid rgba(255,255,255,0.2); color: var(--white); }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+    .stat { background: rgba(255,255,255,0.05); border-radius: 8px; padding: 16px; text-align: center; }
+    .stat .value { font-size: 24px; font-weight: 700; color: var(--orange); }
+    .stat .label { font-size: 12px; color: var(--gray); margin-top: 4px; }
+    .store-link { background: rgba(255,140,0,0.1); border: 1px solid rgba(255,140,0,0.3); border-radius: 8px; padding: 16px; text-align: center; margin-bottom: 16px; }
+    .store-link a { color: var(--orange); font-weight: 600; word-break: break-all; }
+    .earnings-list { max-height: 300px; overflow-y: auto; }
+    .earning-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 14px; }
+    .earning-row .amount.earn { color: var(--green); }
+    .earning-row .amount.payout { color: var(--red); }
+    .msg { padding: 12px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; display: none; }
+    .msg.error { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: var(--red); display: block; }
+    .msg.success { background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); color: var(--green); display: block; }
+    .back { display: inline-block; color: var(--gray); font-size: 14px; margin-bottom: 16px; text-decoration: none; }
+    .back:hover { color: var(--white); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="/" class="back">← Back to store</a>
+
+    <div class="header">
+      <img src="assets/img/brand-logo.png" alt="Valmont Data">
+      <h1 id="pageTitle">Open Your Data Store</h1>
+      <p id="pageSubtitle">Set your markup, share your link, earn on every sale</p>
+    </div>
+
+    <div id="msg" class="msg"></div>
+
+    <!-- CREATE/EDIT STORE FORM -->
+    <div id="createForm" class="card">
+      <h2 id="formTitle">Create Your Store</h2>
+      <div class="field">
+        <label for="storeName">Store name *</label>
+        <input type="text" id="storeName" placeholder="e.g. Ama's Data Hub" maxlength="60">
+      </div>
+      <div class="field">
+        <label for="storeSlug">Store URL</label>
+        <input type="text" id="storeSlug" placeholder="amas-data-hub" maxlength="40">
+        <div class="hint">valmontdata.com/s/<span id="slugDisplay">your-slug</span></div>
+        <div id="slugStatus" class="slug-preview"></div>
+      </div>
+      <div class="field">
+        <label for="storeTagline">Tagline</label>
+        <input type="text" id="storeTagline" placeholder="e.g. Cheapest data in Kumasi — 24/7 delivery" maxlength="120">
+      </div>
+      <div class="field">
+        <label for="storeMarkup">Markup (%)</label>
+        <input type="number" id="storeMarkup" value="10" min="0" max="100" step="1">
+        <div class="hint">Your earning on each bundle. E.g. 10% on a GH₵10 bundle = GH₵1.00 per sale</div>
+      </div>
+      <div class="field">
+        <label for="storeMomo">Payout MoMo number</label>
+        <input type="tel" id="storeMomo" placeholder="0241234567">
+        <div class="hint">Where we send your earnings</div>
+      </div>
+      <button class="btn btn-primary" id="saveBtn" onclick="saveStore()">Create Store</button>
+    </div>
+
+    <!-- EXISTING STORE DASHBOARD -->
+    <div id="dashboard" style="display:none">
+      <div class="store-link">
+        <div style="font-size:13px;color:var(--gray);margin-bottom:4px">Your store link — share this everywhere</div>
+        <a id="storeUrl" href="#" target="_blank"></a>
+      </div>
+
+      <div class="stats">
+        <div class="stat">
+          <div class="value" id="statOrders">0</div>
+          <div class="label">Orders</div>
+        </div>
+        <div class="stat">
+          <div class="value" id="statRevenue">₵0</div>
+          <div class="label">Revenue</div>
+        </div>
+        <div class="stat">
+          <div class="value" id="statBalance">₵0</div>
+          <div class="label">Balance</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Recent Earnings</h2>
+        <div class="earnings-list" id="earningsList">
+          <div style="text-align:center;color:var(--gray);padding:20px">No earnings yet — share your store link!</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Store Settings</h2>
+        <div class="field">
+          <label for="editMarkup">Markup (%)</label>
+          <input type="number" id="editMarkup" min="0" max="100" step="1">
+        </div>
+        <div class="field">
+          <label for="editTagline">Tagline</label>
+          <input type="text" id="editTagline" maxlength="120">
+        </div>
+        <button class="btn btn-primary" onclick="updateSettings()">Save Changes</button>
+      </div>
+    </div>
+
+    <div style="text-align:center;padding:24px 0">
+      <a href="/dashboard.html" class="back" style="display:inline">Dashboard</a>
+    </div>
+  </div>
+
+  <script>
+    const TOKEN_KEY = 'vd_token';
+    let existingStore = null;
+
+    function getToken() { return localStorage.getItem(TOKEN_KEY); }
+    function showMsg(text, type) {
+      const el = document.getElementById('msg');
+      el.textContent = text;
+      el.className = 'msg ' + type;
+      setTimeout(() => { el.className = 'msg'; }, 5000);
+    }
+
+    // Auto-generate slug from name
+    document.getElementById('storeName').addEventListener('input', function() {
+      if (!existingStore) {
+        const slug = this.value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+        document.getElementById('storeSlug').value = slug;
+        document.getElementById('slugDisplay').textContent = slug || 'your-slug';
+        checkSlug(slug);
+      }
+    });
+
+    document.getElementById('storeSlug').addEventListener('input', function() {
+      const slug = this.value.toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 40);
+      this.value = slug;
+      document.getElementById('slugDisplay').textContent = slug || 'your-slug';
+      checkSlug(slug);
+    });
+
+    let slugTimer;
+    function checkSlug(slug) {
+      clearTimeout(slugTimer);
+      if (slug.length < 3) {
+        document.getElementById('slugStatus').textContent = '';
+        return;
+      }
+      slugTimer = setTimeout(async () => {
+        try {
+          const res = await fetch('/api/store/check?slug=' + encodeURIComponent(slug));
+          const data = await res.json();
+          const el = document.getElementById('slugStatus');
+          if (data.available) {
+            el.textContent = '✓ Available';
+            el.className = 'slug-preview slug-available';
+          } else {
+            el.textContent = '✗ Taken — try another';
+            el.className = 'slug-preview slug-taken';
+          }
+        } catch {}
+      }, 300);
+    }
+
+    async function loadStore() {
+      const token = getToken();
+      if (!token) {
+        showMsg('Please sign in to manage your store', 'error');
+        return;
+      }
+      try {
+        const res = await fetch('/api/store', { headers: { Authorization: 'Bearer ' + token } });
+        const data = await res.json();
+        if (data.store) {
+          existingStore = data.store;
+          showDashboard(data.store);
+        }
+      } catch {}
+    }
+
+    function showDashboard(store) {
+      document.getElementById('createForm').style.display = 'none';
+      document.getElementById('dashboard').style.display = 'block';
+      document.getElementById('pageTitle').textContent = store.store_name;
+      document.getElementById('pageSubtitle').textContent = store.tagline || 'Your reseller dashboard';
+
+      const url = store.store_url || (location.origin + '/s/' + store.slug);
+      document.getElementById('storeUrl').href = url;
+      document.getElementById('storeUrl').textContent = url;
+
+      document.getElementById('statOrders').textContent = store.total_orders || 0;
+      document.getElementById('statRevenue').textContent = '₵' + (store.total_revenue || 0);
+      document.getElementById('statBalance').textContent = '₵' + (store.balance || 0);
+
+      document.getElementById('editMarkup').value = store.markup_percent;
+      document.getElementById('editTagline').value = store.tagline || '';
+
+      loadEarnings();
+    }
+
+    async function loadEarnings() {
+      const token = getToken();
+      try {
+        const res = await fetch('/api/store/earnings', { headers: { Authorization: 'Bearer ' + token } });
+        const data = await res.json();
+        const list = document.getElementById('earningsList');
+        if (!data.entries || !data.entries.length) {
+          list.innerHTML = '<div style="text-align:center;color:var(--gray);padding:20px">No earnings yet — share your store link!</div>';
+          return;
+        }
+        list.innerHTML = data.entries.map(e => `
+          <div class="earning-row">
+            <div>
+              <div>${e.note || e.direction}</div>
+              <div style="font-size:12px;color:var(--gray)">${new Date(e.created_at).toLocaleDateString()}</div>
+            </div>
+            <div class="amount ${e.direction}">${e.direction === 'earn' ? '+' : '-'}₵${e.amount.toFixed(2)}</div>
+          </div>
+        `).join('');
+      } catch {}
+    }
+
+    async function saveStore() {
+      const token = getToken();
+      if (!token) { showMsg('Please sign in first', 'error'); return; }
+
+      const body = {
+        store_name: document.getElementById('storeName').value.trim(),
+        slug: document.getElementById('storeSlug').value.trim(),
+        tagline: document.getElementById('storeTagline').value.trim(),
+        markup_percent: Number(document.getElementById('storeMarkup').value) || 10,
+        momo_number: document.getElementById('storeMomo').value.trim() || null,
+      };
+
+      if (!body.store_name) { showMsg('Store name is required', 'error'); return; }
+
+      const btn = document.getElementById('saveBtn');
+      btn.disabled = true;
+      btn.textContent = 'Creating...';
+
+      try {
+        const res = await fetch('/api/store', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+          body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        if (data.ok) {
+          showMsg('Store created! Share your link to start earning.', 'success');
+          existingStore = data.store;
+          showDashboard(data.store);
+        } else {
+          showMsg(data.error || 'Failed to create store', 'error');
+        }
+      } catch (e) {
+        showMsg('Network error — try again', 'error');
+      }
+      btn.disabled = false;
+      btn.textContent = existingStore ? 'Save Changes' : 'Create Store';
+    }
+
+    async function updateSettings() {
+      const token = getToken();
+      if (!token) return;
+
+      const body = {
+        markup_percent: Number(document.getElementById('editMarkup').value) || 10,
+        tagline: document.getElementById('editTagline').value.trim(),
+      };
+
+      try {
+        const res = await fetch('/api/store', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+          body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        if (data.ok) {
+          showMsg('Settings updated', 'success');
+          if (data.store) {
+            existingStore = { ...existingStore, ...data.store };
+          }
+        } else {
+          showMsg(data.error || 'Update failed', 'error');
+        }
+      } catch {
+        showMsg('Network error — try again', 'error');
+      }
+    }
+
+    // Load on page ready
+    loadStore();
+  </script>
+</body>
+</html>

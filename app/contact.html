@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contact Us — Support 24/7 | Valmont Data</title>
+  <meta name="description" content="Contact Valmont Data support: WhatsApp, email. 24/7 service for data bundles, orders and reseller stores.">
+  <link rel="icon" type="image/svg+xml" href="assets/img/favicon.svg">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+  <main style="max-width:760px;margin:0 auto;padding:24px 16px 60px">
+    <a href="/" style="color:var(--muted);font-size:14px;text-decoration:none">← Back</a>
+    <div style="margin-top:24px">
+      <div class="k">Contact</div>
+      <h1 class="t" style="margin:8px 0 12px">We're here 24/7</h1>
+      <p style="font-size:16px;color:var(--text)">Orders are automated, but humans answer questions around the clock.</p>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:28px">
+        <a href="https://wa.me/233542451578" target="_blank" rel="noopener" style="text-decoration:none;color:inherit;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px">
+          <div style="font-size:28px;margin-bottom:8px">💬</div>
+          <h3 style="font-size:16px;margin-bottom:4px">WhatsApp Support</h3>
+          <p style="font-size:13px;color:var(--muted);margin-bottom:8px">Fastest response — chat with us directly.</p>
+          <div style="font-size:14px;font-weight:700;color:var(--accent)">+233 54 245 1578 →</div>
+        </a>
+        <a href="mailto:support@valmontdata.com" style="text-decoration:none;color:inherit;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px">
+          <div style="font-size:28px;margin-bottom:8px">📧</div>
+          <h3 style="font-size:16px;margin-bottom:4px">Email</h3>
+          <p style="font-size:13px;color:var(--muted);margin-bottom:8px">For documents, disputes and press.</p>
+          <div style="font-size:14px;font-weight:700;color:var(--accent)">support@valmontdata.com →</div>
+        </a>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px">
+          <div style="font-size:28px;margin-bottom:8px">📍</div>
+          <h3 style="font-size:16px;margin-bottom:4px">Headquarters</h3>
+          <p style="font-size:13px;color:var(--muted);margin-bottom:8px">Valmont Group of Companies, Greater Accra, Ghana.</p>
+          <div style="font-size:13px;color:var(--muted)">Visits by appointment</div>
+        </div>
+      </div>
+
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;margin-top:28px">
+        <h3 style="font-size:18px;margin-bottom:16px">Send a message</h3>
+        <form id="contactForm">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+            <div>
+              <label for="ctName" style="display:block;font-size:13px;color:var(--muted);margin-bottom:4px">Name</label>
+              <input id="ctName" placeholder="Your name" required style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:15px">
+            </div>
+            <div>
+              <label for="ctPhone" style="display:block;font-size:13px;color:var(--muted);margin-bottom:4px">Phone / WhatsApp</label>
+              <input id="ctPhone" placeholder="024 000 0000" required style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:15px">
+            </div>
+          </div>
+          <div style="margin-bottom:12px">
+            <label for="ctTopic" style="display:block;font-size:13px;color:var(--muted);margin-bottom:4px">Topic</label>
+            <select id="ctTopic" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:15px">
+              <option>Order / delivery issue</option>
+              <option>Auto-reload / account</option>
+              <option>Reseller store</option>
+              <option>Referral program</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div style="margin-bottom:16px">
+            <label for="ctMsg" style="display:block;font-size:13px;color:var(--muted);margin-bottom:4px">Message</label>
+            <textarea id="ctMsg" rows="4" placeholder="How can we help?" required style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:15px;resize:vertical"></textarea>
+          </div>
+          <button class="btn" type="submit" style="width:100%">Send via WhatsApp →</button>
+          <p style="font-size:12px;color:var(--muted);margin-top:10px;text-align:center">Your message opens in WhatsApp pre-filled.</p>
+        </form>
+      </div>
+    </div>
+  </main>
+  <script>
+    document.getElementById("contactForm").addEventListener("submit", function(e) {
+      e.preventDefault();
+      var name = document.getElementById("ctName").value;
+      var phone = document.getElementById("ctPhone").value;
+      var topic = document.getElementById("ctTopic").value;
+      var msg = document.getElementById("ctMsg").value;
+      var text = encodeURIComponent("Valmont Data — " + topic + "\n\nName: " + name + "\nPhone: " + phone + "\n\n" + msg);
+      window.open("https://wa.me/233542451578?text=" + text, "_blank");
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign In with OTP — No Password | Valmont Data</title>
+  <meta name="description" content="Sign in to Valmont Data with a one-time code sent to your phone via SMS. No password needed.">
+  <link rel="icon" type="image/svg+xml" href="assets/img/favicon.svg">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+  <main style="max-width:420px;margin:0 auto;padding:24px 16px 60px">
+    <a href="/signin.html" style="color:var(--muted);font-size:14px;text-decoration:none">← Password sign in</a>
+    <div style="text-align:center;margin-top:32px">
+      <img src="assets/img/brand-logo.png" alt="Valmont Data" style="height:44px;margin-bottom:20px">
+      <h1 style="font-size:22px;margin-bottom:4px">Sign in with OTP</h1>
+      <p style="color:var(--muted);font-size:14px">We'll text a one-time code to your phone — no password needed.</p>
+    </div>
+
+    <div id="msg" style="padding:10px 14px;border-radius:8px;margin:16px 0;font-size:14px;display:none"></div>
+
+    <!-- Step 1: Enter phone -->
+    <div id="step1" style="margin-top:24px">
+      <div style="margin-bottom:14px">
+        <label for="phone" style="display:block;font-size:13px;color:var(--muted);margin-bottom:4px">Mobile number</label>
+        <input id="phone" type="tel" placeholder="024 000 0000" maxlength="10" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:16px">
+        <p style="font-size:12px;color:var(--muted);margin-top:4px">Must match the number on your Valmont Data account</p>
+      </div>
+      <button class="btn" id="sendBtn" onclick="sendOTP()" style="width:100%">Send Code →</button>
+    </div>
+
+    <!-- Step 2: Enter code -->
+    <div id="step2" style="display:none;margin-top:24px">
+      <p style="font-size:14px;color:var(--text);margin-bottom:14px">Enter the 6-digit code sent to <b id="sentTo"></b></p>
+      <div style="margin-bottom:14px">
+        <input id="code" type="text" inputmode="numeric" placeholder="000000" maxlength="6" style="width:100%;padding:14px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:24px;text-align:center;letter-spacing:8px;font-weight:700">
+      </div>
+      <button class="btn" id="verifyBtn" onclick="verifyOTP()" style="width:100%">Sign In →</button>
+      <div style="text-align:center;margin-top:12px">
+        <button onclick="resend()" style="background:none;border:none;color:var(--accent);font-size:13px;cursor:pointer">Resend code</button>
+        <span style="color:var(--muted);font-size:13px;margin:0 6px">·</span>
+        <button onclick="goBack()" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer">Change number</button>
+      </div>
+    </div>
+
+    <div style="text-align:center;margin-top:24px">
+      <p style="font-size:13px;color:var(--muted)">New here? <a href="/signup.html" style="color:var(--accent);font-weight:600">Sign Up Free</a></p>
+    </div>
+  </main>
+  <script>
+    var currentPhone = '';
+    function showMsg(text, isError) {
+      var el = document.getElementById('msg');
+      el.textContent = text;
+      el.style.display = 'block';
+      el.style.background = isError ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.1)';
+      el.style.border = '1px solid ' + (isError ? 'rgba(239,68,68,0.3)' : 'rgba(34,197,94,0.3)');
+      el.style.color = isError ? '#ef4444' : '#22c55e';
+    }
+    function hideMsg() { document.getElementById('msg').style.display = 'none'; }
+
+    async function sendOTP() {
+      hideMsg();
+      var phone = document.getElementById('phone').value.replace(/\s/g, '');
+      if (!/^0\d{9}$/.test(phone)) { showMsg('Enter a valid Ghana phone number', true); return; }
+      currentPhone = phone;
+      var btn = document.getElementById('sendBtn');
+      btn.disabled = true; btn.textContent = 'Sending...';
+      try {
+        var res = await fetch('/api/auth/otp/send', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: phone })
+        });
+        var data = await res.json();
+        if (data.ok) {
+          document.getElementById('step1').style.display = 'none';
+          document.getElementById('step2').style.display = 'block';
+          document.getElementById('sentTo').textContent = phone.slice(0,4) + '***' + phone.slice(-2);
+          if (data.dev_code) showMsg('DEV: code is ' + data.dev_code, false);
+          document.getElementById('code').focus();
+        } else {
+          showMsg(data.error || 'Failed to send code', true);
+        }
+      } catch { showMsg('Network error — try again', true); }
+      btn.disabled = false; btn.textContent = 'Send Code →';
+    }
+
+    async function verifyOTP() {
+      hideMsg();
+      var code = document.getElementById('code').value.trim();
+      if (code.length !== 6) { showMsg('Enter the 6-digit code', true); return; }
+      var btn = document.getElementById('verifyBtn');
+      btn.disabled = true; btn.textContent = 'Signing in...';
+      try {
+        var res = await fetch('/api/auth/otp/verify', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: currentPhone, code: code })
+        });
+        var data = await res.json();
+        if (data.ok && data.token) {
+          localStorage.setItem('vd_token', data.token);
+          if (data.customer) localStorage.setItem('vd_customer', JSON.stringify(data.customer));
+          if (data.new_account) showMsg('Account created! Redirecting...', false);
+          setTimeout(function() { window.location.href = '/dashboard.html'; }, 500);
+        } else {
+          showMsg(data.error || 'Verification failed', true);
+        }
+      } catch { showMsg('Network error — try again', true); }
+      btn.disabled = false; btn.textContent = 'Sign In →';
+    }
+
+    function resend() { sendOTP(); }
+    function goBack() {
+      document.getElementById('step1').style.display = 'block';
+      document.getElementById('step2').style.display = 'none';
+      hideMsg();
+    }
+
+    // Auto-submit when 6 digits entered
+    document.getElementById('code').addEventListener('input', function() {
+      this.value = this.value.replace(/\D/g, '');
+      if (this.value.length === 6) verifyOTP();
+    });
+  </script>
+</body>
+</html>

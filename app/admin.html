@@ -62,6 +62,7 @@
             <button class="admin-tab" data-tab="pl">P&amp;L</button>
             <button class="admin-tab" data-tab="smsleads">SMS Leads</button>
             <button class="admin-tab" data-tab="webhooks">Webhook log</button>
+            <button class="admin-tab" data-tab="overview">Overview</button>
           </div>
 
           <!-- FLOAT -->
@@ -216,6 +217,34 @@
               <thead><tr><th>When</th><th>Signature</th><th>Handled</th><th>Error</th><th>Payload</th></tr></thead>
               <tbody id="webhooksBody"></tbody>
             </table></div>
+          </div>
+
+          <!-- OVERVIEW: WhatsApp, Referrals, Resellers -->
+          <div id="tab-overview" style="display:none">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px">
+              <!-- WhatsApp card -->
+              <div class="card" style="padding:20px">
+                <h3 style="font-size:16px;margin-bottom:12px">📱 WhatsApp</h3>
+                <div id="waStats" style="font-size:14px;color:var(--muted)">Loading...</div>
+                <div id="waMessages" style="margin-top:12px;max-height:200px;overflow-y:auto;font-size:13px"></div>
+              </div>
+              <!-- Referrals card -->
+              <div class="card" style="padding:20px">
+                <h3 style="font-size:16px;margin-bottom:12px">🎁 Referrals</h3>
+                <div id="refStats" style="font-size:14px;color:var(--muted)">Loading...</div>
+              </div>
+              <!-- Resellers card -->
+              <div class="card" style="padding:20px">
+                <h3 style="font-size:16px;margin-bottom:12px">🏪 Resellers</h3>
+                <div id="resStats" style="font-size:14px;color:var(--muted)">Loading...</div>
+                <div id="resStores" style="margin-top:12px;font-size:13px"></div>
+              </div>
+              <!-- Channel breakdown card -->
+              <div class="card" style="padding:20px">
+                <h3 style="font-size:16px;margin-bottom:12px">📊 Orders by Channel</h3>
+                <div id="channelStats" style="font-size:14px;color:var(--muted)">Loading...</div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

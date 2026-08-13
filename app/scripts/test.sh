@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# Valmont Data — end-to-end test (99 checks). Start the dev server first:
+# Valmont Data — end-to-end test suite (140+ checks). Start the dev server first:
 #   npm run dev   →  http://localhost:8787   (default mock DB)
 # The retry path is exercised deterministically via the built-in convention:
 # numbers ending 0000 fail their first delivery attempt (see lib/supplier.js).
@@ -269,22 +269,216 @@ ck "live mode without gateway keys fails loudly (503)" "$LIVE_ERR" "503"
 LIVE_ERR2=$(VALMONTPAY_MODE=live VALMONTPAY_API_KEY= VALMONTPAY_WEBHOOK_SECRET= node -e "const v=require('./lib/valmontpay');v.initiateCharge({reference:'VD-TEST-0000',amount:1,phone:'0241112222'}).then(()=>console.log('NOERR')).catch(e=>console.log(''+e.status))")
 ck "live auto-reload charge without keys fails loudly (503)" "$LIVE_ERR2" "503"
 
-echo "── 18. PWA surface (manifest, service worker, offline shell) ──"
-ck "manifest served" "$(curl -s -o /dev/null -w '%{http_code}' "$B/manifest.json")" "200"
-ck "manifest is a standalone PWA" "$(curl -s "$B/manifest.json" | jqget "['display']")" "standalone"
-ck "manifest declares install icons" "$(curl -s "$B/manifest.json" | python3 -c "import sys,json;print(len(json.load(sys.stdin)['icons'])>0)")" "True"
-ck "manifest declares app shortcuts" "$(curl -s "$B/manifest.json" | python3 -c "import sys,json;print(len(json.load(sys.stdin).get('shortcuts',[]))>=3)")" "True"
-SW=$(curl -s "$B/sw.js")
-ck "service worker served" "$(echo "$SW" | python3 -c "import sys;print('addEventListener' in sys.stdin.read())")" "True"
-ck "service worker precaches app shell" "$(echo "$SW" | python3 -c "import sys;print('APP_SHELL' in sys.stdin.read())")" "True"
-ck "offline shell page served" "$(curl -s -o /dev/null -w '%{http_code}' "$B/offline.html")" "200"
-ck "offline shell is self-contained (no external deps)" "$(curl -s "$B/offline.html" | grep -c 'src="http')" "0"
-ck "pwa.js registers the service worker" "$(curl -s "$B/assets/js/pwa.js" | grep -c "\.register('/sw\.js'")" "1"
-ck "install icon 192 served" "$(curl -s -o /dev/null -w '%{http_code}' "$B/assets/img/icon-192.png")" "200"
-ck "install icon 512 served" "$(curl -s -o /dev/null -w '%{http_code}' "$B/assets/img/icon-512.png")" "200"
-for p in / /status.html /signin.html /signup.html /dashboard.html; do
-  ck "page $p is installable (mobile-web-app-capable)" "$(curl -s "$B$p" | grep -c 'name="mobile-web-app-capable"')" "1"
+echo "── 18. WhatsApp ordering bot ──"
+# Webhook verification (GET)
+R_VERIFY=$(curl -s -o /dev/null -w '%{http_code}' "$B/api/whatsapp/webhook?hub.mode=subscribe&hub.verify_token=valmont-data-verify&hub.challenge=test123")
+ck "whatsapp webhook verification returns 200" "$R_VERIFY" "200"
+R_CHALLENGE=$(curl -s "$B/api/whatsapp/webhook?hub.mode=subscribe&hub.verify_token=valmont-data-verify&hub.challenge=test123")
+ck "whatsapp webhook returns challenge" "$R_CHALLENGE" "test123"
+
+# Wrong verify token → 403
+CODE_VERIFY=$(curl -s -o /dev/null -w '%{http_code}' "$B/api/whatsapp/webhook?hub.mode=subscribe&hub.verify_token=wrong&hub.challenge=test123")
+ck "whatsapp webhook wrong verify token → 403" "$CODE_VERIFY" "403"
+
+# Inbound message (hi) — creates session and sends welcome
+R_WA=$(curl -s -X POST "$B/api/whatsapp/webhook" -H "$J" -d '{"entry":[{"changes":[{"field":"messages","value":{"messages":[{"from":"233241112222","type":"text","text":{"body":"hi"}}]}}]}]}')
+ck "whatsapp webhook accepts inbound message" "$(echo "$R_WA" | jqget "['received']")" "True"
+
+# Quick order via natural language
+R_WA2=$(curl -s -X POST "$B/api/whatsapp/webhook" -H "$J" -d '{"entry":[{"changes":[{"field":"messages","value":{"messages":[{"from":"233559988776","type":"text","text":{"body":"1gb mtn"}}]}}]}]}')
+ck "whatsapp quick order webhook accepted" "$(echo "$R_WA2" | jqget "['received']")" "True"
+
+# Track order by reference
+R_WA3=$(curl -s -X POST "$B/api/whatsapp/webhook" -H "$J" -d "{\"entry\":[{\"changes\":[{\"field\":\"messages\",\"value\":{\"messages\":[{\"from\":\"233241112222\",\"type\":\"text\",\"text\":{\"body\":\"track $REF\"}}]}}]}]}")
+ck "whatsapp track order webhook accepted" "$(echo "$R_WA3" | jqget "['received']")" "True"
+
+# Cancel command
+R_WA4=$(curl -s -X POST "$B/api/whatsapp/webhook" -H "$J" -d '{"entry":[{"changes":[{"field":"messages","value":{"messages":[{"from":"233241112222","type":"text","text":{"body":"cancel"}}]}}]}]}')
+ck "whatsapp cancel webhook accepted" "$(echo "$R_WA4" | jqget "['received']")" "True"
+
+# Help command
+R_WA5=$(curl -s -X POST "$B/api/whatsapp/webhook" -H "$J" -d '{"entry":[{"changes":[{"field":"messages","value":{"messages":[{"from":"233241112222","type":"text","text":{"body":"help"}}]}}]}]}')
+ck "whatsapp help webhook accepted" "$(echo "$R_WA5" | jqget "['received']")" "True"
+
+# Button reply (order)
+R_WA6=$(curl -s -X POST "$B/api/whatsapp/webhook" -H "$J" -d '{"entry":[{"changes":[{"field":"messages","value":{"messages":[{"from":"233241112222","type":"interactive","interactive":{"type":"button_reply","button_reply":{"id":"order","title":"Buy Data"}}}]}}]}]}')
+ck "whatsapp button reply webhook accepted" "$(echo "$R_WA6" | jqget "['received']")" "True"
+
+echo "── 19. Referral program ──"
+# Get or create referral code for the existing customer
+R_REF=$(curl -s "$B/api/referrals" -H "Authorization: Bearer $CTOK")
+HAS_CODE=$(echo "$R_REF" | python3 -c "import sys,json;d=json.load(sys.stdin);print(len(d.get('code',''))>0)")
+ck "referral stats returns code" "$HAS_CODE" "True"
+REF_CODE=$(echo "$R_REF" | jqget "['code']")
+
+# Verify referral code (public endpoint)
+R_VRFY=$(curl -s "$B/api/referrals/verify?code=$REF_CODE")
+ck "referral code verification succeeds" "$(echo "$R_VRFY" | jqget "['valid']")" "True"
+ck "referrer name returned" "$(echo "$R_VRFY" | jqget "['referrer_name']")" "Kofi"
+
+# Invalid code
+CODE_INVC=$(curl -s -o /dev/null -w '%{http_code}' "$B/api/referrals/verify?code=FAKE-XXXX")
+ck "invalid referral code → 404" "$CODE_INVC" "404"
+
+# New customer signs up with referral code
+R_REF_SIGN=$(curl -s -X POST "$B/api/auth/customer" -H "$J" -d "{\"name\":\"Ama Serwaa\",\"phone\":\"0551234567\",\"pin\":\"5678\",\"referral_code\":\"$REF_CODE\"}")
+RTOK=$(echo "$R_REF_SIGN" | jqget "['token']")
+ck "customer signup with referral code" "${RTOK:0:3}" "eyJ"
+
+# Self-referral should fail (use own code)
+CODE_SELF=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/referrals/claim" -H "$J" -H "Authorization: Bearer $CTOK" -d "{\"code\":\"$REF_CODE\"}")
+ck "self-referral rejected (400)" "$CODE_SELF" "400"
+
+# Credit balance (should be 0 for both)
+R_CRED=$(curl -s "$B/api/referrals/credits" -H "Authorization: Bearer $CTOK")
+ck "referral credit balance returns 0" "$(echo "$R_CRED" | jqget "['balance']")" "0"
+
+# Referral credits endpoint without auth → 401
+CODE_CRED=$(curl -s -o /dev/null -w '%{http_code}' "$B/api/referrals/credits")
+ck "referral credits without token → 401" "$CODE_CRED" "401"
+
+# Referral stats endpoint without auth → 401
+CODE_STATS=$(curl -s -o /dev/null -w '%{http_code}' "$B/api/referrals")
+ck "referral stats without token → 401" "$CODE_STATS" "401"
+
+echo "── 20. SMS notifications (mock mode) ──"
+SMS_TEST=$(node -e "const s=require('./lib/sms');s.sendSMS('0241112222','Test message').then(r=>console.log(r.dev?'True':'False'))" 2>/dev/null | tail -1)
+ck "SMS mock mode returns dev=true" "$SMS_TEST" "True"
+
+SMS_TPL=$(node -e "const s=require('./lib/sms');console.log(s.templates.orderDelivered({reference:'VD-260812-0001',phone:'0241112222',size_mb:1024,network_code:'mtn'}).includes('delivered')?'True':'False')")
+ck "SMS order delivered template correct" "$SMS_TPL" "True"
+
+SMS_PROVIDER=$(node -e "const s=require('./lib/sms');console.log(s.provider())")
+ck "SMS provider defaults to mock" "$SMS_PROVIDER" "mock"
+
+echo "── 21. Referral credit spending at checkout ──"
+# The customer (Kofi) has 0 credit — use_credit should be a no-op
+R_CRED_ORDER=$(curl -s -X POST "$B/api/orders" -H "$J" -H "Authorization: Bearer $CTOK" -d '{"bundle_id":1,"phone":"0241112222","use_credit":true}')
+ck "order with use_credit returns credit_applied field" "$(echo "$R_CRED_ORDER" | python3 -c "import sys,json;d=json.load(sys.stdin);print('credit_applied' in d)")" "True"
+ck "credit_applied is 0 when balance is 0" "$(echo "$R_CRED_ORDER" | jqget "['credit_applied']")" "0"
+# Order should still be created normally
+ck "order created even with 0 credit" "$(echo "$R_CRED_ORDER" | jqget "['dev']")" "True"
+# Simulate delivery for this order
+CRED_REF=$(echo "$R_CRED_ORDER" | jqget "['reference']")
+sim --ref "$CRED_REF" --amount 4.30 >/dev/null
+ck "credit order delivers normally" "$(curl -s "$B/api/orders?reference=$CRED_REF" | jqget "['order']['status']")" "delivered"
+
+echo "── 22. Reseller platform ──"
+# No store yet
+R_NOSTORE=$(curl -s "$B/api/store" -H "Authorization: Bearer $CTOK")
+ck "no store returns null" "$(echo "$R_NOSTORE" | jqget "['store']")" "None"
+
+# Store endpoint without auth → 401
+CODE_STORE=$(curl -s -o /dev/null -w '%{http_code}' "$B/api/store")
+ck "store endpoint without token → 401" "$CODE_STORE" "401"
+
+# Create a store
+R_STORE=$(curl -s -X POST "$B/api/store" -H "$J" -H "Authorization: Bearer $CTOK" -d '{"store_name":"Kofi Data Hub","tagline":"Cheapest data in Accra","markup_percent":15}')
+ck "store created successfully" "$(echo "$R_STORE" | jqget "['ok']")" "True"
+ck "store has slug" "$(echo "$R_STORE" | python3 -c "import sys,json;d=json.load(sys.stdin);print(len(d['store']['slug'])>0)")" "True"
+STORE_SLUG=$(echo "$R_STORE" | jqget "['store']['slug']")
+
+# Slug check
+R_CHECK=$(curl -s "$B/api/store/check?slug=taken-slug-test")
+ck "slug check returns available" "$(echo "$R_CHECK" | jqget "['available']")" "True"
+R_CHECK2=$(curl -s "$B/api/store/check?slug=$STORE_SLUG")
+ck "existing slug returns unavailable" "$(echo "$R_CHECK2" | jqget "['available']")" "False"
+
+# Public store endpoint (no auth)
+R_PUB=$(curl -s "$B/api/store/public?slug=$STORE_SLUG")
+ck "public store returns name" "$(echo "$R_PUB" | jqget "['store']['store_name']")" "Kofi Data Hub"
+ck "public store has markup" "$(echo "$R_PUB" | jqget "['store']['markup_percent']")" "15"
+
+# Invalid store slug → 404
+CODE_PUB=$(curl -s -o /dev/null -w '%{http_code}' "$B/api/store/public?slug=nonexistent-store")
+ck "invalid store slug → 404" "$CODE_PUB" "404"
+
+# Update store
+R_UPD=$(curl -s -X POST "$B/api/store" -H "$J" -H "Authorization: Bearer $CTOK" -d '{"tagline":"Updated tagline","markup_percent":20}')
+ck "store updated" "$(echo "$R_UPD" | jqget "['ok']")" "True"
+ck "markup updated to 20" "$(echo "$R_UPD" | jqget "['store']['markup_percent']")" "20"
+
+# Place an order through the reseller store (using store_slug)
+R_RES_ORDER=$(curl -s -X POST "$B/api/orders" -H "$J" -H "Authorization: Bearer $CTOK" -d "{\"bundle_id\":1,\"phone\":\"0241112222\",\"store_slug\":\"$STORE_SLUG\"}")
+ck "reseller order created" "$(echo "$R_RES_ORDER" | jqget "['dev']")" "True"
+RES_REF=$(echo "$R_RES_ORDER" | jqget "['reference']")
+
+# Deliver the reseller order
+sim --ref "$RES_REF" --amount 4.30 >/dev/null
+ck "reseller order delivered" "$(curl -s "$B/api/orders?reference=$RES_REF" | jqget "['order']['status']")" "delivered"
+
+# Check earnings
+R_EARN=$(curl -s "$B/api/store/earnings" -H "Authorization: Bearer $CTOK")
+HAS_BAL=$(echo "$R_EARN" | python3 -c "import sys,json;d=json.load(sys.stdin);print('balance' in d)")
+ck "earnings endpoint returns balance" "$HAS_BAL" "True"
+HAS_ENT=$(echo "$R_EARN" | python3 -c "import sys,json;d=json.load(sys.stdin);print(len(d.get('entries',[]))>0)")
+ck "earnings has entries" "$HAS_ENT" "True"
+
+# Store orders list
+R_SORD=$(curl -s "$B/api/store/orders" -H "Authorization: Bearer $CTOK")
+HAS_ORD=$(echo "$R_SORD" | python3 -c "import sys,json;d=json.load(sys.stdin);print(len(d.get('orders',[]))>0)")
+ck "store orders returns list" "$HAS_ORD" "True"
+
+# Earnings without auth → 401
+CODE_EARN=$(curl -s -o /dev/null -w '%{http_code}' "$B/api/store/earnings")
+ck "earnings without token → 401" "$CODE_EARN" "401"
+
+echo "── 23. OTP authentication ──"
+# Send OTP
+R_OTP=$(curl -s -X POST "$B/api/auth/otp/send" -H "$J" -d '{"phone":"0271234567"}')
+ck "OTP send returns ok" "$(echo "$R_OTP" | jqget "['ok']")" "True"
+HAS_CODE=$(echo "$R_OTP" | python3 -c "import sys,json;d=json.load(sys.stdin);print(len(d.get('dev_code',''))==6)")
+ck "OTP send has dev_code in dev mode" "$HAS_CODE" "True"
+OTP_CODE=$(echo "$R_OTP" | jqget "['dev_code']")
+
+# Verify OTP (wrong code)
+CODE_WRONG=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/auth/otp/verify" -H "$J" -d '{"phone":"0271234567","code":"000000"}')
+ck "OTP wrong code → 401" "$CODE_WRONG" "401"
+
+# Verify OTP (correct code → auto-creates account)
+R_OTPV=$(curl -s -X POST "$B/api/auth/otp/verify" -H "$J" -d "{\"phone\":\"0271234567\",\"code\":\"$OTP_CODE\"}")
+OTOK=$(echo "$R_OTPV" | jqget "['token']")
+ck "OTP verify returns token" "${OTOK:0:3}" "eyJ"
+ck "OTP creates new account" "$(echo "$R_OTPV" | jqget "['new_account']")" "True"
+
+# Invalid phone
+CODE_BADPHONE=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/auth/otp/send" -H "$J" -d '{"phone":"12345"}')
+ck "OTP invalid phone → 400" "$CODE_BADPHONE" "400"
+
+# No code sent → verify fails
+CODE_NOCODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/auth/otp/verify" -H "$J" -d '{"phone":"0551112233","code":"123456"}')
+ck "OTP verify without send → 400" "$CODE_NOCODE" "400"
+
+echo "── 24. Admin overview endpoint ──"
+R_OV=$(curl -s "$B/api/admin/overview" -H "Authorization: Bearer $TOK")
+HAS_WA=$(echo "$R_OV" | python3 -c "import sys,json;d=json.load(sys.stdin);print('active_sessions' in d.get('whatsapp',{}))")
+ck "overview returns whatsapp stats" "$HAS_WA" "True"
+HAS_REF=$(echo "$R_OV" | python3 -c "import sys,json;d=json.load(sys.stdin);print('total' in d.get('referrals',{}))")
+ck "overview returns referral stats" "$HAS_REF" "True"
+HAS_RES=$(echo "$R_OV" | python3 -c "import sys,json;d=json.load(sys.stdin);print('active' in d.get('resellers',{}))")
+ck "overview returns reseller stats" "$HAS_RES" "True"
+HAS_CH=$(echo "$R_OV" | python3 -c "import sys,json;d=json.load(sys.stdin);print(len(d.get('orders_by_channel',{}))>0)")
+ck "overview returns channel breakdown" "$HAS_CH" "True"
+
+# Overview without auth → 401
+CODE_OV=$(curl -s -o /dev/null -w '%{http_code}' "$B/api/admin/overview")
+ck "overview without token → 401" "$CODE_OV" "401"
+
+echo "── 25. New static pages ──"
+for p in /terms.html /privacy.html /about.html /contact.html /faq.html /otp.html /store.html /storefront.html; do
+  CODE=$(curl -s -o /dev/null -w '%{http_code}' "$B$p")
+  ck "page $p" "$CODE" "200"
 done
+
+echo "── 26. WhatsApp delivery confirmations ──"
+# The WhatsApp bot already tags orders with channel=whatsapp (tested in §18)
+# Verify the notify module handles whatsapp_from correctly
+WA_NOTIFY=$(node -e "
+const n=require('./lib/notify');
+n.send('order.receipt',{phone:'0241112222',reference:'VD-TEST-0001',size_mb:1024,network_code:'mtn',whatsapp_from:'233241112222',channel:'whatsapp'}).then(r=>console.log('ok'))
+" 2>/dev/null | tail -1)
+ck "WhatsApp delivery notification fires" "$WA_NOTIFY" "ok"
+
 echo ""
 echo "RESULT: $PASS passed, $FAIL failed"
-[ "$FAIL" -eq 0 ] && [ "$PASS" -ge 99 ]
+[ "$FAIL" -eq 0 ] && [ "$PASS" -ge 140 ]

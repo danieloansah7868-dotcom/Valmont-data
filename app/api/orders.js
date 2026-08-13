@@ -29,7 +29,7 @@ async function post(req, res) {
   });
   if (!body) return json(res, 400, { error: "Invalid JSON" });
 
-  const { bundle_id, phone } = body;
+  const { bundle_id, phone, use_credit, store_slug } = body;
 
   // Phone validation — Ghana format + known prefix.
   const check = phones.validate(phone);
@@ -46,7 +46,34 @@ async function post(req, res) {
     return json(res, 422, { error: "This bundle is temporarily unavailable — restocking soon" });
   }
 
-  const order = await orders.createOrder(bundle, check.normalized, bundle.network_id, customer.id);
+  // Referral credit: apply if requested and available
+  let creditApplied = 0;
+  if (use_credit) {
+    const referrals = require("../lib/referrals");
+    const balance = await referrals.getBalance(customer.id);
+    if (balance > 0) {
+      creditApplied = Math.min(balance, Number(bundle.sell_price));
+    }
+  }
+
+  // Reseller: resolve store slug to reseller_id
+  let resellerId = null;
+  if (store_slug) {
+    const { db } = require("../lib/supabase");
+    const stores = await db.select({ from: "resellers", where: { slug: `eq.${store_slug}`, status: "eq.active" } });
+    if (stores.length) resellerId = stores[0].id;
+  }
+
+  const order = await orders.createOrder(bundle, check.normalized, bundle.network_id, customer.id, {
+    creditApplied,
+    resellerId,
+  });
+
+  // Record the credit spend AFTER order is created (so we have order.id)
+  if (creditApplied > 0) {
+    const referrals = require("../lib/referrals");
+    await referrals.spendCredit(customer.id, creditApplied, order.id);
+  }
 
   const siteUrl = (process.env.SITE_URL || "").replace(/\/$/, "");
   let checkout;
@@ -69,6 +96,8 @@ async function post(req, res) {
     reference: order.reference,
     checkout_url: checkout.checkout_url || null,
     dev: !!checkout.dev,
+    credit_applied: creditApplied,
+    amount_due: Number(order.amount),
     message: checkout.dev
       ? "DEV MODE — no Valmont-Pay configured. Simulate payment: node scripts/sim-webhook.js --ref " + order.reference
       : "Redirecting to Valmont-Pay…",

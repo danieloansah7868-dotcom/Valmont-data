@@ -131,6 +131,10 @@
       </button>
     </form>
 
+    <div style="text-align:center;margin:18px 0 0">
+      <a href="/otp.html" style="color:var(--muted);font-size:13.5px;text-decoration:none;border-bottom:1px solid var(--line-strong);padding-bottom:2px">Sign in with SMS code instead →</a>
+    </div>
+
     <div class="bottom-links">
       Don't have an account? <a href="/signup.html">Create one</a>
     </div>
@@ -166,10 +170,10 @@
           return;
         }
         
-        // Save token and info
-        localStorage.setItem("vd_customer_token", data.token);
+        // Save token and info (vd_token is the canonical key used across the app)
+        localStorage.setItem("vd_token", data.token);
         if (data.customer) {
-          localStorage.setItem("vd_customer_info", JSON.stringify(data.customer));
+          localStorage.setItem("vd_customer", JSON.stringify(data.customer));
         }
         
         // Redirect to homepage

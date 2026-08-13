@@ -295,6 +295,18 @@
     <div class="dash-card" id="dashAutoreload">
       <div class="sub">Loading your bundles…</div>
     </div>
+
+    <!-- Referral + Store cards -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-top:16px">
+      <div class="dash-card" id="dashReferral">
+        <h3 style="font-size:16px;margin:0 0 8px">🎁 Refer &amp; Earn</h3>
+        <div id="referralContent" style="font-size:14px;color:var(--muted)">Loading…</div>
+      </div>
+      <div class="dash-card">
+        <h3 style="font-size:16px;margin:0 0 8px">🏪 Reseller Store</h3>
+        <div id="storeContent" style="font-size:14px;color:var(--muted)">Loading…</div>
+      </div>
+    </div>
   </main>
 
   <footer class="footer-dark">
@@ -365,5 +377,48 @@
   <script src="assets/js/storefront.js"></script>
   <script src="assets/js/pwa.js"></script>
   <script src="assets/js/autoreload.js"></script>
+  <script>
+    // Load referral + store data on dashboard
+    (async function loadDashExtras() {
+      const token = localStorage.getItem('vd_token');
+      if (!token) return;
+      const hdrs = { Authorization: 'Bearer ' + token };
+
+      // Referrals
+      try {
+        const r = await fetch('/api/referrals', { headers: hdrs });
+        if (r.ok) {
+          const d = await r.json();
+          const el = document.getElementById('referralContent');
+          if (el) {
+            const site = location.origin;
+            el.innerHTML =
+              `<div>Code: <b style="color:var(--orange)">${d.code}</b></div>` +
+              `<div>Balance: <b>GH₵${(d.credit_balance || 0).toFixed(2)}</b></div>` +
+              `<div style="margin-top:8px"><a href="${site}/r/${d.code}" style="color:var(--orange);font-size:13px">Copy share link →</a></div>`;
+          }
+        }
+      } catch {}
+
+      // Store
+      try {
+        const r = await fetch('/api/store', { headers: hdrs });
+        if (r.ok) {
+          const d = await r.json();
+          const el = document.getElementById('storeContent');
+          if (el) {
+            if (d.store) {
+              el.innerHTML =
+                `<div><b>${d.store.store_name}</b> — /s/${d.store.slug}</div>` +
+                `<div>Orders: ${d.store.total_orders || 0} · Balance: GH₵${(d.store.balance || 0).toFixed(2)}</div>` +
+                `<div style="margin-top:8px"><a href="/store.html" style="color:var(--orange);font-size:13px">Manage store →</a></div>`;
+            } else {
+              el.innerHTML = `<div>Open a free reseller store and earn on every sale.</div><div style="margin-top:8px"><a href="/store.html" style="color:var(--orange);font-size:13px">Create your store →</a></div>`;
+            }
+          }
+        }
+      } catch {}
+    })();
+  </script>
 </body>
 </html>

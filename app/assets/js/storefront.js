@@ -26,8 +26,8 @@
     lowFloat: {},
     currentNet: "mtn",
     selected: null,
-    customerToken: localStorage.getItem("vd_customer_token") || null,
-    customerInfo: JSON.parse(localStorage.getItem("vd_customer_info") || "null"),
+    customerToken: localStorage.getItem("vd_token") || localStorage.getItem("vd_customer_token") || null,
+    customerInfo: JSON.parse(localStorage.getItem("vd_customer") || localStorage.getItem("vd_customer_info") || "null"),
     accountData: null,
     pendingBundle: null,
   };
@@ -107,7 +107,8 @@
       state.accountData = data;
       if (data.customer) {
         state.customerInfo = data.customer;
-        localStorage.setItem("vd_customer_info", JSON.stringify(data.customer));
+        localStorage.setItem("vd_customer", JSON.stringify(data.customer));
+        localStorage.setItem("vd_customer_info", JSON.stringify(data.customer)); // legacy
       }
       renderNavAuth();
     } catch {
@@ -347,8 +348,10 @@
           }
           state.customerToken = data.token;
           state.customerInfo = data.customer;
-          localStorage.setItem("vd_customer_token", data.token);
-          localStorage.setItem("vd_customer_info", JSON.stringify(data.customer));
+          localStorage.setItem("vd_token", data.token);
+          localStorage.setItem("vd_customer", JSON.stringify(data.customer));
+          localStorage.setItem("vd_customer_token", data.token); // legacy
+          localStorage.setItem("vd_customer_info", JSON.stringify(data.customer)); // legacy
           m.classList.remove("open");
           renderNavAuth();
           await loadAccount();
@@ -374,6 +377,8 @@
     state.customerToken = null;
     state.customerInfo = null;
     state.accountData = null;
+    localStorage.removeItem("vd_token");
+    localStorage.removeItem("vd_customer");
     localStorage.removeItem("vd_customer_token");
     localStorage.removeItem("vd_customer_info");
     renderNavAuth();

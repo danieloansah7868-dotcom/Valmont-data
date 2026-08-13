@@ -16,7 +16,7 @@
   const mbLabel = (mb) => (mb >= 1024 ? `${Math.round(mb / 1024)}GB` : `${mb}MB`);
   const NETWORK_NAMES = { mtn: "MTN", telecel: "Telecel", airteltigo: "AirtelTigo" };
 
-  const token = localStorage.getItem("vd_customer_token");
+  const token = localStorage.getItem("vd_token") || localStorage.getItem("vd_customer_token");
   const API = { headers: { Authorization: `Bearer ${token}` } };
 
   // Mirror of lib/phones.js network detection (for form filtering only — the
