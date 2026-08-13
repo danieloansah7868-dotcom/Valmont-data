@@ -50,8 +50,8 @@ The **webhook handler is the heart of the system** (`api/valmontpay/webhook.js`)
 | `scripts/seed-demo.js` | Demo data: seed the mock DB (`SEED_DEMO=1`), verify consistency, or regenerate `supabase/seed-demo.sql` |
 | `scripts/sim-webhook.js` | Sign + send a fake payment webhook to test delivery |
 | `scripts/sim-usage.js` | Simulate usage reports (`--ref VD-... --used-mb N` or `--percent N`, or `--phone ...`) — dev stand-in for the telco/supplier usage feed |
-| `assets/img/valmont-data-logo.png` | **Official brand banner** — navy rounded-square star mark + "VALMONT DATA" wordmark (VALMONT white · DATA orange) + "By Valmont Group · Accra" tagline; header/nav logo, transparent |
-| `assets/img/valmont-data-favicon.png` | **Official brand icon** — the original pre-overhaul mark: navy `#0b1a38` rounded square with the orange-gold gradient star (`#ff8c00`→`#ffd000`); used for all favicon/apple-touch-icon links and manifest.json icons |
+| `assets/img/valmont-data-logo.png` | **Official brand banner** — dot-matrix globe badge (orange-gold gradient ring and dots on navy) + "VALMONT DATA" wordmark (VALMONT white · DATA orange); header/nav logo |
+| `assets/img/valmont-data-favicon.png` | **Official brand icon** — orange-gold dot-matrix globe; used for all favicon/apple-touch-icon links and manifest.json icons |
 
 ## Non-negotiable requirements — how each is enforced
 
