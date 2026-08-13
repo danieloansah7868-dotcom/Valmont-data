@@ -263,6 +263,11 @@
         phone: document.getElementById("suPhone").value.trim(),
         password: document.getElementById("suPass").value
       };
+
+      // Pass referral code from URL or localStorage
+      const params = new URLSearchParams(window.location.search);
+      const refCode = params.get('ref') || params.get('r') || localStorage.getItem('vd_referral');
+      if (refCode) payload.referral_code = refCode;
       
       try {
         const res = await fetch("/api/auth/customer/signup", {
@@ -279,14 +284,15 @@
           return;
         }
         
-        // Save token and info
-        localStorage.setItem("vd_customer_token", data.token);
+        // Save token and info (vd_token is the canonical key used across the app)
+        localStorage.setItem("vd_token", data.token);
         if (data.customer) {
-          localStorage.setItem("vd_customer_info", JSON.stringify(data.customer));
+          localStorage.setItem("vd_customer", JSON.stringify(data.customer));
         }
         
-        // Redirect to homepage to buy data
-        window.location.href = "dashboard.html";
+        // Redirect: return URL if present, otherwise dashboard
+        const returnUrl = params.get('return') || "dashboard.html";
+        window.location.href = returnUrl;
         
       } catch (err) {
         errBox.innerHTML = `<div class="notice err" style="margin-bottom:12px;">Network error. Please try again.</div>`;

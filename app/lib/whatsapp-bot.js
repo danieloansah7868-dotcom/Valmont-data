@@ -249,6 +249,8 @@ async function sendHelp(waId) {
     `📦 *Buy data*: Send "hi" and tap Buy Data\n` +
     `⚡ *Quick order*: Type e.g. "2gb mtn 0241234567"\n` +
     `📍 *Track order*: Type "track VD-260812-1234"\n` +
+    `🔄 *Auto-reload*: Type "autoreload" to see your rules\n` +
+    `💰 *Credits*: Type "credit" to check referral balance\n` +
     `❌ *Cancel*: Type "cancel" anytime\n\n` +
     `Payments via MoMo. Data delivers in seconds.\n\n` +
     `Need more help? Visit valmontdata.com or email support@valmontdata.com`;
