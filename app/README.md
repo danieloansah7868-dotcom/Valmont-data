@@ -50,9 +50,8 @@ The **webhook handler is the heart of the system** (`api/valmontpay/webhook.js`)
 | `scripts/seed-demo.js` | Demo data: seed the mock DB (`SEED_DEMO=1`), verify consistency, or regenerate `supabase/seed-demo.sql` |
 | `scripts/sim-webhook.js` | Sign + send a fake payment webhook to test delivery |
 | `scripts/sim-usage.js` | Simulate usage reports (`--ref VD-... --used-mb N` or `--percent N`, or `--phone ...`) — dev stand-in for the telco/supplier usage feed |
-| `scripts/build-icons.js` | Zero-dependency icon builder — regenerates the globe favicon/logo set (PNG/ICO) from `assets/img/favicon.svg` |
-| `assets/img/brand-logo.png`/`.svg` | **Brand banner** (gold constellation hexagon + VALMONT DATA wordmark) — header/footer logo, transparent |
-| `assets/img/favicon.svg` | Gold constellation mark — browser/PWA favicon; transparent PNG/ICO raster set alongside |
+| `assets/img/valmont-data-logo.png` | **Official brand banner** (gold constellation hexagon + VALMONT DATA wordmark) — header/nav logo, transparent |
+| `assets/img/valmont-data-favicon.png` | **Official brand favicon** — square gold constellation mark on navy; used for all favicon/apple-touch-icon links and manifest.json icons |
 
 ## Non-negotiable requirements — how each is enforced
 
