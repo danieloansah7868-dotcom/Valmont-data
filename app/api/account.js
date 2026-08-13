@@ -4,6 +4,20 @@
      POST   /api/account/saved  → save a data line or MoMo number (max 10 per category)
      DELETE /api/account/saved  → remove a saved number
      POST   /api/account/optin  → SMS marketing opt-in (public — storefront popup)
+
+   Referrals (merged here to stay under Vercel Hobby's 12-function cap)
+     GET    /api/referrals          → referral stats (code, credits, referrals)
+     POST   /api/referrals/claim    → claim a referral code at signup time
+     GET    /api/referrals/credits  → credit balance + history
+     GET    /api/referrals/verify   → public: verify a code exists
+
+   Reseller store (merged here for the same reason)
+     GET    /api/store              → own store data (customer-authenticated)
+     POST   /api/store              → create/update store (customer-authenticated)
+     GET    /api/store/check        → check slug availability
+     GET    /api/store/earnings     → earnings ledger (store owner)
+     GET    /api/store/orders       → recent store orders (store owner)
+     GET    /api/store/public       → public store data (no auth)
    ============================================================================ */
 
 const { json, readRawBody, wrap } = require("../lib/http");
@@ -11,6 +25,8 @@ const { requireCustomer } = require("../lib/auth");
 const { db } = require("../lib/supabase");
 const phones = require("../lib/phones");
 const orders = require("../lib/orders");
+const referrals = require("../lib/referrals");
+const resellers = require("../lib/resellers");
 
 function getTimeGreeting(name, email) {
   const hour = new Date().getUTCHours(); // Ghana is UTC+0
@@ -26,6 +42,15 @@ function getTimeGreeting(name, email) {
     firstName = part.charAt(0).toUpperCase() + part.slice(1).split(/\s+/)[0];
   }
   return `${greeting}, ${firstName}`;
+}
+
+function routeHint(req) {
+  const url = new URL(req.url, "http://local");
+  const path = url.pathname || "";
+  const section = url.searchParams.get("section") || "";
+  const sub = url.searchParams.get("sub") || "";
+  const haystack = `${path} ${req.url || ""}`.toLowerCase();
+  return { url, path, section, sub, haystack };
 }
 
 async function get(req, res) {
@@ -202,11 +227,160 @@ async function optin(req, res) {
   }
 }
 
+/* ---------- Referrals ---------- */
+async function handleReferrals(req, res, hint) {
+  const { url, path, sub, haystack } = hint;
+  const isCredits = path.includes("/credits") || sub === "credits" || haystack.includes("/credits");
+  const isClaim = path.includes("/claim") || sub === "claim" || haystack.includes("/claim");
+  const isVerify = path.includes("/verify") || sub === "verify" || haystack.includes("/verify");
+
+  if (req.method === "GET" && isCredits) {
+    const customer = requireCustomer(req);
+    const balance = await referrals.getBalance(customer.id);
+    const history = await db.select({
+      from: "referral_credits",
+      where: { customer_id: `eq.${customer.id}` },
+      order: "id.desc",
+      limit: 20,
+    });
+    return json(res, 200, {
+      balance,
+      history: history.map((h) => ({
+        id: h.id,
+        direction: h.direction,
+        amount: Number(h.amount),
+        balance_after: Number(h.balance_after),
+        note: h.note,
+        created_at: h.created_at,
+      })),
+    });
+  }
+
+  if (req.method === "POST" && isClaim) {
+    const customer = requireCustomer(req);
+    const body = await readRawBody(req).then((b) => {
+      try { return JSON.parse(b); } catch { return null; }
+    });
+    if (!body || !body.code) return json(res, 400, { error: "Referral code required" });
+
+    const result = await referrals.recordReferral(body.code, customer.id);
+    if (!result) {
+      return json(res, 400, { error: "Invalid referral code or self-referral not allowed" });
+    }
+    return json(res, 200, { ok: true, referral_id: result.id });
+  }
+
+  // Public endpoint: verify a referral code exists (for the signup page)
+  if (req.method === "GET" && isVerify) {
+    const code = url.searchParams.get("code") || "";
+    if (!code) return json(res, 400, { error: "Code required" });
+    const rows = await db.select({ from: "customers", where: { referral_code: `eq.${code.toUpperCase()}` } });
+    if (!rows.length) return json(res, 404, { error: "Invalid referral code" });
+    const referrer = rows[0];
+    return json(res, 200, {
+      valid: true,
+      referrer_name: referrer.name?.split(" ")[0] || "A friend",
+    });
+  }
+
+  if (req.method === "GET") {
+    const customer = requireCustomer(req);
+    const stats = await referrals.getStats(customer.id);
+    return json(res, 200, {
+      ...stats,
+      referral_link: `${(process.env.SITE_URL || "https://valmontdata.com").replace(/\/$/, "")}/r/${stats.code}`,
+      credit_amount: referrals.DEFAULT_CREDIT,
+      max_credit: referrals.MAX_CREDIT_PER_CUSTOMER,
+    });
+  }
+
+  return json(res, 404, { error: "Not found" });
+}
+
+/* ---------- Reseller store ---------- */
+async function handleStore(req, res, hint) {
+  const { url, path, sub, haystack } = hint;
+  const isPublic = path.includes("/public") || sub === "public" || haystack.includes("/public");
+  const isCheck = path.includes("/check") || sub === "check" || haystack.includes("/check");
+  const isEarnings = path.includes("/earnings") || sub === "earnings" || haystack.includes("/earnings");
+  const isOrders = path.includes("/orders") || sub === "orders" || haystack.includes("/orders");
+
+  // ---- Public endpoints (no auth) ----
+  if (req.method === "GET" && isPublic) {
+    const slug = url.searchParams.get("slug") || "";
+    if (!slug) return json(res, 400, { error: "Slug required" });
+    const store = await resellers.getStoreBySlug(slug);
+    if (!store) return json(res, 404, { error: "Store not found" });
+    return json(res, 200, { store });
+  }
+
+  if (req.method === "GET" && isCheck) {
+    const slug = resellers.slugify(url.searchParams.get("slug") || "");
+    if (slug.length < 3) return json(res, 200, { available: false, reason: "too short" });
+    const available = await resellers.isSlugAvailable(slug);
+    return json(res, 200, { available, slug });
+  }
+
+  // ---- Authenticated endpoints ----
+  const customer = requireCustomer(req);
+
+  if (req.method === "GET" && isEarnings) {
+    const store = await resellers.getStoreForCustomer(customer.id);
+    if (!store) return json(res, 404, { error: "No store found — create one first" });
+    const earnings = await resellers.getEarnings(store.id);
+    return json(res, 200, earnings);
+  }
+
+  if (req.method === "GET" && isOrders) {
+    const store = await resellers.getStoreForCustomer(customer.id);
+    if (!store) return json(res, 404, { error: "No store found — create one first" });
+    const storeOrders = await resellers.getStoreOrders(store.id);
+    return json(res, 200, { orders: storeOrders });
+  }
+
+  if (req.method === "GET") {
+    const store = await resellers.getStoreForCustomer(customer.id);
+    return json(res, 200, { store });
+  }
+
+  if (req.method === "POST") {
+    const body = await readRawBody(req).then((b) => {
+      try { return JSON.parse(b); } catch { return null; }
+    });
+    if (!body) return json(res, 400, { error: "Invalid JSON" });
+
+    // Check if store already exists — if so, update; otherwise create
+    const existing = await resellers.getStoreForCustomer(customer.id);
+    if (existing) {
+      const result = await resellers.updateStore(customer.id, body);
+      if (!result.ok) return json(res, 400, { error: result.error });
+      return json(res, 200, { ok: true, store: result.store, updated: true });
+    } else {
+      const result = await resellers.createStore(customer.id, body);
+      if (!result.ok) return json(res, 400, { error: result.error });
+      return json(res, 201, { ok: true, store: result.store, created: true });
+    }
+  }
+
+  return json(res, 404, { error: "Not found" });
+}
+
 module.exports = wrap(async (req, res) => {
-  const url = new URL(req.url, "http://local");
+  const hint = routeHint(req);
+  const { path, section, haystack } = hint;
 
   // Public SMS opt-in — no customer token required
-  if (url.pathname.includes("/optin")) return optin(req, res);
+  if (path.includes("/optin") || haystack.includes("/optin")) return optin(req, res);
+
+  // Referrals — must match before the generic account GET/POST
+  if (path.includes("/referrals") || section === "referrals" || haystack.includes("/referrals")) {
+    return handleReferrals(req, res, hint);
+  }
+
+  // Reseller store
+  if (path.includes("/store") || section === "store" || haystack.includes("/store")) {
+    return handleStore(req, res, hint);
+  }
 
   if (req.method === "GET") return get(req, res);
   if (req.method === "POST") return post(req, res);

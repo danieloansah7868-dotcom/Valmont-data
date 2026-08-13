@@ -34,16 +34,14 @@ The **webhook handler is the heart of the system** (`api/valmontpay/webhook.js`)
 | `admin.html` | Admin console — float, orders + retry, P&L, SMS leads export (1-click copy), webhook audit |
 | `api/valmontpay/webhook.js` | ⚠️ Payment webhook: signature verify → idempotent claim → float guard → delivery |
 | `api/whatsapp/webhook.js` | 📱 WhatsApp ordering bot: Meta Cloud API webhook → conversation engine → orders |
-| `api/referrals.js` | 🎁 Referral program: codes, credits, stats (customer-authenticated) |
 | `api/orders.js` | Create order (compulsory customer token, float guard #1, Valmont-Pay checkout) + public status |
-| `api/auth/customer.js` | Customer signup & login (scrypt password/PIN hash, 30-day HMAC token) |
-| `api/account.js` | Customer profile, time greeting ("Good morning, Kofi"), saved data/MoMo numbers (10/kind cap), order history, `POST /optin` (public SMS marketing opt-in) |
+| `api/auth/customer.js` | Customer signup, login (scrypt password/PIN hash, 30-day HMAC token) **and OTP send/verify** (merged to stay under Vercel Hobby's 12-function cap) |
+| `api/account.js` | Customer profile, time greeting ("Good morning, Kofi"), saved data/MoMo numbers (10/kind cap), order history, `POST /optin` (public SMS marketing opt-in), **plus referrals and reseller store** (same public URLs, one function) |
 | `api/autoreload.js` | Auto-reload API (customer token): `GET` (lines + usage + rules + catalogue), `POST` (opt-in / update / pause-resume toggle), `DELETE` (opt-out) — explicit consent required |
 | `api/usage.js` | **Usage reports** — how the web "tracks" the bundle: `POST` `{action:"report", reference|phone, used_mb}` updates a delivered bundle's `used_mb`; returns `low` + `should_ask` flags; `GET ?phone=&reference=` reads state. Auth: admin token or `x-usage-key: USAGE_REPORT_KEY` (supplier/telco pipeline) |
 | `api/bundles.js` | Public catalogue with server-side availability (never cost_price) |
 | `api/admin/*` | Login, float (+top-up), orders (+retry), P&L, SMS leads (`GET /sms-leads`), webhook log |
-| `api/cron/retry.js` | Daily cron (07:00 UTC) on Vercel Hobby + optional 15-min GitHub Actions pinger: retry failed deliveries (max 3), low-float alert |
-| `api/cron/autoreload.js` | **Auto-reload sweep**: daily Vercel cron (Hobby-compatible) — watches active rules, re-buys low/expired bundles from pre-authorized MoMos via the normal webhook pipeline. Dev/demo: `curl /api/cron/autoreload` |
+| `api/cron.js` | Unified cron (one function): `GET /api/cron/retry` retries failed deliveries (max 3) + low-float alert; `GET /api/cron/autoreload` sweeps opted-in lines and re-buys low/expired bundles via the normal webhook pipeline. Daily Vercel crons (07:00 / 07:30 UTC). Dev/demo: `curl /api/cron/autoreload` |
 | `lib/` | `supabase.js` (data layer + mock), `valmontpay.js` (client + HMAC-SHA512, incl. `initiateCharge` direct MoMo charge), `supplier.js` (adapter), `orders.js` (engine — creates `bundle_usage` on delivery), `autoreload.js` (engine — thresholds, cooldown, in-flight guard, dev webhook simulation), `whatsapp.js` (WhatsApp Cloud API client), `whatsapp-bot.js` (conversation engine), `referrals.js` (referral codes + credits), `sms.js` (SMS providers: Arkesel/mNotify/Hubtel), `phones.js`, `notify.js` (+ SMS on delivery), `auth.js` |
 | `supabase/schema.sql` | Tables (`customers`, `saved_numbers`, `sms_leads`, `orders`, `bundle_usage`, `auto_reload`, `float_ledger`, etc.), RLS, functions, seeds — run once in Supabase |
 | `supabase/seed-demo.sql` | **Demo seed** for DEMO/STAGING Supabase — customers, orders, bundle usage, auto-reload rules, float, webhook log (generated, self-skipping) |
@@ -117,7 +115,7 @@ setup decision. The site's contract never assumes it: `initiateCharge`
 returns `status: "authorization_pending"` + `awaiting_pin` until the webhook
 confirms.)
 
-**The engine** (`lib/autoreload.js`, swept by `api/cron/autoreload.js` every
+**The engine** (`lib/autoreload.js`, swept by `api/cron.js` every
 15 minutes) is conservative by design:
 
 - **Cooldown** — after a reload fires, no new reload for `AUTORELOAD_COOLDOWN_MINUTES` (default 720 = 12h), so a stale usage report can never drain the customer's MoMo.
