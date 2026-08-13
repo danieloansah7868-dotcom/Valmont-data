@@ -193,6 +193,17 @@
       form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
+    // Capture referral code from URL (?ref=XXX or /r/XXX)
+    function getReferralCode() {
+      const params = new URLSearchParams(location.search);
+      return params.get('ref') || params.get('r') || localStorage.getItem('vd_referral') || null;
+    }
+    // Store referral code for later use at signup
+    (function storeReferral() {
+      const code = getReferralCode();
+      if (code) localStorage.setItem('vd_referral', code);
+    })();
+
     async function placeOrder() {
       const phone = document.getElementById('phone').value.trim();
       if (!/^0\d{9}$/.test(phone)) {
@@ -203,7 +214,11 @@
 
       const token = localStorage.getItem('vd_token');
       if (!token) {
-        showMsg('Please sign in first — go to the main site to create an account', 'error');
+        // Redirect to signup with referral code preserved
+        const ref = getReferralCode();
+        const signupUrl = '/signup.html' + (ref ? '?ref=' + encodeURIComponent(ref) : '') + '&return=' + encodeURIComponent(location.href);
+        showMsg('Please sign in first', 'error');
+        setTimeout(() => { window.location.href = signupUrl; }, 1000);
         return;
       }
 

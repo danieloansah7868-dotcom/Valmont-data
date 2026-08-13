@@ -100,7 +100,7 @@
       $$(".admin-tab").forEach((x) => x.classList.remove("on"));
       t.classList.add("on");
       const activeTab = t.dataset.tab;
-      ["float", "prices", "orders", "pl", "smsleads", "webhooks"].forEach((k) => {
+      ["float", "prices", "orders", "pl", "smsleads", "webhooks", "overview"].forEach((k) => {
         const panel = $("#tab-" + k);
         if (panel) panel.style.display = k === activeTab ? "block" : "none";
       });
@@ -110,6 +110,7 @@
       else if (activeTab === "pl") loadPl(activePlDays);
       else if (activeTab === "smsleads") loadSmsLeads();
       else if (activeTab === "webhooks") loadWebhooks();
+      else if (activeTab === "overview") loadOverview();
     })
   );
 
@@ -523,4 +524,51 @@
       setTimeout(() => { btn.textContent = original; }, 2000);
     }
   });
+
+  /* ---------- overview: WhatsApp, Referrals, Resellers ---------- */
+  async function loadOverview() {
+    try {
+      const d = await api("/api/admin/overview");
+
+      // WhatsApp stats
+      const wa = d.whatsapp || {};
+      $("#waStats").innerHTML =
+        `<div><b>${wa.active_sessions || 0}</b> active sessions (24h)</div>` +
+        `<div><b>${wa.total_orders || 0}</b> orders via WhatsApp</div>`;
+      const msgs = (wa.recent_messages || []).slice(0, 10);
+      $("#waMessages").innerHTML = msgs.length
+        ? msgs.map(m => `<div style="padding:4px 0;border-bottom:1px solid var(--border)"><span style="color:var(--muted)">${m.direction === "inbound" ? "←" : "→"}</span> <b>${m.phone}</b>: ${(m.body || "").slice(0, 60)}</div>`).join("")
+        : '<div style="color:var(--muted)">No recent messages</div>';
+
+      // Referral stats
+      const ref = d.referrals || {};
+      $("#refStats").innerHTML =
+        `<div><b>${ref.total || 0}</b> total referrals</div>` +
+        `<div style="color:var(--green)"><b>${ref.rewarded || 0}</b> rewarded</div>` +
+        `<div style="color:var(--orange)"><b>${ref.pending || 0}</b> pending</div>`;
+
+      // Reseller stats
+      const res = d.resellers || {};
+      $("#resStats").innerHTML =
+        `<div><b>${res.active || 0}</b> active stores (${res.total || 0} total)</div>` +
+        `<div>Revenue: <b>GH₵${(res.total_revenue || 0).toFixed(2)}</b></div>` +
+        `<div>Earnings paid: <b>GH₵${(res.total_earnings || 0).toFixed(2)}</b></div>`;
+      const stores = (res.stores || []).filter(s => s.status === "active");
+      $("#resStores").innerHTML = stores.length
+        ? stores.map(s => `<div style="padding:4px 0;border-bottom:1px solid var(--border)"><b>${s.store_name}</b> <span style="color:var(--muted)">/s/${s.slug}</span> · ${s.markup_percent}% · ${s.total_orders} orders</div>`).join("")
+        : '<div style="color:var(--muted)">No active stores yet</div>';
+
+      // Channel breakdown
+      const ch = d.orders_by_channel || {};
+      const total = Object.values(ch).reduce((a, b) => a + b, 0);
+      $("#channelStats").innerHTML = total
+        ? Object.entries(ch).map(([k, v]) => {
+            const pct = ((v / total) * 100).toFixed(1);
+            return `<div style="display:flex;justify-content:space-between;padding:4px 0"><span>${k}</span><b>${v} (${pct}%)</b></div>`;
+          }).join("")
+        : '<div style="color:var(--muted)">No orders yet</div>';
+    } catch (e) {
+      $("#waStats").innerHTML = `<div style="color:var(--red)">Failed to load: ${e.message}</div>`;
+    }
+  }
 })();

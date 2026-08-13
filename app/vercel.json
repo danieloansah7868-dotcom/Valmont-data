@@ -13,6 +13,7 @@
     { "source": "/api/admin/:path*", "destination": "/api/admin" },
     { "source": "/api/account/:path*", "destination": "/api/account" },
     { "source": "/api/auth/customer/:path*", "destination": "/api/auth/customer" },
+    { "source": "/api/auth/otp/:path*", "destination": "/api/auth/otp" },
     { "source": "/api/whatsapp/:path*", "destination": "/api/whatsapp/webhook" },
     { "source": "/api/referrals/:path*", "destination": "/api/referrals" },
     { "source": "/api/store/:path*", "destination": "/api/store" },

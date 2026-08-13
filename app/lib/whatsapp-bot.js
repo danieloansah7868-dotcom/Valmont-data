@@ -199,6 +199,10 @@ async function handleMessage({ from, text, buttonReply }) {
   } else if (/^track\s+(VD-\d{6}-\d{4})/i.test(lower) || /^VD-\d{6}-\d{4}$/.test(input.trim())) {
     const ref = (/VD-\d{6}-\d{4}/.exec(input) || [])[0];
     return trackOrder(waId, ref);
+  } else if (/^(autoreload|auto|reload)\b/i.test(lower)) {
+    return showAutoReloadStatus(waId, customer);
+  } else if (/^(credit|credits|referral|balance)\b/i.test(lower)) {
+    return showCreditBalance(waId, customer);
   }
 
   // ---- Quick order shortcuts ----
@@ -527,11 +531,57 @@ async function handleConfirm(waId, reply, ctx, customer) {
     return whatsapp.sendText(waId, `⏳ This bundle is temporarily out of stock. Please try again in a few minutes.`);
   }
 
+  // Check referral credits
+  let creditApplied = 0;
+  if (customer?.id && !ctx.credit_checked) {
+    const referrals = require("./referrals");
+    const balance = await referrals.getBalance(customer.id);
+    if (balance > 0 && !ctx.skip_credit) {
+      creditApplied = Math.min(balance, Number(bundle.sell_price));
+      // If we haven't asked about credit yet, ask now
+      if (!ctx.credit_offered) {
+        await upsertSession(waId, "confirm", { ...ctx, credit_offered: true, credit_available: creditApplied }, customer.id);
+        const discounted = Number(bundle.sell_price) - creditApplied;
+        let msg = `💰 You have *${formatPrice(creditApplied)}* in referral credits!\n\n`;
+        msg += `📦 ${formatSize(ctx.size_mb)} ${ctx.network.toUpperCase()} → ${ctx.phone}\n`;
+        msg += `Original: ${formatPrice(bundle.sell_price)}\n`;
+        msg += `Credit: -${formatPrice(creditApplied)}\n`;
+        msg += `*You pay: ${formatPrice(discounted)}*\n\n`;
+        msg += `Use your credit?`;
+        return whatsapp.sendButtons(waId, msg, [
+          { id: "yes_credit", title: "✅ Yes, use credit" },
+          { id: "no_credit", title: "No, pay full price" },
+        ]);
+      }
+    }
+  }
+
+  // Handle credit decision
+  if (reply.toLowerCase() === "yes_credit" || reply.toLowerCase() === "yes credit") {
+    creditApplied = ctx.credit_available || 0;
+  } else if (reply.toLowerCase() === "no_credit" || reply.toLowerCase() === "no credit") {
+    creditApplied = 0;
+  }
+
+  // Spend the credit if applying
+  if (creditApplied > 0 && customer?.id) {
+    const referrals = require("./referrals");
+    // We'll record the spend after order creation (need order.id)
+  }
+
   // Create the order (tagged as WhatsApp channel for delivery confirmations)
   const order = await orders.createOrder(bundle, ctx.phone, ctx.network_id, customer?.id || null, {
     channel: "whatsapp",
     whatsappFrom: waId,
+    creditApplied,
   });
+
+  // Record credit spend after order creation
+  if (creditApplied > 0 && customer?.id) {
+    const referrals = require("./referrals");
+    await referrals.spendCredit(customer.id, creditApplied, order.id).catch(() => {});
+  }
+
   await resetSession(waId);
 
   // In dev mode (no real Valmont-Pay), simulate the payment
@@ -576,6 +626,63 @@ async function handleConfirm(waId, reply, ctx, customer) {
 async function handleTrackButton(waId) {
   await upsertSession(waId, "idle", { asking_track: true });
   return whatsapp.sendText(waId, "📍 Send your order reference (e.g. *VD-260812-1234*) and I'll look it up.");
+}
+
+/* ---------- Auto-reload status + opt-in ---------- */
+async function showAutoReloadStatus(waId, customer) {
+  if (!customer) {
+    return whatsapp.sendText(waId, "🔒 Auto-reload requires an account.\n\nSign up at valmontdata.com/signup or send *hi* to buy data first.");
+  }
+
+  // Check existing rules
+  const rules = await db.select({ from: "auto_reload", where: { customer_id: `eq.${customer.id}` } });
+
+  if (rules.length) {
+    let msg = `*Your Auto-reload Rules:*\n\n`;
+    for (const rule of rules) {
+      const networks = await db.select({ from: "networks", where: { id: `eq.${rule.network_id}` } });
+      const bundles = await db.select({ from: "bundles", where: { id: `eq.${rule.bundle_id}` } });
+      const netName = networks[0]?.name || "?";
+      const sizeStr = bundles[0] ? formatSize(bundles[0].size_mb) : "?";
+      const status = rule.active ? "✅ Active" : "⏸️ Paused";
+      const relation = rule.relation === "other" ? " 📤 (others)" : "";
+      msg += `📱 ${rule.phone}${relation}\n   ${sizeStr} ${netName} · when ${rule.trigger_percent}% left\n   ${status}\n\n`;
+    }
+    msg += `_To add or manage rules, visit valmontdata.com/autoreload.html_`;
+    return whatsapp.sendText(waId, msg);
+  }
+
+  // No rules — offer to set one up
+  return whatsapp.sendText(waId,
+    `🔄 *Auto-reload*\n\n` +
+    `You don't have auto-reload set up yet.\n\n` +
+    `When your data runs low, we automatically buy a new bundle from your pre-authorized MoMo — you approve each charge with your PIN.\n\n` +
+    `To set up auto-reload, visit:\nvalmontdata.com/autoreload.html\n\n` +
+    `Or just buy data now and we'll offer it after delivery!`
+  );
+}
+
+/* ---------- Credit balance ---------- */
+async function showCreditBalance(waId, customer) {
+  if (!customer) {
+    return whatsapp.sendText(waId, "🔒 Sign in to check your referral credits.\n\nSend *hi* to get started.");
+  }
+
+  const referrals = require("./referrals");
+  const balance = await referrals.getBalance(customer.id);
+  const stats = await referrals.getStats(customer.id);
+
+  let msg = `💰 *Your Referral Credits*\n\n`;
+  msg += `Balance: *${formatPrice(balance)}*\n`;
+  msg += `Friends referred: ${stats.total_referred}\n`;
+  msg += `Your code: *${stats.code}*\n\n`;
+
+  if (balance > 0) {
+    msg += `Credits auto-apply to your next order. Just say *yes* when asked during checkout!`;
+  } else {
+    msg += `Share your code with friends to earn GH₵2 credit when they buy!`;
+  }
+  return whatsapp.sendText(waId, msg);
 }
 
 module.exports = {

@@ -256,6 +256,13 @@ async function handler(req, res) {
     }
   }
 
+  // 7b. /api/admin/overview — summary stats for WhatsApp, referrals, resellers
+  if (pathname.includes("/overview")) {
+    if (req.method !== "GET") return json(res, 405, { error: "GET only" });
+    const data = await handleOverview(req);
+    return json(res, 200, data);
+  }
+
   // 8. /api/admin/bundles
   if (pathname.includes("/bundles")) {
     if (req.method === "GET") {
@@ -298,6 +305,74 @@ async function handler(req, res) {
   }
 
   return json(res, 404, { error: "Admin endpoint not found" });
+}
+
+/* ============================================================================
+   §11  GET /api/admin/overview — summary stats for WhatsApp, referrals, resellers
+   ============================================================================ */
+async function handleOverview(req) {
+  requireAdmin(req);
+
+  // WhatsApp sessions (active in last 24h)
+  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const waSessions = await db.select({ from: "whatsapp_sessions", where: { updated_at: `gte.${cutoff}` } });
+  const waOrders = await db.select({ from: "orders", where: { channel: "eq.whatsapp" } });
+
+  // WhatsApp logs (last 50)
+  const waLogs = await db.select({ from: "whatsapp_log", order: "id.desc", limit: 20 });
+
+  // Referrals
+  const allReferrals = await db.select({ from: "referrals" });
+  const rewarded = allReferrals.filter((r) => r.status === "rewarded").length;
+  const pending = allReferrals.filter((r) => r.status === "pending").length;
+
+  // Resellers
+  const allResellers = await db.select({ from: "resellers" });
+  const activeStores = allResellers.filter((r) => r.status === "active").length;
+  const totalStoreRevenue = allResellers.reduce((sum, r) => sum + Number(r.total_revenue || 0), 0);
+  const totalStoreEarnings = allResellers.reduce((sum, r) => sum + Number(r.total_earnings || 0), 0);
+
+  // Orders by channel
+  const allOrders = await db.select({ from: "orders", order: "id.desc", limit: 1000 });
+  const byChannel = {};
+  for (const o of allOrders) {
+    const ch = o.channel || "web";
+    byChannel[ch] = (byChannel[ch] || 0) + 1;
+  }
+
+  return {
+    whatsapp: {
+      active_sessions: waSessions.length,
+      total_orders: waOrders.length,
+      recent_messages: waLogs.map((l) => ({
+        direction: l.direction,
+        phone: l.phone,
+        type: l.message_type,
+        body: (l.message_body || "").slice(0, 100),
+        created_at: l.created_at,
+      })),
+    },
+    referrals: {
+      total: allReferrals.length,
+      rewarded,
+      pending,
+    },
+    resellers: {
+      total: allResellers.length,
+      active: activeStores,
+      total_revenue: totalStoreRevenue,
+      total_earnings: totalStoreEarnings,
+      stores: allResellers.map((r) => ({
+        slug: r.slug,
+        store_name: r.store_name,
+        markup_percent: Number(r.markup_percent),
+        total_orders: r.total_orders,
+        total_earnings: Number(r.total_earnings),
+        status: r.status,
+      })),
+    },
+    orders_by_channel: byChannel,
+  };
 }
 
 module.exports = wrap(handler);

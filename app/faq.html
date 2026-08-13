@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FAQ — Frequently Asked Questions | Valmont Data</title>
+  <meta name="description" content="Frequently asked questions about buying data on Valmont Data: delivery, refunds, WhatsApp ordering, auto-reload, referrals and reseller stores.">
+  <link rel="icon" type="image/svg+xml" href="assets/img/favicon.svg">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <style>
+    .faq-item { border-bottom: 1px solid var(--border); }
+    .faq-q { display:flex; justify-content:space-between; align-items:center; width:100%; padding:16px 0; background:none; border:none; color:var(--text); font-size:15px; font-weight:600; cursor:pointer; text-align:left; }
+    .faq-q:hover { color: var(--accent); }
+    .faq-a { padding:0 0 16px; font-size:14px; line-height:1.6; color:var(--text); display:none; }
+    .faq-item.open .faq-a { display:block; }
+    .faq-item.open .chev { transform: rotate(45deg); }
+    .chev { font-size:20px; color:var(--accent); transition: transform 0.2s; flex-shrink:0; margin-left:12px; }
+  </style>
+</head>
+<body>
+  <main style="max-width:760px;margin:0 auto;padding:24px 16px 60px">
+    <a href="/" style="color:var(--muted);font-size:14px;text-decoration:none">← Back</a>
+    <div style="margin-top:24px">
+      <div class="k">FAQ</div>
+      <h1 class="t" style="margin:8px 0 12px">Frequently asked questions</h1>
+      <p style="font-size:15px;color:var(--text)">Straight answers to the questions we hear every day.</p>
+
+      <div style="margin-top:28px">
+        <div class="faq-item">
+          <button class="faq-q">How fast is delivery?<span class="chev">+</span></button>
+          <div class="faq-a"><p>Most bundles deliver within minutes, but it depends on network conditions. We show delivery status on every order, and failed deliveries are <b>automatically retried</b> (up to 3 attempts) and refunded if they can't complete.</p></div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q">Do I need an account?<span class="chev">+</span></button>
+          <div class="faq-a"><p>Yes — a free account is required to place orders. Sign up with your phone number and a 4-digit PIN. Accounts unlock saved numbers, order history, auto-reload, referral credits, and reseller stores.</p></div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q">Can I buy data on WhatsApp?<span class="chev">+</span></button>
+          <div class="faq-a"><p>Yes! Send <b>"hi"</b> to our WhatsApp number and our bot will walk you through picking a network, bundle and phone number. You can also type quick orders like <b>"2gb mtn 0241234567"</b> or track orders with <b>"track VD-260813-1234"</b>.</p></div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q">What if my bundle doesn't arrive?<span class="chev">+</span></button>
+          <div class="faq-a"><p>Failed orders are <b>automatically retried</b> up to 3 times, then <b>automatically refunded</b> to your original payment method. You'll get an SMS and/or WhatsApp notification either way. No need to contact us.</p></div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q">I entered the wrong number. Can I get a refund?<span class="chev">+</span></button>
+          <div class="faq-a"><p>No — wrong-number orders are not refundable (this is standard across the industry). Please verify the number twice before paying. Our system warns you if the number's prefix doesn't match the selected network.</p></div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q">How does auto-reload work?<span class="chev">+</span></button>
+          <div class="faq-a"><p>Opt in at the Auto-reload page or in WhatsApp after a delivery. Pick a line, a bundle, and a threshold (e.g. "top me up when 10% is left"). Each auto-reload sends a <b>MoMo prompt to your phone</b> — you approve with your PIN before anything is charged. Cancel anytime.</p></div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q">How do referrals work?<span class="chev">+</span></button>
+          <div class="faq-a"><p>Every customer gets a referral code (e.g. KOFI-A3X2). Share it with friends — when they sign up with your code and make their first purchase, you both earn <b>GH₵2 credit</b>. Credits auto-apply to your next order. Max GH₵50 per account.</p></div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q">Can I resell data?<span class="chev">+</span></button>
+          <div class="faq-a"><p>Yes — open a free store at <a href="store.html" style="color:var(--accent)">valmontdata.com/store</a>. Pick a name, set your markup (e.g. 15%), and share your store link. You earn margin on every sale through your store. Earnings tracked in your dashboard.</p></div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q">Which networks are supported?<span class="chev">+</span></button>
+          <div class="faq-a"><p><b>MTN</b> (non-expiry), <b>Telecel</b> (60-day rollover) and <b>AirtelTigo</b> (60-day rollover). Bundle sizes range from 1GB to 50GB.</p></div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q">Is my MoMo PIN safe?<span class="chev">+</span></button>
+          <div class="faq-a"><p>Yes. All payments go through <b>Valmont-Pay</b>, a licensed payment gateway. We never see or store your MoMo PIN. Every transaction requires your approval on your phone.</p></div>
+        </div>
+      </div>
+    </div>
+  </main>
+  <script>
+    document.querySelectorAll('.faq-q').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        this.parentElement.classList.toggle('open');
+      });
+    });
+  </script>
+</body>
+</html>

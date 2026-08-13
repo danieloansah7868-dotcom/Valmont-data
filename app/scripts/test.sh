@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# Valmont Data — end-to-end test suite (120+ checks). Start the dev server first:
+# Valmont Data — end-to-end test suite (140+ checks). Start the dev server first:
 #   npm run dev   →  http://localhost:8787   (default mock DB)
 # The retry path is exercised deterministically via the built-in convention:
 # numbers ending 0000 fail their first delivery attempt (see lib/supplier.js).
@@ -423,7 +423,54 @@ ck "store orders returns list" "$HAS_ORD" "True"
 CODE_EARN=$(curl -s -o /dev/null -w '%{http_code}' "$B/api/store/earnings")
 ck "earnings without token → 401" "$CODE_EARN" "401"
 
-echo "── 23. WhatsApp delivery confirmations ──"
+echo "── 23. OTP authentication ──"
+# Send OTP
+R_OTP=$(curl -s -X POST "$B/api/auth/otp/send" -H "$J" -d '{"phone":"0271234567"}')
+ck "OTP send returns ok" "$(echo "$R_OTP" | jqget "['ok']")" "True"
+HAS_CODE=$(echo "$R_OTP" | python3 -c "import sys,json;d=json.load(sys.stdin);print(len(d.get('dev_code',''))==6)")
+ck "OTP send has dev_code in dev mode" "$HAS_CODE" "True"
+OTP_CODE=$(echo "$R_OTP" | jqget "['dev_code']")
+
+# Verify OTP (wrong code)
+CODE_WRONG=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/auth/otp/verify" -H "$J" -d '{"phone":"0271234567","code":"000000"}')
+ck "OTP wrong code → 401" "$CODE_WRONG" "401"
+
+# Verify OTP (correct code → auto-creates account)
+R_OTPV=$(curl -s -X POST "$B/api/auth/otp/verify" -H "$J" -d "{\"phone\":\"0271234567\",\"code\":\"$OTP_CODE\"}")
+OTOK=$(echo "$R_OTPV" | jqget "['token']")
+ck "OTP verify returns token" "${OTOK:0:3}" "eyJ"
+ck "OTP creates new account" "$(echo "$R_OTPV" | jqget "['new_account']")" "True"
+
+# Invalid phone
+CODE_BADPHONE=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/auth/otp/send" -H "$J" -d '{"phone":"12345"}')
+ck "OTP invalid phone → 400" "$CODE_BADPHONE" "400"
+
+# No code sent → verify fails
+CODE_NOCODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/auth/otp/verify" -H "$J" -d '{"phone":"0551112233","code":"123456"}')
+ck "OTP verify without send → 400" "$CODE_NOCODE" "400"
+
+echo "── 24. Admin overview endpoint ──"
+R_OV=$(curl -s "$B/api/admin/overview" -H "Authorization: Bearer $TOK")
+HAS_WA=$(echo "$R_OV" | python3 -c "import sys,json;d=json.load(sys.stdin);print('active_sessions' in d.get('whatsapp',{}))")
+ck "overview returns whatsapp stats" "$HAS_WA" "True"
+HAS_REF=$(echo "$R_OV" | python3 -c "import sys,json;d=json.load(sys.stdin);print('total' in d.get('referrals',{}))")
+ck "overview returns referral stats" "$HAS_REF" "True"
+HAS_RES=$(echo "$R_OV" | python3 -c "import sys,json;d=json.load(sys.stdin);print('active' in d.get('resellers',{}))")
+ck "overview returns reseller stats" "$HAS_RES" "True"
+HAS_CH=$(echo "$R_OV" | python3 -c "import sys,json;d=json.load(sys.stdin);print(len(d.get('orders_by_channel',{}))>0)")
+ck "overview returns channel breakdown" "$HAS_CH" "True"
+
+# Overview without auth → 401
+CODE_OV=$(curl -s -o /dev/null -w '%{http_code}' "$B/api/admin/overview")
+ck "overview without token → 401" "$CODE_OV" "401"
+
+echo "── 25. New static pages ──"
+for p in /terms.html /privacy.html /about.html /contact.html /faq.html /otp.html /store.html /storefront.html; do
+  CODE=$(curl -s -o /dev/null -w '%{http_code}' "$B$p")
+  ck "page $p" "$CODE" "200"
+done
+
+echo "── 26. WhatsApp delivery confirmations ──"
 # The WhatsApp bot already tags orders with channel=whatsapp (tested in §18)
 # Verify the notify module handles whatsapp_from correctly
 WA_NOTIFY=$(node -e "
@@ -434,4 +481,4 @@ ck "WhatsApp delivery notification fires" "$WA_NOTIFY" "ok"
 
 echo ""
 echo "RESULT: $PASS passed, $FAIL failed"
-[ "$FAIL" -eq 0 ] && [ "$PASS" -ge 120 ]
+[ "$FAIL" -eq 0 ] && [ "$PASS" -ge 140 ]
