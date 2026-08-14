@@ -11,6 +11,7 @@
   ],
   "rewrites": [
     { "source": "/api/admin/:path*", "destination": "/api/admin" },
+    { "source": "/api/account/history", "destination": "/api/account?section=history" },
     { "source": "/api/account/:path*", "destination": "/api/account" },
     { "source": "/api/auth/customer/:path*", "destination": "/api/auth/customer" },
     { "source": "/api/auth/otp/send", "destination": "/api/auth/customer?otp=send" },
@@ -30,6 +31,7 @@
     { "source": "/api/store/:path*", "destination": "/api/account?section=store" },
     { "source": "/api/cron/retry", "destination": "/api/cron?job=retry" },
     { "source": "/api/cron/autoreload", "destination": "/api/cron?job=autoreload" },
+    { "source": "/history", "destination": "/history.html" },
     { "source": "/s/:slug", "destination": "/storefront.html" },
     { "source": "/r/:code", "destination": "/index.html" }
   ],

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Purchase History — Valmont Data</title>
+  <meta name="description" content="Track your Valmont Data orders — delivery progress, tracking numbers, receipts and full purchase history.">
+  <meta name="robots" content="noindex">
+  <link rel="icon" type="image/png" sizes="512x512" href="assets/img/valmont-data-favicon.png">
+  <link rel="apple-touch-icon" href="assets/img/valmont-data-favicon.png">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0b1f3a">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Valmont Data">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+  <header class="nav">
+    <div class="wrap nav-inner">
+      <a class="brand" href="/" title="Valmont Data — Home">
+        <img src="assets/img/valmont-data-logo.png" alt="Valmont Data" class="brand-banner">
+      </a>
+      <div id="navAuthArea" style="margin-left:auto"></div>
+    </div>
+  </header>
+
+  <main>
+    <div class="wrap hist-wrap">
+
+      <div class="hist-head">
+        <div>
+          <h1 class="hist-title">Purchase History</h1>
+          <p class="hist-sub">Track your data orders</p>
+        </div>
+        <button class="hist-refresh" id="btnRefresh" title="Refresh" aria-label="Refresh">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+        </button>
+      </div>
+
+      <!-- Delivery progress panel -->
+      <section class="prog-card" id="progCard" hidden>
+        <div class="prog-head">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
+          Delivery Progress
+        </div>
+        <div id="progBody"></div>
+      </section>
+
+      <!-- Search -->
+      <div class="hist-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <input id="histSearch" type="search" placeholder="Search phone, reference..." autocomplete="off">
+      </div>
+
+      <!-- Filters -->
+      <button class="filters-toggle" id="btnFilters" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>
+        Filters
+        <span class="filters-count" id="filtersCount" hidden></span>
+      </button>
+
+      <div class="filters-panel" id="filtersPanel" hidden>
+        <div class="filter-row">
+          <span class="filter-label">Status</span>
+          <div class="filter-chips" id="statusChips">
+            <button class="fchip on" data-status="all">All</button>
+            <button class="fchip" data-status="processing">Processing</button>
+            <button class="fchip" data-status="delivered">Delivered</button>
+            <button class="fchip" data-status="failed">Failed</button>
+            <button class="fchip" data-status="refunded">Refunded</button>
+          </div>
+        </div>
+        <div class="filter-row">
+          <span class="filter-label">Network</span>
+          <div class="filter-chips" id="networkChips">
+            <button class="fchip on" data-network="all">All</button>
+            <button class="fchip" data-network="mtn">MTN</button>
+            <button class="fchip" data-network="telecel">Telecel</button>
+            <button class="fchip" data-network="airteltigo">AirtelTigo</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="hist-summary" id="histSummary"></div>
+
+      <!-- Order list -->
+      <div id="histList"></div>
+
+      <div class="hist-more" id="histMore" hidden>
+        <button class="btn btn-ghost btn-block" id="btnMore">Load more orders</button>
+      </div>
+
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap" style="text-align:center;padding:24px 0;color:var(--muted);font-size:13px">
+      Valmont Data — a subsidiary of Valmont Group of Companies, Accra.
+    </div>
+  </footer>
+
+  <a href="https://wa.me/233542451578" class="wa-float-fixed" target="_blank" rel="noopener" title="Chat with support">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.01 2.01c-5.46 0-9.89 4.43-9.89 9.89 0 1.74.45 3.44 1.32 4.94l-1.4 5.12 5.24-1.38c1.45.8 3.1 1.22 4.83 1.22 5.46 0 9.89-4.43 9.89-9.89s-4.43-9.89-9.89-9.89zm0 17.94c-1.48 0-2.92-.4-4.19-1.15l-.3-.18-3.12.82.83-3.04-.2-.32a8.02 8.02 0 0 1-1.25-4.44c0-4.44 3.61-8.05 8.05-8.05s8.05 3.61 8.05 8.05-3.61 8.05-8.05 8.05z"/></svg>
+  </a>
+
+  <script src="assets/js/storefront.js"></script>
+  <script src="assets/js/pwa.js"></script>
+  <script src="assets/js/history.js"></script>
+</body>
+</html>

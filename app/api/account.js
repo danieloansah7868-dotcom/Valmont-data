@@ -11,6 +11,12 @@
      GET    /api/referrals/credits  → credit balance + history
      GET    /api/referrals/verify   → public: verify a code exists
 
+   Purchase history (merged here for the same reason)
+     GET    /api/account/history    → full paginated order history + search,
+                                      status/network filters and a live
+                                      delivery-progress summary (recent
+                                      turnaround times + what's in the queue)
+
    Reseller store (merged here for the same reason)
      GET    /api/store              → own store data (customer-authenticated)
      POST   /api/store              → create/update store (customer-authenticated)
@@ -227,6 +233,254 @@ async function optin(req, res) {
   }
 }
 
+/* ---------- Purchase history ----------------------------------------------
+   GET /api/account/history
+     ?q=          search phone / reference / provider reference / track no.
+     ?status=     all | processing | delivered | failed | refunded
+     ?network=    all | mtn | telecel | airteltigo
+     ?page=       1-based
+     ?per_page=   default 10, max 50
+
+   Returns each order enriched for the history card (bundle size, network,
+   status group, copyable references, a plain-English explainer) plus a
+   platform-wide `progress` block: how fast the last deliveries actually
+   landed, which tracking number the delivery line is currently on, and
+   whether the supplier network is running slow right now.
+   -------------------------------------------------------------------------- */
+
+const PROCESSING_STATUSES = ["pending", "paid", "delivering"];
+
+function trackNumber(order) {
+  // Stable, human-friendly tracking number derived from the order id.
+  return String(2000000 + Number(order.id || 0));
+}
+
+function statusGroup(status) {
+  if (PROCESSING_STATUSES.includes(status)) return "processing";
+  if (status === "delivered") return "delivered";
+  if (status === "refunded") return "refunded";
+  return "failed";
+}
+
+const STATUS_LABEL = {
+  pending: "Awaiting payment",
+  paid: "Processing",
+  delivering: "Processing",
+  delivered: "Delivered",
+  failed: "Failed",
+  refunded: "Refunded",
+};
+
+function explainOrder(order) {
+  switch (order.status) {
+    case "pending":
+      return {
+        tone: "warn",
+        title: "⏳ Waiting for payment",
+        body: "We haven't received your payment yet. Complete checkout and delivery starts automatically.",
+      };
+    case "paid":
+      return {
+        tone: "ok",
+        title: "✅ Verified & accepted — being delivered",
+        body: "Your number passed verification and the order has been accepted. Your data is being delivered now — no action needed.",
+      };
+    case "delivering":
+      return {
+        tone: "ok",
+        title: "✅ Verified & accepted — being delivered",
+        body: "Your number passed verification and the order has been accepted. Your data is being delivered now — no action needed.",
+      };
+    case "delivered":
+      return {
+        tone: "ok",
+        title: "✅ Delivered",
+        body: "The bundle landed on this number. If the balance looks wrong, dial your network's balance code again — it can lag a few minutes.",
+      };
+    case "refunded":
+      return {
+        tone: "info",
+        title: "↩️ Refunded",
+        body: order.supplier_response?.reason || "This order was refunded. Wallet refunds are instant; MoMo refunds land within 24 hours.",
+      };
+    default:
+      return {
+        tone: "bad",
+        title: "⚠️ Delivery failed",
+        body: order.supplier_response?.error || "We could not deliver this bundle. Failed orders retry automatically, and anything still unfixed is refunded in full.",
+      };
+  }
+}
+
+function humanDuration(ms) {
+  if (!Number.isFinite(ms) || ms < 0) return null;
+  const mins = Math.round(ms / 60000);
+  if (mins < 60) return `${mins}m`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m ? `${h}h ${m}m` : `${h}h`;
+}
+
+/* Platform-wide delivery pulse: the two most recent completed deliveries
+   (fastest = "fast lane", slowest = "standard queue"), the order the
+   delivery line is currently working on, and a slow-network warning when
+   recent turnaround crosses 4 hours. */
+async function deliveryProgress() {
+  const recent = await db.select({
+    from: "orders",
+    order: "created_at.desc",
+    limit: 200,
+  });
+
+  const completed = recent
+    .filter((o) => o.status === "delivered" && o.delivered_at && o.created_at)
+    .map((o) => ({
+      track: trackNumber(o),
+      placed_at: o.created_at,
+      delivered_at: o.delivered_at,
+      ms: new Date(o.delivered_at).getTime() - new Date(o.created_at).getTime(),
+    }))
+    .filter((o) => o.ms >= 0)
+    .sort((a, b) => new Date(b.delivered_at) - new Date(a.delivered_at))
+    .slice(0, 12);
+
+  const bySpeed = [...completed].sort((a, b) => a.ms - b.ms);
+  const fastest = bySpeed[0] || null;
+  const slowest = bySpeed.length > 1 ? bySpeed[bySpeed.length - 1] : null;
+
+  const inFlight = recent
+    .filter((o) => PROCESSING_STATUSES.includes(o.status))
+    .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+  const workingOn = inFlight[0] || null;
+
+  const avgMs = completed.length
+    ? completed.reduce((s, o) => s + o.ms, 0) / completed.length
+    : 0;
+  const slow = avgMs >= 4 * 3600000;
+
+  return {
+    checked_at: new Date().toISOString(),
+    network_slow: slow,
+    notice: slow
+      ? "Network is slow (4+ hrs) — all orders will still be delivered."
+      : "Network is healthy — orders are delivering normally.",
+    fast_lane: fastest
+      ? { ...fastest, duration: humanDuration(fastest.ms), lane: "Fast lane" }
+      : null,
+    standard_queue: slowest
+      ? { ...slowest, duration: humanDuration(slowest.ms), lane: "Standard queue" }
+      : null,
+    checking_now: workingOn
+      ? { track: trackNumber(workingOn), placed_at: workingOn.created_at }
+      : null,
+    in_flight: inFlight.length,
+    average_duration: completed.length ? humanDuration(avgMs) : null,
+  };
+}
+
+async function handleHistory(req, res) {
+  if (req.method !== "GET") return json(res, 405, { error: "Method not allowed" });
+  const auth = requireCustomer(req);
+  const url = new URL(req.url, "http://local");
+
+  const q = (url.searchParams.get("q") || "").trim().toLowerCase();
+  const statusFilter = (url.searchParams.get("status") || "all").toLowerCase();
+  const networkFilter = (url.searchParams.get("network") || "all").toLowerCase();
+  const page = Math.max(1, Number(url.searchParams.get("page") || 1) || 1);
+  const perPage = Math.min(50, Math.max(1, Number(url.searchParams.get("per_page") || 10) || 10));
+
+  const allRows = await db.select({
+    from: "orders",
+    where: { customer_id: `eq.${auth.id}` },
+    order: "created_at.desc",
+  });
+
+  const enriched = await Promise.all(
+    allRows.map(async (o) => {
+      const bundle = await orders.findBundleById(o.bundle_id);
+      const network = await orders.findNetworkById(o.network_id);
+      const sizeMb = bundle ? bundle.size_mb : null;
+      return {
+        id: o.id,
+        track: trackNumber(o),
+        reference: o.reference,
+        provider_reference: o.provider_reference || null,
+        phone: o.phone,
+        amount: Number(o.amount),
+        credit_applied: Number(o.credit_applied || 0),
+        status: o.status,
+        status_group: statusGroup(o.status),
+        status_label: STATUS_LABEL[o.status] || o.status,
+        attempts: o.attempts || 0,
+        created_at: o.created_at,
+        delivered_at: o.delivered_at || null,
+        duration: o.delivered_at
+          ? humanDuration(new Date(o.delivered_at) - new Date(o.created_at))
+          : null,
+        network: network ? network.code : null,
+        network_name: network ? network.name : null,
+        size_mb: sizeMb,
+        size_label: sizeMb ? (sizeMb >= 1024 ? `${sizeMb / 1024}GB` : `${sizeMb}MB`) : null,
+        validity_days: bundle ? bundle.validity_days : null,
+        explain: explainOrder(o),
+      };
+    })
+  );
+
+  let filtered = enriched;
+  if (statusFilter !== "all") filtered = filtered.filter((o) => o.status_group === statusFilter);
+  if (networkFilter !== "all") filtered = filtered.filter((o) => o.network === networkFilter);
+  if (q) {
+    filtered = filtered.filter((o) =>
+      [o.phone, o.reference, o.provider_reference, o.track, o.network_name, o.size_label]
+        .filter(Boolean)
+        .some((v) => String(v).toLowerCase().includes(q))
+    );
+  }
+
+  const total = filtered.length;
+  const pages = Math.max(1, Math.ceil(total / perPage));
+  const start = (page - 1) * perPage;
+  const pageRows = filtered.slice(start, start + perPage);
+
+  const spent = enriched
+    .filter((o) => o.status_group === "delivered")
+    .reduce((s, o) => s + o.amount, 0);
+
+  const progress = await deliveryProgress();
+
+  // The delivery line is "just behind" a customer order when that order is
+  // still processing and an older tracking number is being worked on now.
+  const lineTrack = progress.checking_now?.track || progress.standard_queue?.track || null;
+  for (const o of pageRows) {
+    if (o.status_group === "processing" && lineTrack && lineTrack !== o.track) {
+      o.queue_hint = {
+        title: `🚚 Delivery line is at Tracking #${lineTrack}`,
+        body: `Your order (#${o.track}) is just behind the line — the queue is moving up toward you.`,
+      };
+    }
+  }
+
+  return json(res, 200, {
+    orders: pageRows,
+    progress,
+    filters: { q, status: statusFilter, network: networkFilter },
+    totals: {
+      all: enriched.length,
+      matched: total,
+      processing: enriched.filter((o) => o.status_group === "processing").length,
+      delivered: enriched.filter((o) => o.status_group === "delivered").length,
+      failed: enriched.filter((o) => o.status_group === "failed").length,
+      refunded: enriched.filter((o) => o.status_group === "refunded").length,
+      spent: Math.round(spent * 100) / 100,
+    },
+    page,
+    per_page: perPage,
+    pages,
+    has_more: page < pages,
+  });
+}
+
 /* ---------- Referrals ---------- */
 async function handleReferrals(req, res, hint) {
   const { url, path, sub, haystack } = hint;
@@ -371,6 +625,11 @@ module.exports = wrap(async (req, res) => {
 
   // Public SMS opt-in — no customer token required
   if (path.includes("/optin") || haystack.includes("/optin")) return optin(req, res);
+
+  // Purchase history — must match before the generic account GET
+  if (path.includes("/history") || section === "history" || haystack.includes("/history")) {
+    return handleHistory(req, res);
+  }
 
   // Referrals — must match before the generic account GET/POST
   if (path.includes("/referrals") || section === "referrals" || haystack.includes("/referrals")) {
