@@ -136,7 +136,7 @@ CODE=$(curl -s -o /dev/null -w '%{http_code}' "$B/api/admin/float")
 ck "admin without token → 401" "$CODE" "401"
 
 echo "── 11. static pages ──"
-for p in / /status.html /admin.html /autoreload.html; do
+for p in / /status.html /admin.html /autoreload.html /history.html; do
   CODE=$(curl -s -o /dev/null -w '%{http_code}' "$B$p")
   ck "page $p" "$CODE" "200"
 done
@@ -478,6 +478,28 @@ const n=require('./lib/notify');
 n.send('order.receipt',{phone:'0241112222',reference:'VD-TEST-0001',size_mb:1024,network_code:'mtn',whatsapp_from:'233241112222',channel:'whatsapp'}).then(r=>console.log('ok'))
 " 2>/dev/null | tail -1)
 ck "WhatsApp delivery notification fires" "$WA_NOTIFY" "ok"
+
+
+echo "── 27. purchase history ──"
+CODE=$(curl -s -o /dev/null -w '%{http_code}' "$B/api/account/history")
+ck "history requires a customer token (401)" "$CODE" "401"
+H=$(curl -s "$B/api/account/history?per_page=5" -H "Authorization: Bearer $CTOK")
+ck "history returns orders" "$(echo "$H" | python3 -c "import sys,json;print(len(json.load(sys.stdin)['orders'])>0)")" "True"
+ck "history order carries a tracking number" "$(echo "$H" | python3 -c "import sys,json;print(json.load(sys.stdin)['orders'][0]['track'].isdigit())")" "True"
+ck "history order carries a size label" "$(echo "$H" | python3 -c "import sys,json;o=json.load(sys.stdin)['orders'][0];print(bool(o['size_label']))")" "True"
+ck "history order carries a plain-English explainer" "$(echo "$H" | python3 -c "import sys,json;o=json.load(sys.stdin)['orders'][0];print(bool(o['explain']['title'] and o['explain']['body']))")" "True"
+ck "history exposes delivery progress" "$(echo "$H" | python3 -c "import sys,json;p=json.load(sys.stdin)['progress'];print(bool(p['notice']) and 'checked_at' in p)")" "True"
+ck "history totals add up" "$(echo "$H" | python3 -c "
+import sys,json;t=json.load(sys.stdin)['totals']
+print(t['all'] == t['processing']+t['delivered']+t['failed']+t['refunded'])")" "True"
+HP=$(curl -s "$B/api/account/history?per_page=1" -H "Authorization: Bearer $CTOK")
+ck "history paginates" "$(echo "$HP" | python3 -c "import sys,json;d=json.load(sys.stdin);print(len(d['orders'])==1 and d['pages']>=1)")" "True"
+HQ=$(curl -s "$B/api/account/history?q=zzzznomatch" -H "Authorization: Bearer $CTOK")
+ck "history search filters out non-matches" "$(echo "$HQ" | python3 -c "import sys,json;print(len(json.load(sys.stdin)['orders']))")" "0"
+HN=$(curl -s "$B/api/account/history?network=telecel" -H "Authorization: Bearer $CTOK")
+ck "history network filter is respected" "$(echo "$HN" | python3 -c "import sys,json;print(all(o['network']=='telecel' for o in json.load(sys.stdin)['orders']))")" "True"
+HS=$(curl -s "$B/api/account/history?status=delivered" -H "Authorization: Bearer $CTOK")
+ck "history status filter is respected" "$(echo "$HS" | python3 -c "import sys,json;print(all(o['status_group']=='delivered' for o in json.load(sys.stdin)['orders']))")" "True"
 
 echo ""
 echo "RESULT: $PASS passed, $FAIL failed"

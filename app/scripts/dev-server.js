@@ -62,6 +62,7 @@ const routes = {
   "POST /api/account/saved": accountRouter,
   "DELETE /api/account/saved": accountRouter,
   "POST /api/account/optin": accountRouter,
+  "GET /api/account/history": accountRouter,
   "POST /api/valmontpay/webhook": require("../api/valmontpay/webhook.js"),
   "GET /api/whatsapp/webhook": require("../api/whatsapp/webhook.js"),
   "POST /api/whatsapp/webhook": require("../api/whatsapp/webhook.js"),
