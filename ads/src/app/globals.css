@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+@theme {
+  --color-navy-950: #060f21;
+  --color-navy-900: #0b1a38;
+  --color-navy-800: #122347;
+  --color-navy-700: #1b3160;
+  --color-navy-600: #27427c;
+  --color-orange-brand: #ff8c00;
+  --color-orange-soft: #ffa733;
+  --color-paper: #f8fafc;
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--color-paper);
+  color: #0f172a;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* hide number input spinners */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@utility animate-fade-up {
+  animation: fade-up 0.35s ease-out both;
+}
