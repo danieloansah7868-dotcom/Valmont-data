@@ -248,25 +248,20 @@ export const SPONSORED_PER_PAGE = 2;
 export function slotBudget(perPage: number): number {
   return Math.max(0, Math.min(SPONSORED_PER_PAGE, Math.floor(perPage / 6)));
 }
-/* A campaign must sit out at least this many pages between appearances, so a
-   single client cannot follow a buyer down the whole listing. */
-export const SPONSORED_PAGE_GAP = 2;
 const SPONSORED_SLOTS = [2, 7]; // 0-based: third card, then eighth
 
-/** Which campaigns (if any) are allowed on this page. Returns [] on rest pages. */
+/** Which campaigns get a bonus slot on this page. Empty on most pages.
+
+    A promotion buys a BOUNDED amount of extra exposure, not a recurring one.
+    Each campaign is dealt exactly one bonus slot across the whole result set,
+    on a deterministic page, so a client can never reappear again and again as
+    a buyer scrolls — which is the thing that makes a marketplace feel like an
+    advert board. Campaigns that do not fit still appear organically, because
+    nothing is ever removed from the listing. */
 function sponsoredForPage(live: Ad[], page: number, maxSlots: number): Ad[] {
-  if (live.length === 0 || maxSlots <= 0) return [];
-
-  /* Lay the campaigns out on a wheel with blank spaces mixed in. One client
-     means [client, blank, blank]: seen on page 1, absent on 2 and 3. Many
-     clients means the blanks disappear and everyone gets a turn instead. */
-  const perTurn = Math.min(maxSlots, live.length);
-  const turns = Math.ceil(live.length / perTurn);
-  const cycle = Math.max(turns, SPONSORED_PAGE_GAP + 1);
-  const turn = (page - 1) % cycle;
-  if (turn >= turns) return []; // a rest page — no paid ads at all
-
-  return live.slice(turn * perTurn, turn * perTurn + perTurn);
+  if (live.length === 0 || maxSlots <= 0 || page < 1) return [];
+  const from = (page - 1) * maxSlots;
+  return live.slice(from, from + maxSlots);
 }
 
 /** Drop the chosen campaigns into fixed slots, never position 0. */
@@ -362,10 +357,22 @@ export function listAds(query: ListQuery = {}) {
   let bonusSlots = 0;
 
   if (sort === "recent") {
-    const live = rows.filter((a) => isPromoted(a));
-    const onPage = new Set(pageItems.map((a) => a.id));
-    /* Only campaigns that are NOT already on this page can win a bonus slot. */
-    const eligible = live.filter((a) => !onPage.has(a.id));
+    /* A campaign that already sits on some page organically has its exposure
+       there — giving it a bonus slot as well is what made one shop appear three
+       times to a buyer scrolling a small page size. So a bonus slot only ever
+       goes to a campaign whose organic position is FURTHER ON than this page,
+       and it is dealt exactly once. Net effect: each campaign is seen once,
+       earlier than it would have been. That is what the money buys. */
+    const organicPage = new Map<string, number>();
+    rows.forEach((a, i) => {
+      if (isPromoted(a)) organicPage.set(a.id, Math.floor(i / perPage) + 1);
+    });
+
+    /* Strictly further on than the NEXT page. A bonus insert shifts the rows
+       after it, so an ad whose organic home is the very next page can slide
+       back onto it and be seen twice; requiring a gap of one page removes that
+       overlap without needing to model the shift exactly. */
+    const eligible = rows.filter((a) => isPromoted(a) && (organicPage.get(a.id) ?? 0) > safePage + 1);
 
     /* Spend only the budget this page has not already used organically. If paid
        ads happen to rank here on their own merit, that IS the exposure — piling
@@ -373,6 +380,7 @@ export function listAds(query: ListQuery = {}) {
     const alreadyPaid = pageItems.filter((a) => isPromoted(a)).length;
     const remaining = Math.max(0, slotBudget(perPage) - alreadyPaid);
     const chosen = sponsoredForPage(eligible, safePage, remaining);
+
     /* Deliberately NOT truncated back to perPage: trimming the tail would push
        an honest listing off the page and it would never reappear, since the
        next page starts at a fixed offset. A page one or two cards longer is a

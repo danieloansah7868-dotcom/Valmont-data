@@ -390,11 +390,11 @@ async function main() {
     sponsoredOnPage.every((a) => Boolean(a.promotion?.clientName)),
   );
 
+  /* Measure what money bought, not how many paid ads happen to rank here — if
+     most of the catalogue is promoted, a page full of paid ads is just the
+     catalogue, and counting raw paid cards would fail for the wrong reason. */
   const sponsoredPage2 = await get("/api/ads?perPage=12&page=2");
-  check(
-    "Page 2 also caps paid ads",
-    sponsoredPage2.json.items.filter((a) => a.promotion).length <= 2,
-  );
+  check("Page 2 also caps bonus slots", sponsoredPage2.json.bonusSlots <= 2, `${sponsoredPage2.json.bonusSlots}`);
   check(
     "A bonus slot never pushes an ad off the page",
     firstPage.json.items.length >= 12,
@@ -427,6 +427,14 @@ async function main() {
     const reachable = new Set(walked);
     const lost = [...truth].filter((id) => !reachable.has(id));
     check(`No ad becomes unreachable by paging (perPage=${pp})`, lost.length === 0, `${lost.length} lost`);
+
+    /* The other half of the same promise: a promotion buys ONE extra showing,
+       not a recurring one. Seeing the same shop again and again while scrolling
+       is the exact thing that makes a marketplace feel like an advert board. */
+    const counts = new Map();
+    for (const id of walked) counts.set(id, (counts.get(id) ?? 0) + 1);
+    const repeats = [...counts.values()].filter((n) => n > 1).length;
+    check(`No ad is shown twice while paging (perPage=${pp})`, repeats === 0, `${repeats} repeated`);
   }
 
   /* Paid density must stay low on small pages too — a flat cap of 2 is a third

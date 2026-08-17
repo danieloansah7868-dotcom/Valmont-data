@@ -23,11 +23,12 @@ npm install
 npm run dev          # → http://localhost:3000
 ```
 
-The catalogue self-seeds with **36 realistic Ghanaian listings** on first boot,
+The catalogue self-seeds with **57 realistic Ghanaian listings** (36 live, the
+rest sold/pending so seller track records are real) on first boot,
 so nothing is ever empty. In a second terminal:
 
 ```bash
-npm test             # 69-check end-to-end suite (dev server must be running)
+npm test             # 150-check end-to-end suite (dev server must be running)
 ```
 
 | Script | What it does |
@@ -35,8 +36,9 @@ npm test             # 69-check end-to-end suite (dev server must be running)
 | `npm run dev` | Dev server on `0.0.0.0:3000` |
 | `npm run build` | Production build |
 | `npm start` | Serve the production build |
-| `npm test` | 69-check API + page smoke suite |
+| `npm test` | 150-check API + page smoke suite |
 | `npm run typecheck` | `tsc --noEmit` |
+| `npm run check` | typecheck + full suite, the one to run before pushing |
 
 ---
 
@@ -65,7 +67,7 @@ All endpoints return JSON `{ ok: true, ... }` or `{ ok: false, error }`.
 
 | Method | Endpoint | Purpose |
 |---|---|---|
-| `GET` | `/api/ads` | List/search. Query: `q, category, subcategory, region, condition, min, max, sort, status, page, perPage` |
+| `GET` | `/api/ads` | List/search. Query: `q, category, subcategory, region, condition, min, max, sort, status, page, perPage`. Returns `{items, total, page, pages, perPage, bonusSlots}` — `bonusSlots` is how many paid placements this page was given, so the cap is auditable from outside. |
 | `POST` | `/api/ads` | Create an ad → enters the moderation queue |
 | `GET` | `/api/ads/:id` | Fetch one ad (by id, slug or `VA-` reference) |
 | `POST` | `/api/ads/:id` | Increment the view counter |
@@ -196,6 +198,9 @@ destroys the free audience the paid layer is sold against:
 - **Nothing is ever removed from the listing.** Every ad, paid or free, keeps its
   honest position and stays reachable by paging. A promotion only ever *adds* a
   bonus slot; it never displaces or hides another seller's ad.
+- **One bonus slot per campaign, ever.** A promotion buys ONE earlier showing
+  across the whole result set, not a recurring one — a campaign never reappears
+  as a buyer scrolls. Tests assert no ad is shown twice while paging.
 - **At most 2 bonus slots per page** (1 on a 6-card page) — roughly 1 paid card
   in 6. The API returns `bonusSlots` so this is measurable, not a guess.
 - **Never the first card.** A paid ad can only lead if it earned that spot
@@ -203,8 +208,8 @@ destroys the free audience the paid layer is sold against:
 - **No double-dipping.** A campaign already visible on the page cannot also win a
   bonus slot there, and the page's budget is reduced by any paid ads that ranked
   organically — so exposure can't be stacked.
-- **Rest pages + rotation.** With few clients, whole pages carry no bonus slots;
-  with several, each gets frontage on a different page.
+- **Most pages carry no bonus slot at all.** Campaigns are dealt across pages, so
+  with a handful of clients the great majority of the listing is untouched.
 - **Default view only.** Sort by price or popularity and `bonusSlots` is `0`.
   Tests enforce this.
 
@@ -253,10 +258,10 @@ ads/
 │   ├── store.ts              data layer (validation, screening, CRUD, queries)
 │   ├── reputation.ts         badge + score engine (earned, never buyable)
 │   ├── screening.ts          scam/junk filters, device fingerprint for admin
-│   ├── seed.ts               59-listing demo catalogue with sales history
+│   ├── seed.ts               57-listing catalogue (36 live + sales history)
 │   ├── taxonomy.ts           categories, regions, towns, conditions
 │   ├── types.ts  format.ts   shared types and GH₵ / time / phone formatting
-└── scripts/test.mjs          147-check smoke suite
+└── scripts/test.mjs          150-check smoke suite
 ```
 
 **Persistence.** `src/lib/store.ts` writes to `.data/ads.json` (gitignored) so
@@ -279,6 +284,7 @@ matching the rest of the Valmont estate.
 |---|---|---|
 | `ADMIN_PASSWORD` | `admin123` | Moderation console password |
 | `ADS_STORE` | `file` | `memory` for an ephemeral in-memory store |
+| `NEXT_PUBLIC_SITE_URL` | `http://localhost:3000` | Public origin. **Set this before go-live** — without it, shared listings have no WhatsApp/Facebook preview image. |
 
 No secrets ship to the client; the store module is server-only.
 

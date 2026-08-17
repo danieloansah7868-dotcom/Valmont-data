@@ -78,6 +78,10 @@ export default function AdCard({ ad, reputation }: { ad: Ad; reputation?: Seller
         {badge && (
           <p
             title={badge.reason}
+            /* The card is one big link, so a tap must open the ad rather than
+               expand a tooltip. The reason still reaches screen readers here,
+               and the full tappable explainer lives on the ad + seller pages. */
+            aria-label={`Seller reputation: ${badge.label}. ${badge.reason}`}
             className={`mt-2 flex items-center gap-1 text-[11px] font-bold ${
               badge.tone === "red"
                 ? "text-red-600"

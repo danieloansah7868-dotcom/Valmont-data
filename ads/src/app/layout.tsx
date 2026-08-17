@@ -3,7 +3,14 @@ import "./globals.css";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 
+/* Without this, Next cannot turn a relative OG/Twitter image into the absolute
+   URL that WhatsApp and Facebook require — and a shared listing renders with no
+   preview image, which matters a lot when most sharing here happens on WhatsApp.
+   Set NEXT_PUBLIC_SITE_URL to the real domain at deploy time. */
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "Valmont Ads — Free classifieds in Ghana | Buy & sell anything",
     template: "%s · Valmont Ads",
