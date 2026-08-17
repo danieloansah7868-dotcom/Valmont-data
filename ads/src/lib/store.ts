@@ -15,6 +15,7 @@ import crypto from "node:crypto";
 import type { Ad, AdInput, AdStatus, Lead, ListQuery, PosterProfile, PostContext, PromotionTier } from "./types";
 import { seedAds } from "./seed";
 import { describeDevice, ghanaNetwork, screen } from "./screening";
+import { sellerStats, type SellerStats } from "./reputation";
 
 const MODE = process.env.ADS_STORE === "memory" ? "memory" : "file";
 const DATA_DIR = path.join(process.cwd(), ".data");
@@ -24,13 +25,15 @@ interface DB {
   ads: Ad[];
   leads: Lead[];
   savedSearches: { id: string; query: string; createdAt: string }[];
+  /** Phone numbers an admin has ID-verified in person. */
+  verifiedSellers: string[];
 }
 
 /* Survive Next.js dev hot-reloads by hanging state off globalThis. */
 const g = globalThis as unknown as { __valmontAdsDB?: DB };
 
 function emptyDB(): DB {
-  return { ads: [], leads: [], savedSearches: [] };
+  return { ads: [], leads: [], savedSearches: [], verifiedSellers: [] };
 }
 
 function load(): DB {
@@ -97,6 +100,55 @@ export function normalisePhone(raw: string): string | null {
   if (d.length === 9 && !d.startsWith("0")) d = "0" + d;
   if (!/^0[235][0-9]{8}$/.test(d)) return null;
   return d;
+}
+
+/* ------------------------------------------------- seller reputation (public) */
+
+export function isVerifiedSeller(phone: string): boolean {
+  return load().verifiedSellers.includes(phone);
+}
+
+/** Public reputation for one seller — badges buyers can see. */
+export function getSellerStats(phone: string): SellerStats | null {
+  const db = load();
+  const p = normalisePhone(phone) ?? phone;
+  if (!db.ads.some((a) => a.sellerPhone === p)) return null;
+  return sellerStats(p, db.ads, db.leads, db.verifiedSellers.includes(p));
+}
+
+/** Admin-only: grant or remove the manual ID-verified badge. */
+export function setVerified(phone: string, verified: boolean): SellerStats | null {
+  const db = load();
+  const p = normalisePhone(phone) ?? phone;
+  if (!db.ads.some((a) => a.sellerPhone === p)) return null;
+  const has = db.verifiedSellers.includes(p);
+  if (verified && !has) db.verifiedSellers.push(p);
+  if (!verified && has) db.verifiedSellers = db.verifiedSellers.filter((x) => x !== p);
+  persist();
+  return sellerStats(p, db.ads, db.leads, db.verifiedSellers.includes(p));
+}
+
+/** Stats for many sellers at once — one pass over the DB instead of one per
+    ad card. Returns a phone → stats map for the callers that render grids. */
+export function sellerStatsFor(phones: string[]): Map<string, SellerStats> {
+  const db = load();
+  const out = new Map<string, SellerStats>();
+  for (const raw of new Set(phones)) {
+    const phone = normalisePhone(raw);
+    if (!phone) continue;
+    out.set(raw, sellerStats(phone, db.ads, db.leads, db.verifiedSellers.includes(phone)));
+  }
+  return out;
+}
+
+/** Leaderboard for the admin console + a future "top sellers" page. */
+export function topSellers(limit = 10): SellerStats[] {
+  const db = load();
+  const phones = [...new Set(db.ads.map((a) => a.sellerPhone))];
+  return phones
+    .map((p) => sellerStats(p, db.ads, db.leads, db.verifiedSellers.includes(p)))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit);
 }
 
 /** Posting history for one phone number — feeds the risk score. */

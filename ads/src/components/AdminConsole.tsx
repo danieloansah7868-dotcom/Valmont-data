@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import type { Ad, AdStatus, Lead, PosterProfile, Promotion } from "@/lib/types";
+import type { SellerStats } from "@/lib/reputation";
+import SellerBadges from "./SellerBadges";
 import { cedis, timeAgo } from "@/lib/format";
 
 type QueuedAd = Ad & { poster: PosterProfile | null };
@@ -64,6 +66,7 @@ export default function AdminConsole() {
   const [promoting, setPromoting] = useState<Ad | null>(null);
   const [promoError, setPromoError] = useState<string | null>(null);
   const [promotions, setPromotions] = useState<PromoRow[]>([]);
+  const [sellers, setSellers] = useState<SellerStats[]>([]);
 
   const load = useCallback(
     async (pw: string, status: AdStatus | "all") => {
@@ -81,6 +84,7 @@ export default function AdminConsole() {
         setLeads(data.leads ?? []);
         setStats(data.stats ?? null);
         setPromotions(data.promotions ?? []);
+        setSellers(data.sellers ?? []);
         setAuthed(true);
         try {
           sessionStorage.setItem("vads_admin_pw", pw);
@@ -132,6 +136,15 @@ export default function AdminConsole() {
       return;
     }
     setPromoting(null);
+    load(password, tab);
+  }
+
+  async function verify(phone: string, on: boolean) {
+    await fetch("/api/admin", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-admin-password": password },
+      body: JSON.stringify({ phone, action: on ? "verify" : "unverify" }),
+    });
     load(password, tab);
   }
 
@@ -526,6 +539,54 @@ export default function AdminConsole() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* ── seller reputation ─────────────────────────────────── */}
+      {sellers.length > 0 && (
+        <section className="mt-10">
+          <h2 className="text-xl font-black text-[var(--color-navy-900)]">Seller reputation</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Badges are earned automatically. <strong>ID Verified</strong> is the only one you grant by hand — do it
+            after meeting the seller or checking their shop.
+          </p>
+          <div className="mt-4 grid gap-2.5">
+            {sellers.map((s) => (
+              <div key={s.phone} className="flex flex-wrap items-center gap-4 rounded-2xl bg-white p-4 ring-1 ring-black/5">
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[var(--color-navy-900)] text-base font-black text-[var(--color-orange-brand)]">
+                  {s.name.charAt(0).toUpperCase()}
+                </span>
+
+                <div className="min-w-0 flex-1">
+                  <Link href={`/seller/${s.phone}`} className="font-bold text-[var(--color-navy-900)] hover:underline">
+                    {s.name}
+                  </Link>
+                  <p className="text-xs text-slate-500">
+                    {s.phone} · {s.sold} sold · {s.activeAds} live · {s.rejected} rejected · {s.daysActive}d
+                  </p>
+                  <div className="mt-1.5">
+                    <SellerBadges badges={s.badges} size="sm" />
+                  </div>
+                </div>
+
+                <div className="text-center">
+                  <p className="text-2xl font-black text-[var(--color-navy-900)]">{s.score}</p>
+                  <p className="text-[10px] tracking-wide text-slate-400 uppercase">score</p>
+                </div>
+
+                <button
+                  onClick={() => verify(s.phone, !s.idVerified)}
+                  className={`rounded-lg px-3.5 py-2 text-xs font-bold transition ${
+                    s.idVerified
+                      ? "bg-slate-200 text-slate-700 hover:bg-slate-300"
+                      : "bg-amber-500 text-white hover:brightness-105"
+                  }`}
+                >
+                  {s.idVerified ? "Remove ID check" : "🛡️ Mark ID verified"}
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
       )}
 
       {/* ── campaign report ───────────────────────────────────── */}

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import AdCard from "@/components/AdCard";
-import { categoryCounts, listAds, stats } from "@/lib/store";
+import { categoryCounts, listAds, sellerStatsFor, stats } from "@/lib/store";
 import { CATEGORIES, REGIONS } from "@/lib/taxonomy";
 
 export const dynamic = "force-dynamic";
@@ -10,6 +10,7 @@ export default function HomePage() {
   const counts = categoryCounts();
   const featured = listAds({ perPage: 4, sort: "recent" }).items.filter((a) => a.featured).slice(0, 4);
   const recent = listAds({ perPage: 12, sort: "recent", featuredFirst: false }).items;
+  const reps = sellerStatsFor([...featured, ...recent].map((a) => a.sellerPhone));
   const popular = listAds({ perPage: 4, sort: "popular" }).items;
 
   return (
@@ -174,7 +175,7 @@ export default function HomePage() {
             </div>
             <div className="mt-7 grid grid-cols-2 gap-4 lg:grid-cols-4">
               {featured.map((ad) => (
-                <AdCard key={ad.id} ad={ad} />
+                <AdCard key={ad.id} ad={ad} reputation={reps.get(ad.sellerPhone)} />
               ))}
             </div>
           </div>
@@ -197,7 +198,7 @@ export default function HomePage() {
 
         <div className="mt-7 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {recent.map((ad) => (
-            <AdCard key={ad.id} ad={ad} />
+            <AdCard key={ad.id} ad={ad} reputation={reps.get(ad.sellerPhone)} />
           ))}
         </div>
 

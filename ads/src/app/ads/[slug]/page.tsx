@@ -5,7 +5,7 @@ import AdCard from "@/components/AdCard";
 import ContactSeller from "@/components/ContactSeller";
 import Gallery from "@/components/Gallery";
 import ViewPing from "@/components/ViewPing";
-import { getAd, relatedAds } from "@/lib/store";
+import { getAd, relatedAds, getSellerStats, sellerStatsFor } from "@/lib/store";
 import { cedis, timeAgo } from "@/lib/format";
 import { CATEGORY_MAP, CONDITION_LABEL } from "@/lib/taxonomy";
 
@@ -33,6 +33,8 @@ export default async function AdDetailPage({ params }: { params: Params }) {
   const related = relatedAds(ad, 4);
   const isActive = ad.status === "active";
   const promo = ad.promotion && +new Date(ad.promotion.expiresAt) > Date.now() ? ad.promotion : null;
+  const reputation = getSellerStats(ad.sellerPhone);
+  const relatedReps = sellerStatsFor(related.map((r) => r.sellerPhone));
 
   const specs = [
     { k: "Condition", v: CONDITION_LABEL[ad.condition] ?? ad.condition },
@@ -170,6 +172,7 @@ export default async function AdDetailPage({ params }: { params: Params }) {
             whatsapp={ad.whatsapp}
             sellerType={ad.sellerType}
             active={isActive}
+            reputation={reputation}
           />
         </div>
       </div>
@@ -179,7 +182,7 @@ export default async function AdDetailPage({ params }: { params: Params }) {
           <h2 className="text-xl font-black text-[var(--color-navy-900)]">Similar ads in {cat?.name}</h2>
           <div className="mt-5 grid grid-cols-2 gap-4 lg:grid-cols-4">
             {related.map((r) => (
-              <AdCard key={r.id} ad={r} />
+              <AdCard key={r.id} ad={r} reputation={relatedReps.get(r.sellerPhone)} />
             ))}
           </div>
         </section>

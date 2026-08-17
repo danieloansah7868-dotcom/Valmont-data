@@ -2,11 +2,14 @@ import Link from "next/link";
 import type { Ad } from "@/lib/types";
 import { cedis, timeAgo } from "@/lib/format";
 import { CATEGORY_MAP } from "@/lib/taxonomy";
+import { headlineBadge } from "@/lib/reputation";
+import type { SellerStats } from "@/lib/reputation";
 
-export default function AdCard({ ad }: { ad: Ad }) {
+export default function AdCard({ ad, reputation }: { ad: Ad; reputation?: SellerStats | null }) {
   const cat = CATEGORY_MAP.get(ad.category);
   const img = ad.images[0];
   const promo = ad.promotion && +new Date(ad.promotion.expiresAt) > Date.now() ? ad.promotion : null;
+  const badge = reputation ? headlineBadge(reputation.badges) : null;
 
   return (
     <Link
@@ -64,6 +67,26 @@ export default function AdCard({ ad }: { ad: Ad }) {
             <span className="ml-1.5 align-middle text-[10px] font-bold text-emerald-600">NEG</span>
           )}
         </p>
+
+        {badge && (
+          <p
+            title={badge.reason}
+            className={`mt-2 flex items-center gap-1 text-[11px] font-bold ${
+              badge.tone === "red"
+                ? "text-red-600"
+                : badge.tone === "green"
+                  ? "text-emerald-600"
+                  : badge.tone === "gold"
+                    ? "text-amber-600"
+                    : badge.tone === "blue"
+                      ? "text-sky-600"
+                      : "text-slate-400"
+            }`}
+          >
+            <span aria-hidden>{badge.icon}</span>
+            <span className="truncate">{badge.label}</span>
+          </p>
+        )}
 
         <div className="mt-auto flex items-center justify-between gap-2 pt-3 text-[11px] text-slate-500">
           <span className="truncate">📍 {ad.town}</span>

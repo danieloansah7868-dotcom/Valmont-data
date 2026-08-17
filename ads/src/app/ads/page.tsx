@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import AdCard from "@/components/AdCard";
 import Filters from "@/components/Filters";
 import SortSelect from "@/components/SortSelect";
-import { listAds } from "@/lib/store";
+import { listAds, sellerStatsFor } from "@/lib/store";
 import { CATEGORY_MAP } from "@/lib/taxonomy";
 import type { ListQuery } from "@/lib/types";
 
@@ -52,6 +52,7 @@ export default async function AdsPage({ searchParams }: { searchParams: SP }) {
   };
 
   const { items, total, pages, page: current } = listAds(query);
+  const reps = sellerStatsFor(items.map((a) => a.sellerPhone));
   const cat = CATEGORY_MAP.get(query.category ?? "");
 
   const heading = query.q
@@ -130,7 +131,7 @@ export default async function AdsPage({ searchParams }: { searchParams: SP }) {
             <>
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                 {items.map((ad) => (
-                  <AdCard key={ad.id} ad={ad} />
+                  <AdCard key={ad.id} ad={ad} reputation={reps.get(ad.sellerPhone)} />
                 ))}
               </div>
 

@@ -51,7 +51,8 @@ npm test             # 69-check end-to-end suite (dev server must be running)
 | Categories | `/categories` | All 10 categories with live counts and subcategory chips |
 | My ads | `/my-ads` | Seller dashboard by phone number — stats, statuses, buyer messages |
 | Safety | `/safety` | Buyer/seller safety tips and the banned-items list |
-| Admin | `/admin` | Moderation console — approve, reject, feature, mark sold |
+| Seller profile | `/seller/[phone]` | Public track record — reputation score, earned badges, all live ads |
+| Admin | `/admin` | Moderation console — approve, reject, feature, mark sold, verify sellers |
 
 **Admin password:** `admin123` (dev default — override with `ADMIN_PASSWORD`).
 **Demo seller number** for `/my-ads`: `0244118822`.
@@ -71,8 +72,9 @@ All endpoints return JSON `{ ok: true, ... }` or `{ ok: false, error }`.
 | `GET` | `/api/ads/:id/leads` | Leads for one ad |
 | `POST` | `/api/ads/:id/leads` | Buyer sends a message |
 | `GET` | `/api/my-ads?phone=` | A seller's ads + leads (phone normalised) |
+| `GET` | `/api/sellers/:phone` | Public reputation — badges, score, stats + that seller's live ads |
 | `GET` | `/api/admin?status=` | Queue + stats — needs `x-admin-password` |
-| `POST` | `/api/admin` | `{ id, action }` where action is `active \| rejected \| sold \| pending \| expired \| feature \| promote \| unpromote` |
+| `POST` | `/api/admin` | `{ id, action }` where action is `active \| rejected \| sold \| pending \| expired \| feature \| promote \| unpromote`, or `{ phone, action }` for `verify \| unverify` |
 | `GET` | `/api/go/:id` | Promoted-ad click-through — counts the click, 302s to the client's own site |
 
 ```bash
@@ -86,6 +88,10 @@ curl -X POST localhost:3000/api/ads -H 'Content-Type: application/json' -d '{
 # approve it
 curl -X POST localhost:3000/api/admin -H 'Content-Type: application/json' \
   -H 'x-admin-password: admin123' -d '{"id":"<ad-id>","action":"active"}'
+
+# grant the one badge money cannot buy, after checking the seller's ID
+curl -X POST localhost:3000/api/admin -H 'Content-Type: application/json' \
+  -H 'x-admin-password: admin123' -d '{"phone":"0248001122","action":"verify"}'
 
 # sell a promotion against a Valmont Web package
 curl -X POST localhost:3000/api/admin -H 'Content-Type: application/json' \
@@ -134,6 +140,38 @@ Promotions expire on their own and decay back to ordinary free ads. Clicks and
 impressions are tracked per campaign so there's a real number to show at
 renewal — see the **Paid promotions** table in `/admin`.
 
+## Seller reputation (earned, never sold)
+
+A buyer meeting a stranger with cash needs a reason to trust them. Every seller
+carries a public track record at `/seller/[phone]`, and the badge they've earned
+follows their ads around the site.
+
+| Badge | How it is earned |
+|---|---|
+| 🛡️ **ID Verified** | Granted by hand in `/admin` after checking ID or visiting the shop. The only manual badge. |
+| ✅ **Trusted Seller** | 3+ completed sales, zero rejected ads, active 14+ days |
+| 🏆 **Top Seller** | 10+ completed sales |
+| 📅 **Long-standing** | 90+ days, 5+ ads, clean record |
+| 💬 **Responsive** | 10+ buyer messages received and at least one sale |
+| ⚠️ **Take care** | 2+ ads rejected by moderation — shown to buyers, not hidden |
+| 🌱 **New seller** | No history yet. Not an accusation, just a fact. |
+
+Four rules hold this together, and they are the reason the badges are worth
+anything:
+
+1. **Money can never buy a badge.** A Valmont Web client buying a promotion gets
+   placement and a "Sponsored" label — never a trust signal. The two systems are
+   deliberately separate in the code, and a test asserts it.
+2. **Badges are automatic**, computed from real activity, except ID Verified.
+3. **Badges are losable.** Get ads rejected and Trusted disappears while
+   *Take care* appears. A reputation you can't lose isn't a reputation.
+4. **Every badge states its reason** in plain English on hover, so nobody has to
+   guess what "trusted" means here.
+
+The warning badge is the important one. Most marketplaces only show good news,
+which is why their badges get ignored. Showing the bad news is what makes the
+good news believable.
+
 ## Rules baked into the code
 
 1. **Nothing goes live unreviewed** — every new ad starts `pending`; only a
@@ -161,24 +199,28 @@ ads/
 ├── src/app/
 │   ├── page.tsx              landing
 │   ├── ads/                  browse + [slug] detail
+│   ├── seller/[phone]/       public seller profile + reputation
 │   ├── post/ categories/ my-ads/ safety/ admin/
-│   └── api/                  ads · ads/[id] · ads/[id]/leads · my-ads · admin
+│   └── api/                  ads · ads/[id] · ads/[id]/leads · my-ads ·
+│                             sellers/[phone] · admin · go/[id]
 ├── src/components/           SiteHeader, SiteFooter, AdCard, Filters, SortSelect,
 │                             PostForm, ContactSeller, Gallery, MyAdsClient,
-│                             AdminConsole, ViewPing
+│                             AdminConsole, SellerBadges, ViewPing
 ├── src/lib/
 │   ├── store.ts              data layer (validation, screening, CRUD, queries)
-│   ├── seed.ts               36-listing demo catalogue
+│   ├── reputation.ts         badge + score engine (earned, never buyable)
+│   ├── screening.ts          scam/junk filters, device fingerprint for admin
+│   ├── seed.ts               59-listing demo catalogue with sales history
 │   ├── taxonomy.ts           categories, regions, towns, conditions
 │   ├── types.ts  format.ts   shared types and GH₵ / time / phone formatting
-└── scripts/test.mjs          69-check smoke suite
+└── scripts/test.mjs          130-check smoke suite
 ```
 
 **Persistence.** `src/lib/store.ts` writes to `.data/ads.json` (gitignored) so
 data survives restarts and is shared across every browser hitting the server —
 the file is the dev/demo database. Set `ADS_STORE=memory` for a pure in-memory
 store (ephemeral or read-only deploys). The module exposes a single narrow
-interface (`listAds`, `getAd`, `createAd`, `setStatus`, `createLead`, …), so
+interface (`listAds`, `getAd`, `createAd`, `setStatus`, `createLead`, `getSellerStats`, …), so
 swapping in Supabase means rewriting that one file and nothing else — the same
 adapter pattern `app/lib/supplier.js` uses.
 

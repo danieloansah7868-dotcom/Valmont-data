@@ -421,6 +421,69 @@ async function main() {
   const sellerView = await get("/api/my-ads?phone=0247654321");
   check("Seller sees the lead in My ads", sellerView.json.leads.some((l) => l.phone === "0551234567"));
 
+  /* ---------------------------------------------------- seller reputation */
+  section("Seller badges (earned, visible to buyers)");
+  const seedSeller = "0244118822"; // demo seller from the seed catalogue
+  const pub = await get(`/api/sellers/${seedSeller}`);
+  check("Public seller profile loads", pub.json?.ok === true);
+  check("Profile exposes badges", Array.isArray(pub.json?.seller?.badges));
+  check("Profile exposes a reputation score", typeof pub.json?.seller?.score === "number");
+  check("Seller page renders", (await get(`/seller/${seedSeller}`)).res.status === 200);
+  check("Unknown seller → 404", (await get("/api/sellers/0559999123")).res.status === 404);
+
+  /* a brand-new poster should be badged as new, not trusted */
+  /* unique per run — a "new seller" must genuinely have no history */
+  const rookiePhone = `024${String(Date.now()).slice(-7)}`;
+  await post("/api/ads", validAd({
+    title: `Rookie listing ${RUN}`,
+    sellerPhone: rookiePhone,
+    description: "An ordinary first listing from somebody who has never posted on this website before now.",
+  }));
+  const rookie = await get(`/api/sellers/${rookiePhone}`);
+  check("New seller gets the New badge", rookie.json.seller.badges.some((b) => b.code === "new-seller"));
+  check("New seller is NOT trusted", !rookie.json.seller.badges.some((b) => b.code === "trusted"));
+  check("New seller scores low", rookie.json.seller.score < 30, String(rookie.json.seller.score));
+
+  /* repeat offender should be publicly flagged so buyers are warned */
+  const offender = await get("/api/sellers/0246000009");
+  check(
+    "Repeat offender gets a public warning badge",
+    offender.json?.seller?.badges?.some((b) => b.code === "caution"),
+  );
+
+  /* ID verification is manual, and it is the only badge an admin can grant */
+  const verifyRes = await post("/api/admin", { phone: rookiePhone, action: "verify" }, adminHeaders);
+  check("Admin can grant ID Verified", verifyRes.json?.seller?.idVerified === true);
+  const verified = await get(`/api/sellers/${rookiePhone}`);
+  check("Verified badge shows publicly", verified.json.seller.badges.some((b) => b.code === "verified"));
+  check("Verification raises the score", verified.json.seller.score > rookie.json.seller.score);
+
+  const unverifyRes = await post("/api/admin", { phone: rookiePhone, action: "unverify" }, adminHeaders);
+  check("Admin can remove ID Verified", unverifyRes.json?.seller?.idVerified === false);
+  check(
+    "Badge disappears after removal",
+    !(await get(`/api/sellers/${rookiePhone}`)).json.seller.badges.some((b) => b.code === "verified"),
+  );
+  check(
+    "Verifying an unknown number → 404",
+    (await post("/api/admin", { phone: "0559999123", action: "verify" }, adminHeaders)).res.status === 404,
+  );
+
+  const board = await get("/api/admin?status=all", adminHeaders);
+  check("Admin gets a seller leaderboard", Array.isArray(board.json?.sellers) && board.json.sellers.length > 0);
+  check(
+    "Leaderboard is ordered by score",
+    board.json.sellers.every((s, i) => i === 0 || board.json.sellers[i - 1].score >= s.score),
+  );
+
+  /* the integrity rule: money must never buy trust */
+  const promoSeller = board.json.sellers.find((s) => s.badges.some((b) => b.code === "verified"));
+  check(
+    "Paying for a promotion never grants a trust badge",
+    !promoSeller || promoSeller.idVerified === true,
+    "a badge appeared without a manual ID check",
+  );
+
   /* --------------------------------------------------------------- views */
   section("View counter");
   const before = (await get(`/api/ads/${newAd.id}`)).json.ad.views;

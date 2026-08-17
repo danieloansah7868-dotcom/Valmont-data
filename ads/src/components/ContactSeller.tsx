@@ -1,7 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { maskPhone, prettyPhone, waLink } from "@/lib/format";
+import SellerBadges from "./SellerBadges";
+import type { SellerStats } from "@/lib/reputation";
 
 interface Props {
   adId: string;
@@ -12,6 +15,7 @@ interface Props {
   whatsapp: boolean;
   sellerType: "private" | "business";
   active: boolean;
+  reputation?: SellerStats | null;
 }
 
 export default function ContactSeller({
@@ -23,6 +27,7 @@ export default function ContactSeller({
   whatsapp,
   sellerType,
   active,
+  reputation,
 }: Props) {
   const [revealed, setRevealed] = useState(false);
   const [sending, setSending] = useState(false);
@@ -69,9 +74,22 @@ export default function ContactSeller({
           <p className="truncate font-bold text-[var(--color-navy-900)]">{sellerName}</p>
           <p className="text-xs text-slate-500">
             {sellerType === "business" ? "✔ Business seller" : "Private seller"}
+            {reputation ? ` · ${reputation.sold} sold` : ""}
           </p>
         </div>
       </div>
+
+      {reputation && reputation.badges.length > 0 && (
+        <div className="mt-3">
+          <SellerBadges badges={reputation.badges} size="sm" />
+          <Link
+            href={`/seller/${reputation.phone}`}
+            className="mt-2 inline-block text-xs font-bold text-[var(--color-navy-700)] hover:underline"
+          >
+            See all {reputation.activeAds} ads from this seller →
+          </Link>
+        </div>
+      )}
 
       {!active ? (
         <p className="mt-5 rounded-lg bg-slate-50 px-4 py-3 text-center text-sm font-semibold text-slate-500">

@@ -672,6 +672,47 @@ const ROWS: Row[] = [
     views: 1420,
     ageHours: 200,
   },
+
+  /* ---- Past sales, so seller badges have real history behind them ----
+     Adjei Motors (0201445566) is an established dealer: several completed
+     sales over months with a clean record → Trusted + Long-standing.        */
+  ...Array.from({ length: 6 }, (_, i) => ({
+    title: `Sold vehicle ${i + 1} — Adjei Motors stock`,
+    category: "vehicles",
+    subcategory: "Cars",
+    price: 60000 + i * 9000,
+    condition: "used-good" as const,
+    region: "Greater Accra",
+    town: "Spintex",
+    description:
+      "Previously sold through Adjei Motors. Duty paid, home used, full service history available on request. Kept in the archive so buyers can see our track record and typical asking prices for this model.",
+    sellerName: "Adjei Motors",
+    sellerPhone: "0201445566",
+    sellerType: "business" as const,
+    status: "sold" as const,
+    views: 400 + i * 120,
+    ageHours: 24 * (40 + i * 12),
+  })),
+
+  /* Akosua Styles (0248001122) — the promoted Valmont Web client. Enough
+     completed sales to show what a Top Seller looks like.                   */
+  ...Array.from({ length: 11 }, (_, i) => ({
+    title: `Sold order ${i + 1} — Akosua Styles Ankara`,
+    category: "fashion",
+    subcategory: "Clothing",
+    price: 85 + i * 12,
+    condition: "brand-new" as const,
+    region: "Ashanti",
+    town: "Kumasi",
+    description:
+      "Completed wholesale order of Ankara dresses delivered to a returning customer. Archived so buyers can see our sales record, typical batch pricing and the range of designs we produce each month.",
+    sellerName: "Akosua Styles",
+    sellerPhone: "0248001122",
+    sellerType: "business" as const,
+    status: "sold" as const,
+    views: 150 + i * 60,
+    ageHours: 24 * (20 + i * 9),
+  })),
 ];
 
 export function seedAds(): Ad[] {

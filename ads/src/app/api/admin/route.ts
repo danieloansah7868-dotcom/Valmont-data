@@ -9,6 +9,8 @@ import {
   unpromoteAd,
   promotionReport,
   posterProfile,
+  setVerified,
+  topSellers,
 } from "@/lib/store";
 import type { AdStatus, PromotionTier } from "@/lib/types";
 
@@ -50,6 +52,7 @@ export async function GET(req: NextRequest) {
     ads: withProfiles,
     leads: listLeads().slice(0, 30),
     promotions: promotionReport(),
+    sellers: topSellers(12),
   });
 }
 
@@ -76,6 +79,14 @@ export async function POST(req: NextRequest) {
     });
     if (!result.ok) return NextResponse.json(result, { status: 400 });
     return NextResponse.json({ ok: true, ad: result.ad });
+  }
+
+  /* Manual ID verification — the one badge a human grants. */
+  if (action === "verify" || action === "unverify") {
+    const phone = String(body.phone ?? id);
+    const seller = setVerified(phone, action === "verify");
+    if (!seller) return NextResponse.json({ ok: false, error: "Seller not found" }, { status: 404 });
+    return NextResponse.json({ ok: true, seller });
   }
 
   if (action === "unpromote") {
