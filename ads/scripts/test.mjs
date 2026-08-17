@@ -179,6 +179,95 @@ async function main() {
   }));
   check("Screening auto-rejects banned phrases", scam.json?.ad?.status === "rejected", scam.json?.ad?.status);
 
+  /* ------------------------------------------------------------ screening */
+  section("Auto-filters (block the obvious rubbish)");
+  const blockCases = [
+    ["advance-fee wording", "You must pay an advance fee before we ship this laptop anywhere in Ghana today."],
+    ["Western Union only", "Payment by western union only, no other method accepted for this item at all."],
+    ["money doubling", "Money doubling service available now, double your money within seven days guaranteed."],
+    ["weapons", "Selling ak47 rifle with ammunition, serious buyers only, discreet delivery arranged."],
+    ["drugs", "Quality tramadol available in bulk, fast discreet delivery to any region in Ghana."],
+    ["stolen goods", "Hot phone for sale cheap, no questions asked, cannot be traced by anybody at all."],
+    ["counterfeit", "First copy iphone 15 pro max, looks exactly like original, nobody can tell the difference."],
+  ];
+  for (const [label, description] of blockCases) {
+    const r = await post("/api/ads", validAd({
+      title: `Screening probe ${RUN} ${label}`,
+      description,
+      sellerPhone: "0246000001",
+    }));
+    check(`Auto-rejects ${label}`, r.json?.ad?.status === "rejected", r.json?.ad?.status ?? r.json?.error);
+  }
+
+  section("Soft flags (held for a human, with reasons)");
+  const bait = await post("/api/ads", validAd({
+    title: `iPhone 14 Pro Max clean ${RUN}`,
+    price: 400,
+    sellerPhone: "0246000002",
+    description: "Very clean iPhone 14 Pro Max, battery excellent, no scratches at all, comes with full box.",
+  }));
+  check("Suspiciously low price is flagged", bait.json?.ad?.flags?.some((f) => f.code === "price_too_low"));
+  check("Low-price ad is held, not auto-killed", bait.json?.ad?.status === "pending", bait.json?.ad?.status);
+
+  const hidden = await post("/api/ads", validAd({
+    title: `Fridge for sale good condition ${RUN}`,
+    sellerPhone: "0246000003",
+    description: "Nice double door fridge in good working condition. Call me on 0551234567 or 024 111 2233 fast.",
+  }));
+  check("Hidden phone numbers are flagged", hidden.json?.ad?.flags?.some((f) => f.code === "hidden_phone"));
+
+  const linky = await post("/api/ads", validAd({
+    title: `Shoes wholesale available now ${RUN}`,
+    sellerPhone: "0246000004",
+    description: "Quality shoes at wholesale prices, see the full catalogue at www.myshoeshop.com for all sizes.",
+  }));
+  check("External links are flagged", linky.json?.ad?.flags?.some((f) => f.code === "external_link"));
+
+  const pressure = await post("/api/ads", validAd({
+    title: `Sofa set must go ${RUN}`,
+    sellerPhone: "0246000005",
+    description: "Urgent quick sale, leaving the country this week. No inspection, cash only, first come first served.",
+  }));
+  check("Pressure wording is flagged", pressure.json?.ad?.flags?.some((f) => f.code === "suspicious_phrase"));
+  check("Risk score accumulates", (pressure.json?.ad?.riskScore ?? 0) > 0, String(pressure.json?.ad?.riskScore));
+
+  const fast = await post("/api/ads", validAd({
+    title: `Table and chairs for sale ${RUN}`,
+    sellerPhone: "0246000006",
+    fillSeconds: 2,
+    description: "Solid wooden dining table with six chairs, good condition, collection from Accra any day.",
+  }));
+  check("Instant form fill is flagged as bot-like", fast.json?.ad?.flags?.some((f) => f.code === "too_fast"));
+
+  const clean = await post("/api/ads", validAd({
+    title: `Honest clean listing ${RUN}`,
+    sellerPhone: "0246000007",
+    fillSeconds: 180,
+    images: ["/uploads/macbook-air.jpg"],
+    description:
+      "Well cared for item in very good condition. Happy for you to inspect and test it before paying anything at all.",
+  }));
+  check("A normal honest ad scores low", (clean.json?.ad?.riskScore ?? 99) < 35, String(clean.json?.ad?.riskScore));
+  check("Normal ad still goes to the queue", clean.json?.ad?.status === "pending");
+
+  section("Repeat offenders");
+  for (let i = 0; i < 2; i++) {
+    await post("/api/ads", validAd({
+      title: `Repeat probe ${RUN} ${i} advance fee`,
+      sellerPhone: "0246000009",
+      description: "You must pay an advance fee first before anything is delivered to you at all today.",
+    }));
+  }
+  const third = await post("/api/ads", validAd({
+    title: `Normal looking item ${RUN}`,
+    sellerPhone: "0246000009",
+    description: "Ordinary item for sale in good condition, nothing unusual about this listing at all here.",
+  }));
+  check(
+    "Previous rejections raise the score on later ads",
+    third.json?.ad?.flags?.some((f) => f.code === "repeat_offender"),
+  );
+
   /* -------------------------------------------------------------- my ads */
   section("Seller dashboard lookup");
   const mine = await get(`/api/my-ads?phone=0247654321`);
@@ -199,6 +288,22 @@ async function main() {
   check("Admin API accepts the password", dash.json?.ok === true);
   check("Admin sees pending queue", dash.json.ads.some((a) => a.id === newAd.id));
   check("Admin stats are present", typeof dash.json.stats?.activeAds === "number");
+
+  section("Poster profile (judge the person)");
+  const prof = await get("/api/admin?poster=0246000009", adminHeaders);
+  check("Poster profile loads", prof.json?.ok === true);
+  check("Profile counts their ads", (prof.json?.profile?.totalAds ?? 0) >= 3);
+  check("Profile counts rejections", (prof.json?.profile?.rejected ?? 0) >= 2);
+  check("Profile marks a repeat offender", prof.json?.profile?.isRepeatOffender === true);
+  check("Profile detects the phone network", prof.json?.profile?.network === "MTN", prof.json?.profile?.network);
+  check("Unknown poster → 404", (await get("/api/admin?poster=0559999123", adminHeaders)).res.status === 404);
+
+  const queue = await get("/api/admin?status=pending", adminHeaders);
+  check("Queue attaches a poster profile to each ad", queue.json.ads.every((a) => "poster" in a));
+  const withCtx = queue.json.ads.find((a) => a.context);
+  check("Queue records device context", Boolean(withCtx?.context?.device), withCtx?.context?.device);
+  check("Queue records the browser", Boolean(withCtx?.context?.browser));
+
 
   const approve = await post("/api/admin", { id: newAd.id, action: "active" }, adminHeaders);
   check("Approve sets status active", approve.json?.ad?.status === "active");

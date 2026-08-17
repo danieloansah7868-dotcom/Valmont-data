@@ -8,6 +8,7 @@ import {
   promoteAd,
   unpromoteAd,
   promotionReport,
+  posterProfile,
 } from "@/lib/store";
 import type { AdStatus, PromotionTier } from "@/lib/types";
 
@@ -23,13 +24,30 @@ function authed(req: NextRequest): boolean {
 export async function GET(req: NextRequest) {
   if (!authed(req)) return NextResponse.json({ ok: false, error: "Unauthorised" }, { status: 401 });
 
+  /* Single-poster lookup: /api/admin?poster=0241234567 */
+  const poster = req.nextUrl.searchParams.get("poster");
+  if (poster) {
+    const profile = posterProfile(poster);
+    if (!profile) return NextResponse.json({ ok: false, error: "No ads from that number" }, { status: 404 });
+    const { items: theirAds } = listAds({ status: "all", perPage: 200, sort: "recent", featuredFirst: false });
+    return NextResponse.json({
+      ok: true,
+      profile,
+      ads: theirAds.filter((a) => a.sellerPhone === profile.phone),
+    });
+  }
+
   const status = (req.nextUrl.searchParams.get("status") as AdStatus | "all") ?? "all";
   const { items } = listAds({ status, perPage: 200, sort: "recent", featuredFirst: false });
+
+  /* Attach the poster's history to each queued ad so the moderator can judge
+     the person, not just the words, without a second request. */
+  const withProfiles = items.map((ad) => ({ ...ad, poster: posterProfile(ad.sellerPhone) }));
 
   return NextResponse.json({
     ok: true,
     stats: stats(),
-    ads: items,
+    ads: withProfiles,
     leads: listLeads().slice(0, 30),
     promotions: promotionReport(),
   });

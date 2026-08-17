@@ -12,8 +12,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
-import type { Ad, AdInput, AdStatus, Lead, ListQuery, PromotionTier } from "./types";
+import type { Ad, AdInput, AdStatus, Lead, ListQuery, PosterProfile, PostContext, PromotionTier } from "./types";
 import { seedAds } from "./seed";
+import { describeDevice, ghanaNetwork, screen } from "./screening";
 
 const MODE = process.env.ADS_STORE === "memory" ? "memory" : "file";
 const DATA_DIR = path.join(process.cwd(), ".data");
@@ -98,17 +99,66 @@ export function normalisePhone(raw: string): string | null {
   return d;
 }
 
-const BANNED = ["scam", "free money", "wire transfer only", "western union only", "advance fee"];
+/** Posting history for one phone number — feeds the risk score. */
+function historyFor(phone: string) {
+  const db = load();
+  const mine = db.ads.filter((a) => a.sellerPhone === phone);
+  const dayAgo = Date.now() - 24 * 3600 * 1000;
+  const rejected = mine.filter((a) => a.status === "rejected").length;
+  return {
+    adsLast24h: mine.filter((a) => +new Date(a.createdAt) > dayAgo).length,
+    totalAds: mine.length,
+    rejected,
+    isRepeatOffender: rejected >= 2,
+  };
+}
 
-/** Lightweight trust check — mirrors the "no fake discounts" honesty rule. */
-export function screenAd(input: AdInput): { ok: boolean; reason?: string } {
-  const haystack = `${input.title} ${input.description}`.toLowerCase();
-  const hit = BANNED.find((w) => haystack.includes(w));
-  if (hit) return { ok: false, reason: `Flagged phrase: “${hit}”` };
-  if (input.price !== null && input.price > 5_000_000) {
-    return { ok: false, reason: "Price out of allowed range" };
-  }
-  return { ok: true };
+/**
+ * Full profile of whoever posted an ad, so a moderator can judge the person
+ * and not just the words. Surfaced in the admin queue.
+ */
+export function posterProfile(phone: string): PosterProfile | null {
+  const db = load();
+  const mine = db.ads.filter((a) => a.sellerPhone === phone);
+  if (mine.length === 0) return null;
+
+  const dayAgo = Date.now() - 24 * 3600 * 1000;
+  const weekAgo = Date.now() - 7 * 24 * 3600 * 1000;
+  const rejected = mine.filter((a) => a.status === "rejected").length;
+  const approved = mine.filter((a) => a.status === "active").length;
+  const sold = mine.filter((a) => a.status === "sold").length;
+  const sorted = mine.slice().sort((a, b) => +new Date(a.createdAt) - +new Date(b.createdAt));
+
+  const devices = [
+    ...new Set(
+      mine
+        .map((a) => a.context?.device && `${a.context.device} · ${a.context.os}`)
+        .filter((d): d is string => Boolean(d)),
+    ),
+  ];
+  const ips = [...new Set(mine.map((a) => a.context?.ip).filter((i): i is string => Boolean(i)))];
+
+  return {
+    phone,
+    displayName: sorted[sorted.length - 1].sellerName,
+    network: ghanaNetwork(phone),
+    firstSeen: sorted[0].createdAt,
+    totalAds: mine.length,
+    activeAds: approved,
+    approved,
+    rejected,
+    sold,
+    rejectionRate: mine.length > 0 ? Math.round((rejected / mine.length) * 100) : 0,
+    adsLast24h: mine.filter((a) => +new Date(a.createdAt) > dayAgo).length,
+    adsLast7d: mine.filter((a) => +new Date(a.createdAt) > weekAgo).length,
+    distinctCategories: new Set(mine.map((a) => a.category)).size,
+    distinctRegions: new Set(mine.map((a) => a.region)).size,
+    totalLeads: mine.reduce((s, a) => s + a.leads, 0),
+    isRepeatOffender: rejected >= 2,
+    isTrusted: sold >= 1 && rejected === 0 && mine.length >= 3,
+    devices,
+    ips,
+  };
 }
 
 /* ------------------------------------------------------------------ reads */
@@ -236,7 +286,10 @@ export function findByPhone(phone: string): Ad[] {
 
 /* ----------------------------------------------------------------- writes */
 
-export function createAd(input: AdInput): { ok: true; ad: Ad } | { ok: false; error: string } {
+export function createAd(
+  input: AdInput,
+  ctx: PostContext = {},
+): { ok: true; ad: Ad } | { ok: false; error: string } {
   const db = load();
 
   const title = (input.title || "").trim();
@@ -262,7 +315,7 @@ export function createAd(input: AdInput): { ok: true; ad: Ad } | { ok: false; er
   );
   if (dupe) return { ok: false, error: "You just posted this ad — check My Ads" };
 
-  const screen = screenAd({ ...input, title, description });
+  const verdict = screen({ ...input, title, description }, ctx, historyFor(phone));
   const now = new Date();
   const id = crypto.randomUUID();
   const base = slugify(title);
@@ -288,14 +341,20 @@ export function createAd(input: AdInput): { ok: true; ad: Ad } | { ok: false; er
     sellerPhone: phone,
     whatsapp: input.whatsapp !== false,
     sellerType: input.sellerType === "business" ? "business" : "private",
-    status: screen.ok ? "pending" : "rejected",
+    status: verdict.block ? "rejected" : "pending",
     featured: false,
     views: 0,
     leads: 0,
     createdAt: now.toISOString(),
     updatedAt: now.toISOString(),
     expiresAt: new Date(now.getTime() + 30 * 24 * 3600 * 1000).toISOString(),
-    rejectionReason: screen.ok ? undefined : screen.reason,
+    rejectionReason: verdict.block ? verdict.reason : undefined,
+    flags: verdict.flags,
+    riskScore: verdict.score,
+    context: {
+      ...ctx,
+      ...describeDevice(ctx.userAgent),
+    },
   };
 
   db.ads.unshift(ad);

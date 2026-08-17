@@ -29,6 +29,12 @@ export interface Ad {
   updatedAt: string;
   expiresAt: string;
   rejectionReason?: string;
+  /** Why this ad was flagged. Empty = nothing suspicious found. */
+  flags?: Flag[];
+  /** 0 = clean. 70+ is auto-rejected. */
+  riskScore?: number;
+  /** Device/network fingerprint captured when the ad was posted. */
+  context?: PostContext;
 }
 
 /* ---------------------------------------------------------------------------
@@ -54,6 +60,65 @@ export interface Promotion {
   expiresAt: string;
   impressions: number;
   clicks: number;
+}
+
+/* ---------------------------------------------------------------------------
+   Moderation signals.
+
+   Two jobs:
+     1. Auto-reject the obvious rubbish so a human never sees it.
+     2. For everything else, show the moderator WHY something smells, plus who
+        the poster is, so the call takes seconds instead of guesswork.
+   ------------------------------------------------------------------------- */
+
+export type FlagSeverity = "block" | "warn" | "info";
+
+export interface Flag {
+  code: string;
+  /** Plain-English sentence shown in the admin queue. */
+  label: string;
+  severity: FlagSeverity;
+  /** Points added to the ad's risk score. */
+  points: number;
+}
+
+/** Captured at post time. Best-effort — never trusted for security. */
+export interface PostContext {
+  ip?: string;
+  userAgent?: string;
+  device?: string;
+  browser?: string;
+  os?: string;
+  /** Minutes the poster spent filling the form — bots submit instantly. */
+  fillSeconds?: number;
+  language?: string;
+  /** IANA timezone reported by the browser; non-Ghana is worth a look. */
+  timezone?: string;
+  referrer?: string;
+}
+
+/** Everything the moderator needs to judge the person, not just the ad. */
+export interface PosterProfile {
+  phone: string;
+  displayName: string;
+  network: "MTN" | "Telecel" | "AirtelTigo" | "Unknown";
+  firstSeen: string;
+  totalAds: number;
+  activeAds: number;
+  approved: number;
+  rejected: number;
+  sold: number;
+  /** Rejected ÷ total, as a percentage. */
+  rejectionRate: number;
+  adsLast24h: number;
+  adsLast7d: number;
+  distinctCategories: number;
+  distinctRegions: number;
+  totalLeads: number;
+  isRepeatOffender: boolean;
+  isTrusted: boolean;
+  devices: string[];
+  ips: string[];
 }
 
 export interface Lead {

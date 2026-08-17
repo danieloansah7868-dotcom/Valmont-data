@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { CATEGORIES, CATEGORY_MAP, CONDITIONS, REGIONS, TOWNS } from "@/lib/taxonomy";
 import type { Ad } from "@/lib/types";
 
@@ -20,6 +20,8 @@ export default function PostForm() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<Ad | null>(null);
+  /* Bots submit instantly; real people take a while to type. */
+  const startedAt = useRef(Date.now());
 
   const subs = useMemo(() => CATEGORY_MAP.get(category)?.subcategories ?? [], [category]);
   const towns = TOWNS[region] ?? [];
@@ -66,6 +68,8 @@ export default function PostForm() {
           sellerPhone: fd.get("sellerPhone"),
           whatsapp: fd.get("whatsapp") === "on",
           sellerType: fd.get("sellerType"),
+          fillSeconds: Math.round((Date.now() - startedAt.current) / 1000),
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         }),
       });
       const data = await res.json();

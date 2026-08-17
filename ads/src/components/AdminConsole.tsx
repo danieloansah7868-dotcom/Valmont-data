@@ -2,8 +2,25 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import type { Ad, AdStatus, Lead, Promotion } from "@/lib/types";
+import type { Ad, AdStatus, Lead, PosterProfile, Promotion } from "@/lib/types";
 import { cedis, timeAgo } from "@/lib/format";
+
+type QueuedAd = Ad & { poster: PosterProfile | null };
+
+function RiskBadge({ score }: { score: number }) {
+  const tone =
+    score >= 70
+      ? "bg-red-100 text-red-800 ring-red-200"
+      : score >= 35
+        ? "bg-amber-100 text-amber-900 ring-amber-200"
+        : "bg-emerald-50 text-emerald-700 ring-emerald-200";
+  const word = score >= 70 ? "High risk" : score >= 35 ? "Check this" : "Looks clean";
+  return (
+    <span className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase ring-1 ${tone}`}>
+      {word} · {score}
+    </span>
+  );
+}
 
 type PromoRow = Promotion & {
   id: string;
@@ -38,7 +55,8 @@ export default function AdminConsole() {
   const [password, setPassword] = useState("");
   const [authed, setAuthed] = useState(false);
   const [tab, setTab] = useState<AdStatus | "all">("pending");
-  const [ads, setAds] = useState<Ad[]>([]);
+  const [ads, setAds] = useState<QueuedAd[]>([]);
+  const [expanded, setExpanded] = useState<string | null>(null);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -260,6 +278,7 @@ export default function AdminConsole() {
                   <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-600 uppercase">
                     {ad.status}
                   </span>
+                  <RiskBadge score={ad.riskScore ?? 0} />
                 </div>
                 <p className="mt-1 text-xs text-slate-500">
                   {ad.ref} · {cedis(ad.price)} · {ad.town}, {ad.region} · {ad.sellerName} ({ad.sellerPhone}) ·{" "}
@@ -268,6 +287,78 @@ export default function AdminConsole() {
                 <p className="mt-2 line-clamp-2 text-sm text-slate-600">{ad.description}</p>
                 {ad.rejectionReason && (
                   <p className="mt-1.5 text-xs font-semibold text-red-600">⚠ {ad.rejectionReason}</p>
+                )}
+
+                {/* why this ad smells */}
+                {ad.flags && ad.flags.length > 0 && (
+                  <ul className="mt-2 flex flex-wrap gap-1.5">
+                    {ad.flags.map((f, i) => (
+                      <li
+                        key={`${f.code}-${i}`}
+                        className={`rounded-md px-2 py-1 text-[11px] font-semibold ${
+                          f.severity === "block"
+                            ? "bg-red-100 text-red-800"
+                            : f.severity === "warn"
+                              ? "bg-amber-100 text-amber-900"
+                              : "bg-slate-100 text-slate-600"
+                        }`}
+                      >
+                        {f.severity === "block" ? "🚫" : f.severity === "warn" ? "⚠" : "ℹ"} {f.label}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                {/* who posted it */}
+                {ad.poster && (
+                  <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
+                    <span className="font-bold text-[var(--color-navy-900)]">
+                      {ad.poster.isTrusted ? "✅ Trusted" : ad.poster.isRepeatOffender ? "🚩 Repeat offender" : "👤 Poster"}
+                    </span>
+                    <span>{ad.poster.network}</span>
+                    <span>{ad.poster.totalAds} ads total</span>
+                    <span className={ad.poster.rejected > 0 ? "font-bold text-red-600" : ""}>
+                      {ad.poster.rejected} rejected ({ad.poster.rejectionRate}%)
+                    </span>
+                    <span>{ad.poster.sold} sold</span>
+                    <span>{ad.poster.adsLast24h} today</span>
+                    <span>member {timeAgo(ad.poster.firstSeen)}</span>
+                    <button
+                      onClick={() => setExpanded(expanded === ad.id ? null : ad.id)}
+                      className="font-bold text-[var(--color-navy-700)] underline"
+                    >
+                      {expanded === ad.id ? "hide details" : "more details"}
+                    </button>
+                  </div>
+                )}
+
+                {expanded === ad.id && (
+                  <dl className="mt-2.5 grid gap-x-6 gap-y-1 rounded-lg bg-[var(--color-paper)] p-3 text-[11px] sm:grid-cols-2">
+                    {[
+                      ["Device", ad.context?.device ?? "unknown"],
+                      ["Operating system", ad.context?.os ?? "unknown"],
+                      ["Browser", ad.context?.browser ?? "unknown"],
+                      ["IP address", ad.context?.ip ?? "not captured"],
+                      ["Timezone", ad.context?.timezone ?? "unknown"],
+                      ["Language", ad.context?.language ?? "unknown"],
+                      [
+                        "Time to fill form",
+                        ad.context?.fillSeconds !== undefined ? `${ad.context.fillSeconds}s` : "unknown",
+                      ],
+                      ["Came from", ad.context?.referrer ?? "direct"],
+                      ["Risk score", String(ad.riskScore ?? 0)],
+                      ["Photos", String(ad.images.length)],
+                      ["Categories used", String(ad.poster?.distinctCategories ?? "—")],
+                      ["Regions used", String(ad.poster?.distinctRegions ?? "—")],
+                      ["Devices seen", ad.poster?.devices.join(", ") || "—"],
+                      ["Buyer messages", String(ad.poster?.totalLeads ?? 0)],
+                    ].map(([k, v]) => (
+                      <div key={k} className="flex justify-between gap-3 border-b border-dashed border-black/5 py-0.5">
+                        <dt className="text-slate-500">{k}</dt>
+                        <dd className="truncate text-right font-semibold text-[var(--color-navy-900)]">{v}</dd>
+                      </div>
+                    ))}
+                  </dl>
                 )}
               </div>
 

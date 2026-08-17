@@ -37,6 +37,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
   }
 
+  /* Best-effort fingerprint. Used only to help a human judge the post — never
+     for auth, and never shown to buyers. */
+  const ctx = {
+    ip:
+      req.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
+      req.headers.get("x-real-ip") ||
+      undefined,
+    userAgent: req.headers.get("user-agent") ?? undefined,
+    language: req.headers.get("accept-language")?.split(",")[0] ?? undefined,
+    referrer: req.headers.get("referer") ?? undefined,
+    fillSeconds: typeof body.fillSeconds === "number" ? body.fillSeconds : undefined,
+    timezone: body.timezone ? String(body.timezone) : undefined,
+  };
+
   const result = createAd({
     title: String(body.title ?? ""),
     category: String(body.category ?? ""),
@@ -52,7 +66,7 @@ export async function POST(req: NextRequest) {
     sellerPhone: String(body.sellerPhone ?? ""),
     whatsapp: body.whatsapp !== false,
     sellerType: body.sellerType === "business" ? "business" : "private",
-  });
+  }, ctx);
 
   if (!result.ok) return NextResponse.json(result, { status: 400 });
   return NextResponse.json({ ok: true, ad: result.ad }, { status: 201 });
