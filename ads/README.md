@@ -193,15 +193,27 @@ Placement is deliberately rationed, because a buyer who scrolls three pages and
 meets the same shop five times stops trusting the listings and leaves — which
 destroys the free audience the paid layer is sold against:
 
-- **Never the first card.** Organic content always leads.
-- **Two per page maximum**, at fixed slots (3rd and 8th card).
-- **A paid ad takes its sponsored slot *instead of* its organic position**, never
-  both, so paying can't multiply how often one shop is seen.
-- **Rest pages.** With few clients, whole pages carry no paid ads at all, so one
-  campaign can't follow a buyer down the list.
-- **Rotation.** With several clients, each gets frontage on a different page.
-- **Default view only.** Sort by price or popularity and money stops mattering
-  entirely. Tests enforce this.
+- **Nothing is ever removed from the listing.** Every ad, paid or free, keeps its
+  honest position and stays reachable by paging. A promotion only ever *adds* a
+  bonus slot; it never displaces or hides another seller's ad.
+- **At most 2 bonus slots per page** (1 on a 6-card page) — roughly 1 paid card
+  in 6. The API returns `bonusSlots` so this is measurable, not a guess.
+- **Never the first card.** A paid ad can only lead if it earned that spot
+  organically — newest, or a free editorial *Featured* pick.
+- **No double-dipping.** A campaign already visible on the page cannot also win a
+  bonus slot there, and the page's budget is reduced by any paid ads that ranked
+  organically — so exposure can't be stacked.
+- **Rest pages + rotation.** With few clients, whole pages carry no bonus slots;
+  with several, each gets frontage on a different page.
+- **Default view only.** Sort by price or popularity and `bonusSlots` is `0`.
+  Tests enforce this.
+
+> **Why "never remove, only add":** the first version lifted paid ads out of the
+> normal run so a bonus slot replaced their natural position. That looked tidier
+> and was badly wrong — the paging cursor drifted and silently dropped honest
+> listings, and any campaign that lost the rotation vanished from the site
+> entirely. A seller's ad disappearing is far worse than a slightly busy page,
+> so the engine now guarantees reachability first and rations exposure second.
 
 ## Rules baked into the code
 
@@ -244,7 +256,7 @@ ads/
 │   ├── seed.ts               59-listing demo catalogue with sales history
 │   ├── taxonomy.ts           categories, regions, towns, conditions
 │   ├── types.ts  format.ts   shared types and GH₵ / time / phone formatting
-└── scripts/test.mjs          142-check smoke suite
+└── scripts/test.mjs          147-check smoke suite
 ```
 
 **Persistence.** `src/lib/store.ts` writes to `.data/ads.json` (gitignored) so

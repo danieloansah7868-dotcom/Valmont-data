@@ -242,6 +242,12 @@ export function isPromoted(ad: Ad): boolean {
        completely and shows paid ads in their honest position.
    ------------------------------------------------------------------------- */
 export const SPONSORED_PER_PAGE = 2;
+/* Never let paid ads exceed ~1 in 6 cards. A flat cap of 2 is fine on a
+   12-card page but is a third of a 6-card page, which is what makes a
+   marketplace feel like an advert board. */
+export function slotBudget(perPage: number): number {
+  return Math.max(0, Math.min(SPONSORED_PER_PAGE, Math.floor(perPage / 6)));
+}
 /* A campaign must sit out at least this many pages between appearances, so a
    single client cannot follow a buyer down the whole listing. */
 export const SPONSORED_PAGE_GAP = 2;
@@ -330,22 +336,52 @@ export function listAds(query: ListQuery = {}) {
     rows.sort((a, b) => Number(Boolean(b.featured)) - Number(Boolean(a.featured)));
   }
 
-  /* On the default view, paid ads are lifted out of the organic run and placed
-     only in their rationed slots. Everywhere else they rank on merit alone. */
-  const sponsored = sort === "recent" ? rows.filter((a) => isPromoted(a)) : [];
-  const organic = sponsored.length > 0 ? rows.filter((a) => !isPromoted(a)) : rows;
+  /* Paid placement.
 
+     Earlier versions LIFTED promoted ads out of the organic list so a paid slot
+     replaced their natural position. That quietly broke two things: the paging
+     cursor drifted and dropped honest listings, and any campaign that lost the
+     rotation vanished from the site altogether — a paying client with an
+     invisible ad. Both are far worse than a busy-looking page.
+
+     So nothing is ever removed from the listing. Every ad, paid or not, keeps
+     its honest position and stays reachable. On top of that, a small number of
+     campaigns per page get ONE bonus slot each:
+       - at most slotBudget(perPage) bonus slots (~1 paid card in 6);
+       - never the first card;
+       - only for a campaign not already visible on this page, so a bonus can
+         never make the same shop appear twice on one screen;
+       - rotated, with rest pages, so no client follows a buyer down the list.
+     Sorting by price or popularity disables bonus slots entirely. */
   const total = rows.length;
   const pages = Math.max(1, Math.ceil(total / perPage));
   const safePage = Math.min(Math.max(1, page), pages);
 
-  const slots = sponsoredForPage(sponsored, safePage, SPONSORED_PER_PAGE);
-  /* Keep the page the right length: sponsored inserts displace organic rows. */
-  const organicPerPage = Math.max(1, perPage - slots.length);
-  let items = organic.slice((safePage - 1) * organicPerPage, safePage * organicPerPage);
-  items = insertSponsored(items, slots);
+  const pageItems = rows.slice((safePage - 1) * perPage, safePage * perPage);
+  let items = pageItems;
+  let bonusSlots = 0;
 
-  return { items, total, page: safePage, pages, perPage };
+  if (sort === "recent") {
+    const live = rows.filter((a) => isPromoted(a));
+    const onPage = new Set(pageItems.map((a) => a.id));
+    /* Only campaigns that are NOT already on this page can win a bonus slot. */
+    const eligible = live.filter((a) => !onPage.has(a.id));
+
+    /* Spend only the budget this page has not already used organically. If paid
+       ads happen to rank here on their own merit, that IS the exposure — piling
+       bonus slots on top is what turns a listing into an advert board. */
+    const alreadyPaid = pageItems.filter((a) => isPromoted(a)).length;
+    const remaining = Math.max(0, slotBudget(perPage) - alreadyPaid);
+    const chosen = sponsoredForPage(eligible, safePage, remaining);
+    /* Deliberately NOT truncated back to perPage: trimming the tail would push
+       an honest listing off the page and it would never reappear, since the
+       next page starts at a fixed offset. A page one or two cards longer is a
+       trivial cost next to a seller's ad silently disappearing. */
+    bonusSlots = chosen.length;
+    items = insertSponsored(pageItems, chosen);
+  }
+
+  return { items, total, page: safePage, pages, perPage, bonusSlots };
 }
 
 export function getAd(idOrSlug: string): Ad | undefined {
