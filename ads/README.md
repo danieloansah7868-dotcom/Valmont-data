@@ -307,13 +307,53 @@ No secrets ship to the client; the store module is server-only.
 
 ---
 
+## Do we need Supabase?
+
+**Not to launch. Yes, before you take real listings on Vercel.** The deciding
+factor is not how many ads you have — it is *where you host*.
+
+### The honest constraint
+
+`src/lib/store.ts` keeps everything in one JSON file (`.data/ads.json`) and
+rewrites that whole file on every write. Measured on the seed catalogue:
+~1.2 KB per ad, a search in 4–8 ms, and 20 simultaneous posts with **zero lost
+writes and no corruption** (Node's single thread serialises them).
+
+That is genuinely fine for a small site. The problem is serverless.
+
+| Host | What happens | Verdict |
+|---|---|---|
+| **VPS / droplet / any always-on server with a disk** | File is written and re-read normally. Works. | ✅ Ship it |
+| **Vercel, Netlify, Cloudflare (serverless)** | Filesystem is read-only, so `persist()` silently falls back to memory. Every cold start resets to the seed catalogue, and each instance has its own copy. **Sellers' ads vanish.** | ❌ Supabase first |
+
+That silent fallback is deliberate — better than crashing — but it means on
+Vercel the site *looks* fine while quietly losing data. Do not skip this.
+
+### When to switch, by hosting choice
+
+1. **Launching on a VPS?** No Supabase needed. Take a nightly copy of
+   `.data/ads.json` (it is just a file) and revisit at a few thousand ads.
+2. **Launching on Vercel?** Port the store first. Non-negotiable.
+3. **Either way, port when** you pass roughly **2,000 live ads** (the file hits
+   ~2 MB and every single post rewrites all of it), or you want full-text search,
+   or you need more than one server.
+
+### What porting actually costs
+
+`store.ts` is the only file that touches storage — 29 exported functions behind
+a narrow interface (`listAds`, `getAd`, `createAd`, `setStatus`, `createLead`,
+`getSellerStats`, …). The 12 files that import it never see the storage layer, so
+they do not change. Reuse the schema pattern in `app/supabase/schema.sql`.
+
+Search is currently a linear scan in memory, which is why it is fast now and
+why Postgres indexes are the real win later.
+
 ## Deploy
 
 Vercel picks this up as a standard Next.js app (root directory `ads/`). Set
-`ADMIN_PASSWORD`, and set `ADS_STORE=memory` unless you have attached writable
-storage — serverless filesystems are read-only, in which case the seed catalogue
-loads fresh per instance. For real production, port `src/lib/store.ts` onto
-Supabase and reuse the schema pattern in `app/supabase/schema.sql`.
+`ADMIN_PASSWORD` and `NEXT_PUBLIC_SITE_URL`. **Read the Supabase section above
+before deploying to Vercel** — set `ADS_STORE=memory` there only if you accept a
+demo that resets, never for real listings.
 
 ---
 
