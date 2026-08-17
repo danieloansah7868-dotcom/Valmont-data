@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Ad } from "@/lib/types";
 import { cedis, timeAgo } from "@/lib/format";
 import { CATEGORY_MAP } from "@/lib/taxonomy";
+import ShareButton from "./ShareButton";
 import { headlineBadge } from "@/lib/reputation";
 import type { SellerStats } from "@/lib/reputation";
 
@@ -56,11 +57,14 @@ export default function AdCard({ ad, reputation }: { ad: Ad; reputation?: Seller
           )}
         </div>
 
-        {ad.sellerType === "business" && (
-          <span className="absolute top-2 right-2 rounded-md bg-white/95 px-2 py-1 text-[10px] font-bold text-[var(--color-navy-900)] shadow-sm">
-            ✔ Business
-          </span>
-        )}
+        <div className="absolute top-2 right-2 flex items-center gap-1.5">
+          {ad.sellerType === "business" && (
+            <span className="rounded-md bg-white/95 px-2 py-1 text-[10px] font-bold text-[var(--color-navy-900)] shadow-sm">
+              ✔ Business
+            </span>
+          )}
+          <ShareButton slug={ad.slug} title={ad.title} price={cedis(ad.price)} town={ad.town} />
+        </div>
       </div>
 
       <div className="flex flex-1 flex-col p-3.5">

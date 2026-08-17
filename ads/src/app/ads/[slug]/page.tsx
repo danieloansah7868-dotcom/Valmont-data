@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import AdCard from "@/components/AdCard";
 import ContactSeller from "@/components/ContactSeller";
+import ShareAd from "@/components/ShareAd";
 import Gallery from "@/components/Gallery";
 import ViewPing from "@/components/ViewPing";
 import { getAd, relatedAds, getSellerStats, sellerStatsFor } from "@/lib/store";
@@ -174,6 +175,10 @@ export default async function AdDetailPage({ params }: { params: Params }) {
             active={isActive}
             reputation={reputation}
           />
+
+          <div className="mt-4">
+            <ShareAd title={ad.title} price={cedis(ad.price)} town={ad.town} />
+          </div>
         </div>
       </div>
 

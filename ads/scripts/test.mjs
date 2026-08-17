@@ -517,6 +517,62 @@ async function main() {
   check("Seller sees the lead in My ads", sellerView.json.leads.some((l) => l.phone === "0551234567"));
 
   /* ---------------------------------------------------- seller reputation */
+  /* ------------------------------------------------------------ security */
+  section("Security");
+  const xssTitle = `<script>alert(1)</script> Phone deal ${RUN}`;
+  const xssAd = await post("/api/ads", validAd({
+    title: xssTitle,
+    sellerPhone: "0241119999",
+    description: "Checking that markup submitted by a stranger is escaped before it reaches another visitor's browser.",
+  }));
+  check("Ad with markup in the title is accepted or rejected cleanly", [201, 400].includes(xssAd.res.status));
+  if (xssAd.res.status === 201) {
+    await post("/api/admin", { id: xssAd.json.ad.id, action: "active" }, adminHeaders);
+    const xssPage = await get(`/ads/${xssAd.json.ad.slug}`);
+    check("Injected script tag is never rendered raw", !xssPage.text.includes("<script>alert(1)</script>"));
+    check("Injected markup is HTML-escaped instead", xssPage.text.includes("&lt;script&gt;"));
+    await post("/api/admin", { id: xssAd.json.ad.id, action: "rejected" }, adminHeaders);
+  }
+
+  check(
+    "Admin API rejects a missing password",
+    (await get("/api/admin?status=all")).res.status === 401,
+  );
+  check(
+    "Admin API rejects a wrong password",
+    (await get("/api/admin?status=all", { "x-admin-password": "not-the-password" })).res.status === 401,
+  );
+  check(
+    "Moderation cannot be driven without the password",
+    (await post("/api/admin", { id: newAd.id, action: "rejected" })).res.status === 401,
+  );
+
+  /* ------------------------------------------------------------- sharing */
+  section("Sharing (how a classifieds site actually spreads)");
+  const shareAd = (await get("/api/ads?perPage=1")).json.items[0];
+  const shareHtml = (await get(`/ads/${shareAd.slug}`)).text;
+  check("Ad page offers a WhatsApp share", shareHtml.includes("Share on WhatsApp"));
+  check("WhatsApp share uses a wa.me link", shareHtml.includes("wa.me"));
+  check("Share block explains itself", shareHtml.includes("Know someone who needs this?"));
+
+  /* A forwarded link is useless if the person receiving it cannot open the
+     page without an account — the whole point is reaching people who are not
+     users yet. */
+  const anon = await get(`/ads/${shareAd.slug}`);
+  check("Shared link opens for a logged-out stranger", anon.res.status === 200);
+  check("Shared page names the item", anon.text.includes(shareAd.title.slice(0, 20)));
+
+  /* Link previews: a bare URL in WhatsApp with no title or image gets ignored. */
+  check("Shared page carries an OG title", /property=["']og:title["']/.test(shareHtml));
+  check("Shared page carries an absolute OG image", /property=["']og:image["'][^>]*https?:\/\//.test(shareHtml));
+
+  const listHtml = (await get("/ads")).text;
+  const shareButtons = (listHtml.match(/aria-label="Share /g) ?? []).length;
+  check("Every ad card has its own share button", shareButtons >= 12, `${shareButtons} found`);
+
+  const sellerShareHtml = (await get("/seller/0248001122")).text;
+  check("Seller profiles are shareable too", sellerShareHtml.includes("Know someone who needs this?"));
+
   section("Seller badges (earned, visible to buyers)");
   const seedSeller = "0244118822"; // demo seller from the seed catalogue
   const pub = await get(`/api/sellers/${seedSeller}`);

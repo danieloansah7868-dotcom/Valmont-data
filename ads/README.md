@@ -28,7 +28,7 @@ rest sold/pending so seller track records are real) on first boot,
 so nothing is ever empty. In a second terminal:
 
 ```bash
-npm test             # 150-check end-to-end suite (dev server must be running)
+npm test             # 159-check end-to-end suite (dev server must be running)
 ```
 
 | Script | What it does |
@@ -36,7 +36,7 @@ npm test             # 150-check end-to-end suite (dev server must be running)
 | `npm run dev` | Dev server on `0.0.0.0:3000` |
 | `npm run build` | Production build |
 | `npm start` | Serve the production build |
-| `npm test` | 150-check API + page smoke suite |
+| `npm test` | 159-check API + page smoke suite |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run check` | typecheck + full suite, the one to run before pushing |
 
@@ -220,6 +220,22 @@ destroys the free audience the paid layer is sold against:
 > entirely. A seller's ad disappearing is far worse than a slightly busy page,
 > so the engine now guarantees reachability first and rations exposure second.
 
+## Sharing
+
+Word of mouth is how a classifieds site actually grows here, so sharing is a
+first-class feature rather than an afterthought:
+
+- **Every ad card** has a share button — no need to open the ad first.
+- **Ad pages and seller profiles** have a full share block.
+- Order of preference: the phone's **native share sheet** (one tap to WhatsApp,
+  Telegram, SMS), then **WhatsApp explicitly** for desktop, then **copy link**
+  which works everywhere including the in-app browsers in Facebook/Instagram.
+- The shared message leads with item, price and town, because the person
+  receiving it has no context yet.
+- **Shared links need no account.** Anyone can open them. That is the point.
+- `metadataBase` + Open Graph tags mean a link pasted into WhatsApp renders with
+  a real title and photo instead of a bare URL — set `NEXT_PUBLIC_SITE_URL`.
+
 ## Rules baked into the code
 
 1. **Nothing goes live unreviewed** — every new ad starts `pending`; only a
@@ -253,7 +269,8 @@ ads/
 │                             sellers/[phone] · admin · go/[id]
 ├── src/components/           SiteHeader, SiteFooter, AdCard, Filters, SortSelect,
 │                             PostForm, ContactSeller, Gallery, MyAdsClient,
-│                             AdminConsole, SellerBadges, ViewPing
+│                             AdminConsole, SellerBadges, ShareAd,
+│                             ShareButton, ViewPing
 ├── src/lib/
 │   ├── store.ts              data layer (validation, screening, CRUD, queries)
 │   ├── reputation.ts         badge + score engine (earned, never buyable)
@@ -261,7 +278,7 @@ ads/
 │   ├── seed.ts               57-listing catalogue (36 live + sales history)
 │   ├── taxonomy.ts           categories, regions, towns, conditions
 │   ├── types.ts  format.ts   shared types and GH₵ / time / phone formatting
-└── scripts/test.mjs          150-check smoke suite
+└── scripts/test.mjs          159-check smoke suite
 ```
 
 **Persistence.** `src/lib/store.ts` writes to `.data/ads.json` (gitignored) so

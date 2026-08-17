@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import AdCard from "@/components/AdCard";
 import SellerBadges from "@/components/SellerBadges";
+import ShareAd from "@/components/ShareAd";
 import { getSellerStats, listAds } from "@/lib/store";
 import { maskPhone, timeAgo } from "@/lib/format";
 
@@ -83,6 +84,14 @@ export default async function SellerPage({ params }: { params: Params }) {
             ⚠️ Some of this seller&apos;s ads were removed by moderation. Inspect carefully and never pay in advance.
           </p>
         )}
+      </div>
+
+      <div className="mt-4">
+        <ShareAd
+          title={`${seller.name} on Valmont Ads`}
+          price={`${seller.activeAds} live ${seller.activeAds === 1 ? "ad" : "ads"}`}
+          town="Ghana"
+        />
       </div>
 
       {/* how badges work */}
