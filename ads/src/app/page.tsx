@@ -39,8 +39,8 @@ export default function HomePage() {
               </h1>
 
               <p className="mt-5 max-w-xl text-base leading-relaxed text-white/75 sm:text-lg">
-                Post your ad in under two minutes and reach buyers from Accra to Tamale. No commission, no listing
-                fee, no middleman — you deal directly with the buyer.
+                Post your ad in under two minutes and reach buyers from Accra to Tamale. Free to post, and we never
+                touch your money — you agree your own price and get paid directly.
               </p>
 
               <div className="mt-8 flex flex-wrap gap-3">
@@ -266,6 +266,61 @@ export default function HomePage() {
               {r}
             </Link>
           ))}
+        </div>
+      </section>
+
+      {/* ── SISTER PRODUCT: VALMONT WEB ──────────────────────── */}
+      <section className="mx-auto max-w-7xl px-4 pb-10">
+        <div className="grid items-center gap-8 rounded-3xl bg-white p-8 ring-1 ring-black/5 sm:p-10 lg:grid-cols-[1.3fr_1fr]">
+          <div>
+            <p className="text-xs font-black tracking-widest text-[var(--color-orange-brand)] uppercase">
+              Selling every week?
+            </p>
+            <h2 className="mt-2 text-2xl font-black text-[var(--color-navy-900)] sm:text-3xl">
+              An ad sells one item. A website builds a business.
+            </h2>
+            <p className="mt-3 max-w-xl text-sm leading-relaxed text-slate-600">
+              Valmont Ads is a noticeboard — brilliant for shifting a phone, a car or a spare plot fast. But a
+              listing expires, and the customer belongs to the search, not to you. If you sell regularly, our
+              sister company <strong className="text-[var(--color-navy-900)]">Valmont Web Services</strong> builds
+              you a real shop at your own address: your brand, your customer list, MoMo and card paid straight
+              into your account.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <a
+                href="https://valmontweb.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-xl bg-[var(--color-navy-900)] px-6 py-3.5 text-sm font-extrabold text-white transition hover:bg-[var(--color-navy-700)] active:scale-95"
+              >
+                See what they build →
+              </a>
+              <Link
+                href="/post"
+                className="rounded-xl bg-white px-6 py-3.5 text-sm font-extrabold text-[var(--color-navy-900)] ring-1 ring-black/10 transition hover:bg-slate-50 active:scale-95"
+              >
+                Just post an ad for now
+              </Link>
+            </div>
+          </div>
+
+          <div className="rounded-2xl bg-[var(--color-paper)] p-6 ring-1 ring-black/5">
+            <p className="text-xs font-black tracking-wider text-slate-500 uppercase">Which one do I need?</p>
+            <dl className="mt-4 grid gap-3 text-sm">
+              <div>
+                <dt className="font-bold text-[var(--color-navy-900)]">Valmont Ads — free</dt>
+                <dd className="mt-0.5 text-slate-600">
+                  One-off items. Live in minutes, expires in 30 days.
+                </dd>
+              </div>
+              <div className="border-t border-black/5 pt-3">
+                <dt className="font-bold text-[var(--color-navy-900)]">Valmont Web — from GH₵3,500</dt>
+                <dd className="mt-0.5 text-slate-600">
+                  Permanent shop, your own domain, checkout, repeat customers.
+                </dd>
+              </div>
+            </dl>
+          </div>
         </div>
       </section>
 

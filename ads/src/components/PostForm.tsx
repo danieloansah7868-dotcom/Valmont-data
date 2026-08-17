@@ -490,6 +490,22 @@ export default function PostForm() {
               asking for an advance fee.
             </p>
           </div>
+
+          <div className="mt-5 border-t border-white/10 pt-5">
+            <h3 className="text-sm font-black text-white">Selling as a business?</h3>
+            <p className="mt-2 text-xs leading-relaxed">
+              Ads expire after 30 days. If you sell every week, our sister company{" "}
+              <a
+                href="https://valmontweb.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-bold text-[var(--color-orange-brand)] underline"
+              >
+                Valmont Web Services
+              </a>{" "}
+              builds you a permanent shop with your own domain and checkout.
+            </p>
+          </div>
         </div>
       </aside>
     </form>

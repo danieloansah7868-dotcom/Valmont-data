@@ -15,8 +15,8 @@ export default function SiteFooter() {
             </span>
           </div>
           <p className="mt-4 text-sm leading-relaxed">
-            Ghana&apos;s free classifieds marketplace. Post an ad in under two minutes, reach buyers in every
-            region, and deal directly — we never take a cut of your sale.
+            Ghana&apos;s free classifieds noticeboard. Post an ad in under two minutes, reach buyers in every
+            region, and settle the deal yourself — we never handle the payment or take a cut of your sale.
           </p>
           <p className="mt-4 text-xs text-white/45">A Valmont Group of Companies platform · Accra, Ghana</p>
         </div>
@@ -76,6 +76,21 @@ export default function SiteFooter() {
           <p className="mt-5 text-xs leading-relaxed text-white/45">
             Valmont Ads is a listings platform. We do not handle payments or delivery between buyers and sellers.
           </p>
+
+          <div className="mt-5 border-t border-white/10 pt-5">
+            <h3 className="text-sm font-bold tracking-wider text-white uppercase">Want your own website?</h3>
+            <p className="mt-2 text-xs leading-relaxed">
+              <a
+                href="https://valmontweb.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-bold text-[var(--color-orange-brand)] hover:underline"
+              >
+                Valmont Web Services
+              </a>{" "}
+              builds shops, school, church and clinic sites for Ghanaian businesses — from GH₵3,500.
+            </p>
+          </div>
         </div>
       </div>
 
