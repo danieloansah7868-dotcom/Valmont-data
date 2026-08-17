@@ -148,13 +148,14 @@ follows their ads around the site.
 
 | Badge | How it is earned |
 |---|---|
-| 🛡️ **ID Verified** | Granted by hand in `/admin` after checking ID or visiting the shop. The only manual badge. |
+| 🛡️ **ID Verified** | Granted by hand in `/admin` after checking ID or visiting the shop. |
+| 🛡️ **Verified by record** | Automatic: 5+ sales over 60+ days, 5+ ads, nothing ever removed. The badge says plainly that nobody met them. |
 | ✅ **Trusted Seller** | 3+ completed sales, zero rejected ads, active 14+ days |
 | 🏆 **Top Seller** | 10+ completed sales |
 | 📅 **Long-standing** | 90+ days, 5+ ads, clean record |
 | 💬 **Responsive** | 10+ buyer messages received and at least one sale |
 | ⚠️ **Take care** | 2+ ads rejected by moderation — shown to buyers, not hidden |
-| 🌱 **New seller** | No history yet. Not an accusation, just a fact. |
+| 🌱 **New seller** | No history yet. Not an accusation, just a fact — and shown on ad cards too, not hidden. |
 
 Four rules hold this together, and they are the reason the badges are worth
 anything:
@@ -162,15 +163,45 @@ anything:
 1. **Money can never buy a badge.** A Valmont Web client buying a promotion gets
    placement and a "Sponsored" label — never a trust signal. The two systems are
    deliberately separate in the code, and a test asserts it.
-2. **Badges are automatic**, computed from real activity, except ID Verified.
+2. **Badges are automatic**, computed from real activity. Verification has two
+   routes — a hand check, or a long clean trading record — and the badge always
+   states which one, because "we met this person" and "the numbers add up" are
+   different claims and buyers deserve to know the difference.
 3. **Badges are losable.** Get ads rejected and Trusted disappears while
    *Take care* appears. A reputation you can't lose isn't a reputation.
 4. **Every badge states its reason** in plain English on hover, so nobody has to
    guess what "trusted" means here.
 
-The warning badge is the important one. Most marketplaces only show good news,
-which is why their badges get ignored. Showing the bad news is what makes the
-good news believable.
+Nothing is hidden. The ⚠️ warning and 🌱 new-seller badges show on ad cards and
+profiles alike. Most marketplaces only surface good news, which is why their
+badges get ignored — showing the bad is what makes the good believable.
+
+## How paid ads differ from free ones
+
+A promotion buys **placement and a label — nothing else.** Concretely:
+
+| | Free ad | Paid ad |
+|---|---|---|
+| Appears in search/filters | yes | yes, identically |
+| Ranked by price/popular sorts | on merit | on merit — money is ignored |
+| Extra slot on the default view | no | yes, rationed (see below) |
+| Visual treatment | plain white card | orange frame + **Ad · Paid** label + payer named |
+| Links to | the ad page | the client's own website |
+| Trust badges | earned | **cannot be bought** |
+
+Placement is deliberately rationed, because a buyer who scrolls three pages and
+meets the same shop five times stops trusting the listings and leaves — which
+destroys the free audience the paid layer is sold against:
+
+- **Never the first card.** Organic content always leads.
+- **Two per page maximum**, at fixed slots (3rd and 8th card).
+- **A paid ad takes its sponsored slot *instead of* its organic position**, never
+  both, so paying can't multiply how often one shop is seen.
+- **Rest pages.** With few clients, whole pages carry no paid ads at all, so one
+  campaign can't follow a buyer down the list.
+- **Rotation.** With several clients, each gets frontage on a different page.
+- **Default view only.** Sort by price or popularity and money stops mattering
+  entirely. Tests enforce this.
 
 ## Rules baked into the code
 
@@ -213,7 +244,7 @@ ads/
 │   ├── seed.ts               59-listing demo catalogue with sales history
 │   ├── taxonomy.ts           categories, regions, towns, conditions
 │   ├── types.ts  format.ts   shared types and GH₵ / time / phone formatting
-└── scripts/test.mjs          130-check smoke suite
+└── scripts/test.mjs          142-check smoke suite
 ```
 
 **Persistence.** `src/lib/store.ts` writes to `.data/ads.json` (gitignored) so

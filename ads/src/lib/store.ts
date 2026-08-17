@@ -221,6 +221,66 @@ export function isPromoted(ad: Ad): boolean {
   return +new Date(ad.promotion.expiresAt) > Date.now();
 }
 
+/* ---------------------------------------------------------------------------
+   Sponsored slots.
+
+   The obvious way to sell promotion is to float paid ads to the top of every
+   page. It is also the way to make the site feel like an advert board: a buyer
+   who scrolls three pages and sees the same shop five times stops trusting the
+   listings and leaves, which destroys the free audience the paid layer is
+   being sold against.
+
+   So paid placement is rationed instead:
+     - at most SPONSORED_PER_PAGE paid ads on any page of results;
+     - never the first card — organic content leads, always;
+     - a campaign appears at most once per page, no stacking;
+     - campaigns ROTATE by page, and with few clients there are REST PAGES
+       carrying no paid ads at all, so nobody follows a buyer down the list;
+     - on the default view a paid ad occupies its sponsored slot INSTEAD of its
+       organic position, never both, so buying placement can never multiply how
+       often one shop is seen. Every other sort and filter ignores money
+       completely and shows paid ads in their honest position.
+   ------------------------------------------------------------------------- */
+export const SPONSORED_PER_PAGE = 2;
+/* A campaign must sit out at least this many pages between appearances, so a
+   single client cannot follow a buyer down the whole listing. */
+export const SPONSORED_PAGE_GAP = 2;
+const SPONSORED_SLOTS = [2, 7]; // 0-based: third card, then eighth
+
+/** Which campaigns (if any) are allowed on this page. Returns [] on rest pages. */
+function sponsoredForPage(live: Ad[], page: number, maxSlots: number): Ad[] {
+  if (live.length === 0 || maxSlots <= 0) return [];
+
+  /* Lay the campaigns out on a wheel with blank spaces mixed in. One client
+     means [client, blank, blank]: seen on page 1, absent on 2 and 3. Many
+     clients means the blanks disappear and everyone gets a turn instead. */
+  const perTurn = Math.min(maxSlots, live.length);
+  const turns = Math.ceil(live.length / perTurn);
+  const cycle = Math.max(turns, SPONSORED_PAGE_GAP + 1);
+  const turn = (page - 1) % cycle;
+  if (turn >= turns) return []; // a rest page — no paid ads at all
+
+  return live.slice(turn * perTurn, turn * perTurn + perTurn);
+}
+
+/** Drop the chosen campaigns into fixed slots, never position 0. */
+function insertSponsored(pageItems: Ad[], chosen: Ad[]): Ad[] {
+  if (chosen.length === 0 || pageItems.length === 0) return pageItems;
+
+  const out = pageItems.slice();
+  const seen = new Set<string>();
+  for (let i = 0; i < chosen.length; i++) {
+    const ad = chosen[i];
+    if (seen.has(ad.id)) continue; // one appearance per campaign per page
+    seen.add(ad.id);
+
+    const slot = SPONSORED_SLOTS[i] ?? SPONSORED_SLOTS[SPONSORED_SLOTS.length - 1];
+    /* Never the first card, and never past the end of a short page. */
+    out.splice(Math.max(1, Math.min(slot, out.length)), 0, ad);
+  }
+  return out;
+}
+
 export function listAds(query: ListQuery = {}) {
   const db = load();
   const {
@@ -264,18 +324,26 @@ export function listAds(query: ListQuery = {}) {
   };
   rows.sort(cmp[sort] ?? cmp.recent);
 
-  /* Paid placement only ever reorders the DEFAULT view. When a buyer states an
-     intent — cheapest first, most viewed — money must not move the results, or
-     the rankings become worthless and buyers stop trusting them. */
+  /* "Featured" is a free editorial pick by the moderator, not a paid slot, so
+     it can lift an ad on the default view without anyone having paid. */
   if (sort === "recent") {
-    const rank = (a: Ad) => (isPromoted(a) ? 2 : a.featured ? 1 : 0);
-    rows.sort((a, b) => rank(b) - rank(a));
+    rows.sort((a, b) => Number(Boolean(b.featured)) - Number(Boolean(a.featured)));
   }
+
+  /* On the default view, paid ads are lifted out of the organic run and placed
+     only in their rationed slots. Everywhere else they rank on merit alone. */
+  const sponsored = sort === "recent" ? rows.filter((a) => isPromoted(a)) : [];
+  const organic = sponsored.length > 0 ? rows.filter((a) => !isPromoted(a)) : rows;
 
   const total = rows.length;
   const pages = Math.max(1, Math.ceil(total / perPage));
   const safePage = Math.min(Math.max(1, page), pages);
-  const items = rows.slice((safePage - 1) * perPage, safePage * perPage);
+
+  const slots = sponsoredForPage(sponsored, safePage, SPONSORED_PER_PAGE);
+  /* Keep the page the right length: sponsored inserts displace organic rows. */
+  const organicPerPage = Math.max(1, perPage - slots.length);
+  let items = organic.slice((safePage - 1) * organicPerPage, safePage * organicPerPage);
+  items = insertSponsored(items, slots);
 
   return { items, total, page: safePage, pages, perPage };
 }

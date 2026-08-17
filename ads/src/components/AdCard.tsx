@@ -14,7 +14,11 @@ export default function AdCard({ ad, reputation }: { ad: Ad; reputation?: Seller
   return (
     <Link
       href={`/ads/${ad.slug}`}
-      className="group flex flex-col overflow-hidden rounded-2xl bg-white ring-1 ring-black/5 transition hover:-translate-y-0.5 hover:shadow-lg hover:ring-black/10"
+      className={`group flex flex-col overflow-hidden rounded-2xl transition hover:-translate-y-0.5 hover:shadow-lg ${
+        promo
+          ? "bg-amber-50/60 ring-2 ring-[var(--color-orange-brand)]/45 hover:ring-[var(--color-orange-brand)]/70"
+          : "bg-white ring-1 ring-black/5 hover:ring-black/10"
+      }`}
     >
       <div className="relative aspect-4/3 overflow-hidden bg-slate-100">
         {img ? (
@@ -33,8 +37,11 @@ export default function AdCard({ ad, reputation }: { ad: Ad; reputation?: Seller
 
         <div className="absolute top-2 left-2 flex gap-1.5">
           {promo && (
-            <span className="rounded-md bg-[var(--color-navy-900)] px-2 py-1 text-[10px] font-black tracking-wide text-white uppercase shadow ring-1 ring-white/20">
-              Sponsored
+            <span
+              title={`${promo.clientName} paid to show this ad here. Valmont takes no commission on the sale.`}
+              className="rounded-md bg-[var(--color-orange-brand)] px-2 py-1 text-[10px] font-black tracking-wide text-white uppercase shadow ring-1 ring-white/25"
+            >
+              Ad · Paid
             </span>
           )}
           {ad.featured && !promo && (
@@ -94,8 +101,8 @@ export default function AdCard({ ad, reputation }: { ad: Ad; reputation?: Seller
         </div>
 
         {promo && (
-          <p className="mt-2 truncate border-t border-dashed border-slate-100 pt-2 text-[10px] font-semibold text-slate-400">
-            Paid promotion by {promo.clientName}
+          <p className="mt-2 truncate border-t border-dashed border-amber-300/70 pt-2 text-[10px] font-semibold text-amber-700">
+            Paid placement by {promo.clientName} · not ranked by merit
           </p>
         )}
       </div>

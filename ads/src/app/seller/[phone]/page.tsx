@@ -91,16 +91,23 @@ export default async function SellerPage({ params }: { params: Params }) {
           How do sellers earn these badges?
         </summary>
         <ul className="mt-3 grid gap-2 text-sm text-slate-600">
-          <li>🛡️ <strong>ID Verified</strong> — Valmont checked their ID or business in person.</li>
+          <li>
+            🛡️ <strong>ID Verified</strong> — Valmont checked their ID or business in person.
+          </li>
+          <li>
+            🛡️ <strong>Verified by record</strong> — earned automatically: 5+ sales over 60+ days, 5+ ads, nothing
+            ever removed. Nobody met them; the trading record is the evidence, and the badge says so.
+          </li>
           <li>✅ <strong>Trusted Seller</strong> — 3+ items sold, no ads ever removed, active 2+ weeks.</li>
           <li>🏆 <strong>Top Seller</strong> — 10 or more completed sales.</li>
           <li>📅 <strong>Long-standing</strong> — 3+ months here with a clean record.</li>
           <li>💬 <strong>Responsive</strong> — has handled 10+ buyer enquiries.</li>
           <li>⚠️ <strong>Take care</strong> — 2 or more of their ads were removed.</li>
+          <li>🌱 <strong>New seller</strong> — no history here yet. Not an accusation, just a fact.</li>
         </ul>
         <p className="mt-3 text-xs text-slate-500">
-          Badges are earned by behaviour and can be lost. They cannot be bought — paying for a promotion never
-          grants a trust badge.
+          Badges are earned by behaviour and can be lost. They cannot be bought — paying for a promotion buys
+          placement and an orange <strong>Ad · Paid</strong> label, never a trust badge.
         </p>
       </details>
 

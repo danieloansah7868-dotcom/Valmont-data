@@ -354,7 +354,41 @@ async function main() {
 
   const defaultView = await get("/api/ads?perPage=48");
   const promotedIdx = defaultView.json.items.findIndex((a) => a.id === newAd.id);
-  check("Promoted ad ranks on the default view", promotedIdx === 0, `index ${promotedIdx}`);
+  check("Promoted ad gets a slot on the default view", promotedIdx > -1, `index ${promotedIdx}`);
+
+  /* Rationed placement: paid ads must not swamp the page or lead it. Two ads
+     from the same shop at the top is what makes a marketplace feel like spam. */
+  const firstPage = await get("/api/ads?perPage=12");
+  const sponsoredOnPage = firstPage.json.items.filter((a) => a.promotion);
+  check("First card is never paid", !firstPage.json.items[0]?.promotion);
+  check("At most 2 paid ads per page", sponsoredOnPage.length <= 2, `${sponsoredOnPage.length} on page 1`);
+  check(
+    "No campaign appears twice on one page",
+    new Set(sponsoredOnPage.map((a) => a.id)).size === sponsoredOnPage.length,
+  );
+  check(
+    "Every paid ad is labelled for the buyer",
+    sponsoredOnPage.every((a) => Boolean(a.promotion?.clientName)),
+  );
+
+  const sponsoredPage2 = await get("/api/ads?perPage=12&page=2");
+  check(
+    "Page 2 also caps paid ads",
+    sponsoredPage2.json.items.filter((a) => a.promotion).length <= 2,
+  );
+  check(
+    "Pages stay a consistent length once ads are inserted",
+    firstPage.json.items.length === 12,
+    `${firstPage.json.items.length}`,
+  );
+  /* Buying placement must not multiply how often one shop is seen: the ad
+     takes its sponsored slot INSTEAD of its organic position, never both. */
+  const promoIds = firstPage.json.items.filter((a) => a.promotion).map((a) => a.id);
+  check(
+    "A paid ad is not duplicated on the page it is promoted on",
+    new Set(firstPage.json.items.map((a) => a.id)).size === firstPage.json.items.length,
+  );
+  check("Sponsored slots sit below the first card", !promoIds.includes(firstPage.json.items[0]?.id));
 
   /* The integrity guarantee: money must not distort a stated buyer intent. */
   const cheapest = await get("/api/ads?sort=price-asc&perPage=48");
@@ -457,6 +491,20 @@ async function main() {
   const verified = await get(`/api/sellers/${rookiePhone}`);
   check("Verified badge shows publicly", verified.json.seller.badges.some((b) => b.code === "verified"));
   check("Verification raises the score", verified.json.seller.score > rookie.json.seller.score);
+
+  /* Two routes to verified, and the buyer is always told which one. */
+  const autoSeller = await get("/api/sellers/0248001122"); // long clean record in the seed
+  check("Long clean record auto-verifies", autoSeller.json.seller.verifiedVia === "record");
+  check("Auto-verified seller was never hand-checked", autoSeller.json.seller.manualVerified === false);
+  check(
+    "Auto badge says it was not a human check",
+    autoSeller.json.seller.badges.find((b) => b.code === "verified")?.reason.includes("Not checked in person"),
+  );
+  check(
+    "Hand check outranks record",
+    verified.json.seller.verifiedVia === "manual",
+    verified.json.seller.verifiedVia,
+  );
 
   const unverifyRes = await post("/api/admin", { phone: rookiePhone, action: "unverify" }, adminHeaders);
   check("Admin can remove ID Verified", unverifyRes.json?.seller?.idVerified === false);

@@ -573,16 +573,23 @@ export default function AdminConsole() {
                   <p className="text-[10px] tracking-wide text-slate-400 uppercase">score</p>
                 </div>
 
-                <button
-                  onClick={() => verify(s.phone, !s.idVerified)}
-                  className={`rounded-lg px-3.5 py-2 text-xs font-bold transition ${
-                    s.idVerified
-                      ? "bg-slate-200 text-slate-700 hover:bg-slate-300"
-                      : "bg-amber-500 text-white hover:brightness-105"
-                  }`}
-                >
-                  {s.idVerified ? "Remove ID check" : "🛡️ Mark ID verified"}
-                </button>
+                <div className="text-right">
+                  <button
+                    onClick={() => verify(s.phone, !s.manualVerified)}
+                    className={`rounded-lg px-3.5 py-2 text-xs font-bold transition ${
+                      s.manualVerified
+                        ? "bg-slate-200 text-slate-700 hover:bg-slate-300"
+                        : "bg-amber-500 text-white hover:brightness-105"
+                    }`}
+                  >
+                    {s.manualVerified ? "Remove hand check" : "🛡️ I checked them"}
+                  </button>
+                  {s.verifiedVia === "record" && !s.manualVerified && (
+                    <p className="mt-1 text-[10px] font-semibold text-emerald-600">
+                      Auto-verified by record
+                    </p>
+                  )}
+                </div>
               </div>
             ))}
           </div>

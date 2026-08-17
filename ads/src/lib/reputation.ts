@@ -6,8 +6,10 @@
         never buy a trust badge. The moment badges are for sale they stop
         meaning anything to buyers.
      2. Automatic from real activity (ads sold, replies to buyers, time on the
-        site, clean moderation record) — except ID Verified, which is a
-        deliberate human check.
+        site, clean moderation record). ID Verified has TWO routes: a hand
+        check by Valmont, or a long clean trading record that speaks for
+        itself. The badge always says which route it came from, because
+        "we met this person" and "the numbers add up" are different claims.
      3. Losable. Get rejected repeatedly and the badge goes. A badge that only
         ever goes up is just an age counter.
      4. Honest wording. "Sold 5 items here" is a fact; "Top Seller" alone is
@@ -24,6 +26,36 @@ export type BadgeCode =
   | "top-seller"
   | "new-seller"
   | "caution";
+
+/** How a seller came to be verified. Never hidden from buyers. */
+export type VerificationSource = "manual" | "record" | null;
+
+/* A seller earns automatic verification by trading openly for long enough
+   that the record itself is the evidence. Deliberately harder than Trusted:
+   this badge sits at the top of the pile, so it has to cost something. */
+export const AUTO_VERIFY = { sold: 5, days: 60, minAds: 5 } as const;
+
+export function autoVerifies(input: { sold: number; rejected: number; daysActive: number; totalAds: number }) {
+  return (
+    input.sold >= AUTO_VERIFY.sold &&
+    input.rejected === 0 &&
+    input.daysActive >= AUTO_VERIFY.days &&
+    input.totalAds >= AUTO_VERIFY.minAds
+  );
+}
+
+/** Manual beats automatic: a person we met outranks a good spreadsheet. */
+export function verificationSource(input: {
+  sold: number;
+  rejected: number;
+  daysActive: number;
+  totalAds: number;
+  manualVerified: boolean;
+}): VerificationSource {
+  if (input.manualVerified) return "manual";
+  if (autoVerifies(input)) return "record";
+  return null;
+}
 
 export interface Badge {
   code: BadgeCode;
@@ -46,8 +78,12 @@ export interface SellerStats {
   leadsReceived: number;
   firstSeen: string;
   daysActive: number;
-  /** Manually granted by an admin after checking ID/shop. */
+  /** True if verified by EITHER route. */
   idVerified: boolean;
+  /** Which route — shown to buyers, never hidden. */
+  verifiedVia: VerificationSource;
+  /** Whether an admin ticked this by hand (drives the admin toggle state). */
+  manualVerified: boolean;
   badges: Badge[];
   /** 0-100, shown as "reputation" on the seller's public page. */
   score: number;
@@ -61,18 +97,29 @@ export function computeBadges(input: {
   rejected: number;
   leadsReceived: number;
   daysActive: number;
-  idVerified: boolean;
+  /** Set by an admin who actually checked the person. */
+  manualVerified: boolean;
 }): Badge[] {
-  const { totalAds, sold, rejected, leadsReceived, daysActive, idVerified } = input;
+  const { totalAds, sold, rejected, leadsReceived, daysActive, manualVerified } = input;
   const badges: Badge[] = [];
+  const via = verificationSource(input);
 
-  /* Manual human check — the strongest signal, so it must never be automatic. */
-  if (idVerified) {
+  /* Two routes in, and the wording tells the buyer which one. A hand check
+     outranks a good record, so if both apply we say the stronger thing. */
+  if (via === "manual") {
     badges.push({
       code: "verified",
       label: "ID Verified",
       icon: "🛡️",
-      reason: "Valmont has checked this seller's ID or business in person",
+      reason: "Valmont checked this seller's ID or visited their business in person",
+      tone: "gold",
+    });
+  } else if (via === "record") {
+    badges.push({
+      code: "verified",
+      label: "Verified by record",
+      icon: "🛡️",
+      reason: `Earned automatically: ${sold} completed sales over ${daysActive} days with no ad ever removed. Not checked in person.`,
       tone: "gold",
     });
   }
@@ -130,7 +177,7 @@ export function computeBadges(input: {
     });
   }
 
-  if (totalAds <= 1 && sold === 0 && !idVerified) {
+  if (totalAds <= 1 && sold === 0 && !via) {
     badges.push({
       code: "new-seller",
       label: "New seller",
@@ -149,20 +196,25 @@ export function computeScore(input: {
   rejected: number;
   leadsReceived: number;
   daysActive: number;
-  idVerified: boolean;
+  totalAds: number;
+  manualVerified: boolean;
 }): number {
-  const { sold, rejected, leadsReceived, daysActive, idVerified } = input;
+  const { sold, rejected, leadsReceived, daysActive } = input;
+  const via = verificationSource(input);
   let score = 0;
   score += Math.min(40, sold * 8); // sales matter most
   score += Math.min(20, leadsReceived * 2); // buyer interest
   score += Math.min(20, Math.floor(daysActive / 9)); // staying power
-  if (idVerified) score += 20; // human check
+  /* A hand check is worth more than a good record, because the record is
+     already being counted above in sales and time. */
+  if (via === "manual") score += 20;
+  else if (via === "record") score += 10;
   score -= rejected * 15; // moderation hits hurt
   return Math.max(0, Math.min(100, score));
 }
 
 /** Build the full public reputation for one seller. */
-export function sellerStats(phone: string, ads: Ad[], leads: Lead[], idVerified: boolean): SellerStats {
+export function sellerStats(phone: string, ads: Ad[], leads: Lead[], manualVerified: boolean): SellerStats {
   const mine = ads.filter((a) => a.sellerPhone === phone);
   const myIds = new Set(mine.map((a) => a.id));
   const myLeads = leads.filter((l) => myIds.has(l.adId));
@@ -180,8 +232,10 @@ export function sellerStats(phone: string, ads: Ad[], leads: Lead[], idVerified:
     rejected,
     leadsReceived: myLeads.length,
     daysActive,
-    idVerified,
+    manualVerified,
   };
+
+  const verifiedVia = verificationSource(base);
 
   return {
     phone,
@@ -191,6 +245,8 @@ export function sellerStats(phone: string, ads: Ad[], leads: Lead[], idVerified:
     badges: computeBadges(base),
     score: computeScore(base),
     ...base,
+    idVerified: verifiedVia !== null,
+    verifiedVia,
   };
 }
 
@@ -207,12 +263,8 @@ const HEADLINE_ORDER: BadgeCode[] = [
   "new-seller",
 ];
 
-export function headlineBadge(badges: Badge[], opts: { includeNew?: boolean } = {}): Badge | null {
+export function headlineBadge(badges: Badge[]): Badge | null {
   for (const code of HEADLINE_ORDER) {
-    /* "New seller" is the default state of every account, so on a grid of ads
-       it would print on almost every card and mean nothing. It is worth saying
-       on a profile or next to a phone number, where the buyer is deciding. */
-    if (code === "new-seller" && !opts.includeNew) continue;
     const hit = badges.find((b) => b.code === code);
     if (hit) return hit;
   }
