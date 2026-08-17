@@ -2,8 +2,18 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import type { Ad, AdStatus, Lead } from "@/lib/types";
+import type { Ad, AdStatus, Lead, Promotion } from "@/lib/types";
 import { cedis, timeAgo } from "@/lib/format";
+
+type PromoRow = Promotion & {
+  id: string;
+  ref: string;
+  slug: string;
+  title: string;
+  status: AdStatus;
+  live: boolean;
+  ctr: number;
+};
 
 interface Stats {
   activeAds: number;
@@ -33,6 +43,9 @@ export default function AdminConsole() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [promoting, setPromoting] = useState<Ad | null>(null);
+  const [promoError, setPromoError] = useState<string | null>(null);
+  const [promotions, setPromotions] = useState<PromoRow[]>([]);
 
   const load = useCallback(
     async (pw: string, status: AdStatus | "all") => {
@@ -49,6 +62,7 @@ export default function AdminConsole() {
         setAds(data.ads ?? []);
         setLeads(data.leads ?? []);
         setStats(data.stats ?? null);
+        setPromotions(data.promotions ?? []);
         setAuthed(true);
         try {
           sessionStorage.setItem("vads_admin_pw", pw);
@@ -75,6 +89,33 @@ export default function AdminConsole() {
       /* ignore */
     }
   }, [load]);
+
+  async function submitPromotion(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!promoting) return;
+    setPromoError(null);
+    const fd = new FormData(e.currentTarget);
+    const res = await fetch("/api/admin", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-admin-password": password },
+      body: JSON.stringify({
+        id: promoting.id,
+        action: "promote",
+        tier: fd.get("tier"),
+        clientName: fd.get("clientName"),
+        websiteUrl: fd.get("websiteUrl"),
+        packageRef: fd.get("packageRef"),
+        days: fd.get("days") ? Number(fd.get("days")) : undefined,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      setPromoError(data.error || "Could not start the promotion");
+      return;
+    }
+    setPromoting(null);
+    load(password, tab);
+  }
 
   async function act(id: string, action: string, reason?: string) {
     await fetch("/api/admin", {
@@ -256,6 +297,21 @@ export default function AdminConsole() {
                 >
                   ★ {ad.featured ? "Unfeature" : "Feature"}
                 </button>
+                {ad.promotion ? (
+                  <button
+                    onClick={() => act(ad.id, "unpromote")}
+                    className="rounded-lg bg-[var(--color-navy-900)] px-3.5 py-2 text-xs font-bold text-white transition hover:bg-[var(--color-navy-700)]"
+                  >
+                    ⏹ End promo
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setPromoting(ad)}
+                    className="rounded-lg bg-[var(--color-navy-900)] px-3.5 py-2 text-xs font-bold text-white transition hover:bg-[var(--color-navy-700)]"
+                  >
+                    📣 Promote
+                  </button>
+                )}
                 {ad.status !== "sold" && (
                   <button
                     onClick={() => act(ad.id, "sold")}
@@ -269,6 +325,174 @@ export default function AdminConsole() {
           </div>
         ))}
       </div>
+
+      {/* ── promote modal ─────────────────────────────────────── */}
+      {promoting && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6">
+            <h2 className="text-xl font-black text-[var(--color-navy-900)]">Promote this ad</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Sold as an add-on to a Valmont Web package. Every click goes to the client&apos;s own website.
+            </p>
+            <p className="mt-3 truncate rounded-lg bg-[var(--color-paper)] px-3 py-2 text-sm font-semibold text-[var(--color-navy-900)]">
+              {promoting.title}
+            </p>
+
+            <form onSubmit={submitPromotion} className="mt-4 grid gap-3">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1.5 block text-xs font-black tracking-wider text-slate-500 uppercase" htmlFor="p-tier">
+                    Tier
+                  </label>
+                  <select
+                    id="p-tier"
+                    name="tier"
+                    defaultValue="spotlight"
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-[var(--color-navy-700)]"
+                  >
+                    <option value="spotlight">Spotlight — 30 days</option>
+                    <option value="boost">Boost — 14 days</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-xs font-black tracking-wider text-slate-500 uppercase" htmlFor="p-days">
+                    Override days
+                  </label>
+                  <input
+                    id="p-days"
+                    name="days"
+                    type="number"
+                    min="1"
+                    max="365"
+                    placeholder="default by tier"
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-[var(--color-navy-700)]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-black tracking-wider text-slate-500 uppercase" htmlFor="p-client">
+                  Client / business name *
+                </label>
+                <input
+                  id="p-client"
+                  name="clientName"
+                  required
+                  defaultValue={promoting.sellerName}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-[var(--color-navy-700)]"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-black tracking-wider text-slate-500 uppercase" htmlFor="p-url">
+                  Their website URL *
+                </label>
+                <input
+                  id="p-url"
+                  name="websiteUrl"
+                  required
+                  type="url"
+                  placeholder="https://clientshop.com"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-[var(--color-navy-700)]"
+                />
+                <p className="mt-1 text-xs text-slate-500">
+                  The site Valmont Web built them. Traffic goes here — we never sit in the middle.
+                </p>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-black tracking-wider text-slate-500 uppercase" htmlFor="p-ref">
+                  Valmont Web package ref
+                </label>
+                <input
+                  id="p-ref"
+                  name="packageRef"
+                  placeholder="e.g. VW-2026-0142"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-[var(--color-navy-700)]"
+                />
+              </div>
+
+              {promoError && <p className="text-sm font-bold text-red-600">{promoError}</p>}
+
+              <div className="mt-2 flex gap-2.5">
+                <button
+                  type="submit"
+                  className="flex-1 rounded-xl bg-[var(--color-orange-brand)] py-3 text-sm font-extrabold text-white transition hover:brightness-110"
+                >
+                  Start promotion
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPromoting(null);
+                    setPromoError(null);
+                  }}
+                  className="rounded-xl bg-white px-5 py-3 text-sm font-bold text-slate-600 ring-1 ring-black/10 transition hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── campaign report ───────────────────────────────────── */}
+      {promotions.length > 0 && (
+        <section className="mt-10">
+          <h2 className="text-xl font-black text-[var(--color-navy-900)]">Paid promotions</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Click-throughs to each client&apos;s own website — the number to show them at renewal.
+          </p>
+          <div className="mt-4 overflow-x-auto rounded-2xl bg-white ring-1 ring-black/5">
+            <table className="w-full text-left text-sm">
+              <thead className="border-b border-slate-100 text-[11px] tracking-wider text-slate-500 uppercase">
+                <tr>
+                  <th className="px-4 py-3">Client</th>
+                  <th className="px-4 py-3">Ad</th>
+                  <th className="px-4 py-3">Tier</th>
+                  <th className="px-4 py-3">Package</th>
+                  <th className="px-4 py-3 text-right">Views</th>
+                  <th className="px-4 py-3 text-right">Clicks</th>
+                  <th className="px-4 py-3 text-right">CTR</th>
+                  <th className="px-4 py-3">Ends</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {promotions.map((p) => (
+                  <tr key={p.id} className={p.live ? "" : "opacity-50"}>
+                    <td className="px-4 py-3">
+                      <span className="font-semibold text-[var(--color-navy-900)]">{p.clientName}</span>
+                      {!p.live && <span className="ml-2 text-[10px] font-black text-slate-400 uppercase">expired</span>}
+                      <a
+                        href={p.websiteUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block truncate text-xs text-slate-500 hover:underline"
+                      >
+                        {p.websiteUrl}
+                      </a>
+                    </td>
+                    <td className="max-w-[180px] truncate px-4 py-3">
+                      <Link href={`/ads/${p.slug}`} className="hover:underline">
+                        {p.title}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3 capitalize">{p.tier}</td>
+                    <td className="px-4 py-3 font-mono text-xs">{p.packageRef ?? "—"}</td>
+                    <td className="px-4 py-3 text-right">{p.impressions.toLocaleString()}</td>
+                    <td className="px-4 py-3 text-right font-bold text-[var(--color-navy-900)]">{p.clicks}</td>
+                    <td className="px-4 py-3 text-right">{(p.ctr * 100).toFixed(1)}%</td>
+                    <td className="px-4 py-3 text-xs whitespace-nowrap text-slate-500">
+                      {new Date(p.expiresAt).toLocaleDateString("en-GB")}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       {leads.length > 0 && (
         <section className="mt-10">

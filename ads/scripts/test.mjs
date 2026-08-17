@@ -214,6 +214,87 @@ async function main() {
   const missing = await post("/api/admin", { id: "nope", action: "active" }, adminHeaders);
   check("Admin action on missing ad → 404", missing.res.status === 404);
 
+  /* ---------------------------------------------------------- promotions */
+  section("Paid promotions (Valmont Web add-on)");
+  const noUrl = await post("/api/admin", { id: newAd.id, action: "promote", clientName: "Test Co" }, adminHeaders);
+  check("Promotion without a website URL → 400", noUrl.res.status === 400);
+  const badUrl = await post(
+    "/api/admin",
+    { id: newAd.id, action: "promote", clientName: "Test Co", websiteUrl: "not-a-url" },
+    adminHeaders,
+  );
+  check("Promotion with a malformed URL → 400", badUrl.res.status === 400);
+  const noName = await post(
+    "/api/admin",
+    { id: newAd.id, action: "promote", clientName: "", websiteUrl: "https://example.com" },
+    adminHeaders,
+  );
+  check("Promotion without a client name → 400", noName.res.status === 400);
+
+  const promo = await post(
+    "/api/admin",
+    {
+      id: newAd.id,
+      action: "promote",
+      tier: "spotlight",
+      clientName: "Test Client Ltd",
+      websiteUrl: "https://testclient.example.com",
+      packageRef: "VW-TEST-001",
+    },
+    adminHeaders,
+  );
+  check("Promotion starts", promo.json?.ad?.promotion?.clientName === "Test Client Ltd");
+  check("Promotion records the package ref", promo.json?.ad?.promotion?.packageRef === "VW-TEST-001");
+  check("Promotion sets an expiry", Boolean(promo.json?.ad?.promotion?.expiresAt));
+
+  const defaultView = await get("/api/ads?perPage=48");
+  const promotedIdx = defaultView.json.items.findIndex((a) => a.id === newAd.id);
+  check("Promoted ad ranks on the default view", promotedIdx === 0, `index ${promotedIdx}`);
+
+  /* The integrity guarantee: money must not distort a stated buyer intent. */
+  const cheapest = await get("/api/ads?sort=price-asc&perPage=48");
+  const cheapPrices = cheapest.json.items.map((a) => a.price ?? Infinity);
+  check(
+    "Promotion does NOT distort price-asc ordering",
+    cheapPrices.every((p, i) => i === 0 || cheapPrices[i - 1] <= p),
+  );
+  const byViews = await get("/api/ads?sort=popular&perPage=48");
+  const vs = byViews.json.items.map((a) => a.views);
+  check("Promotion does NOT distort most-viewed ordering", vs.every((v, i) => i === 0 || vs[i - 1] >= v));
+
+  const goRes = await fetch(`${BASE}/api/go/${newAd.id}`, { redirect: "manual" });
+  check("Click-through redirects (302)", goRes.status === 302 || goRes.status === 307, `got ${goRes.status}`);
+  check(
+    "Click-through points at the CLIENT's own site",
+    (goRes.headers.get("location") ?? "").startsWith("https://testclient.example.com"),
+    goRes.headers.get("location") ?? "none",
+  );
+
+  const afterClick = await get("/api/ads/" + newAd.id);
+  check("Click is counted for reporting", afterClick.json.ad.promotion.clicks >= 1);
+
+  const report = await get("/api/admin?status=all", adminHeaders);
+  check("Promotion appears in the campaign report", report.json.promotions.some((p) => p.id === newAd.id));
+  check("Report marks the campaign live", report.json.promotions.find((p) => p.id === newAd.id)?.live === true);
+
+  const seededPromo = (await get("/api/ads?perPage=48")).json.items.find((a) => a.promotion);
+  check("Seed catalogue ships a demo promotion", Boolean(seededPromo));
+
+  const unpromo = await post("/api/admin", { id: newAd.id, action: "unpromote" }, adminHeaders);
+  check("Promotion can be ended", !unpromo.json?.ad?.promotion);
+  const goAfter = await fetch(`${BASE}/api/go/${newAd.id}`, { redirect: "manual" });
+  check(
+    "Click-through falls back to the ad once the promo ends",
+    (goAfter.headers.get("location") ?? "").includes(`/ads/${newAd.id}`),
+  );
+
+  /* re-promote so the lifecycle section still has something to clean up */
+  await post(
+    "/api/admin",
+    { id: newAd.id, action: "promote", clientName: "Test Client Ltd", websiteUrl: "https://testclient.example.com" },
+    adminHeaders,
+  );
+
   /* --------------------------------------------------------------- leads */
   section("Buyer leads");
   const lead = await post(`/api/ads/${newAd.id}/leads`, {

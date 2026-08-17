@@ -319,6 +319,12 @@ export default function HomePage() {
                   Permanent shop, your own domain, checkout, repeat customers.
                 </dd>
               </div>
+              <div className="border-t border-black/5 pt-3">
+                <dt className="font-bold text-[var(--color-navy-900)]">+ Promotion add-on</dt>
+                <dd className="mt-0.5 text-slate-600">
+                  We feature your products here and send every click to your own site.
+                </dd>
+              </div>
             </dl>
           </div>
         </div>

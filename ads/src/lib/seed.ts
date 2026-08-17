@@ -21,6 +21,8 @@ interface Row {
   views?: number;
   ageHours?: number;
   images?: string[];
+  /** Demo paid promotion — sold as a Valmont Web package add-on. */
+  promo?: { clientName: string; websiteUrl: string; packageRef: string; tier: "spotlight" | "boost"; clicks: number; impressions: number };
 }
 
 const ROWS: Row[] = [
@@ -220,6 +222,14 @@ const ROWS: Row[] = [
     views: 1130,
     ageHours: 12,
     images: ["/uploads/ankara-dresses.jpg"],
+    promo: {
+      clientName: "Akosua Styles",
+      websiteUrl: "https://akosuastyles.com",
+      packageRef: "VW-2026-0142",
+      tier: "spotlight",
+      clicks: 214,
+      impressions: 4820,
+    },
   },
   {
     title: "Plot of Land at Oyibi — 70x100, Registered Title",
@@ -704,6 +714,18 @@ export function seedAds(): Ad[] {
       updatedAt: created.toISOString(),
       expiresAt: new Date(created.getTime() + 30 * 24 * 3600 * 1000).toISOString(),
       rejectionReason: r.status === "rejected" ? "Flagged phrase: “advance fee”" : undefined,
+      promotion: r.promo
+        ? {
+            tier: r.promo.tier,
+            clientName: r.promo.clientName,
+            websiteUrl: r.promo.websiteUrl,
+            packageRef: r.promo.packageRef,
+            startedAt: created.toISOString(),
+            expiresAt: new Date(now + 21 * 24 * 3600 * 1000).toISOString(),
+            impressions: r.promo.impressions,
+            clicks: r.promo.clicks,
+          }
+        : undefined,
     } satisfies Ad;
   });
 }

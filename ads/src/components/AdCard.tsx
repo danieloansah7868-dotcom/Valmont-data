@@ -6,6 +6,7 @@ import { CATEGORY_MAP } from "@/lib/taxonomy";
 export default function AdCard({ ad }: { ad: Ad }) {
   const cat = CATEGORY_MAP.get(ad.category);
   const img = ad.images[0];
+  const promo = ad.promotion && +new Date(ad.promotion.expiresAt) > Date.now() ? ad.promotion : null;
 
   return (
     <Link
@@ -28,7 +29,12 @@ export default function AdCard({ ad }: { ad: Ad }) {
         )}
 
         <div className="absolute top-2 left-2 flex gap-1.5">
-          {ad.featured && (
+          {promo && (
+            <span className="rounded-md bg-[var(--color-navy-900)] px-2 py-1 text-[10px] font-black tracking-wide text-white uppercase shadow ring-1 ring-white/20">
+              Sponsored
+            </span>
+          )}
+          {ad.featured && !promo && (
             <span className="rounded-md bg-[var(--color-orange-brand)] px-2 py-1 text-[10px] font-black tracking-wide text-white uppercase shadow">
               Featured
             </span>
@@ -63,6 +69,12 @@ export default function AdCard({ ad }: { ad: Ad }) {
           <span className="truncate">📍 {ad.town}</span>
           <span className="shrink-0">{timeAgo(ad.createdAt)}</span>
         </div>
+
+        {promo && (
+          <p className="mt-2 truncate border-t border-dashed border-slate-100 pt-2 text-[10px] font-semibold text-slate-400">
+            Paid promotion by {promo.clientName}
+          </p>
+        )}
       </div>
     </Link>
   );

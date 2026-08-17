@@ -72,7 +72,8 @@ All endpoints return JSON `{ ok: true, ... }` or `{ ok: false, error }`.
 | `POST` | `/api/ads/:id/leads` | Buyer sends a message |
 | `GET` | `/api/my-ads?phone=` | A seller's ads + leads (phone normalised) |
 | `GET` | `/api/admin?status=` | Queue + stats — needs `x-admin-password` |
-| `POST` | `/api/admin` | `{ id, action }` where action is `active \| rejected \| sold \| pending \| expired \| feature` |
+| `POST` | `/api/admin` | `{ id, action }` where action is `active \| rejected \| sold \| pending \| expired \| feature \| promote \| unpromote` |
+| `GET` | `/api/go/:id` | Promoted-ad click-through — counts the click, 302s to the client's own site |
 
 ```bash
 # post an ad
@@ -85,9 +86,53 @@ curl -X POST localhost:3000/api/ads -H 'Content-Type: application/json' -d '{
 # approve it
 curl -X POST localhost:3000/api/admin -H 'Content-Type: application/json' \
   -H 'x-admin-password: admin123' -d '{"id":"<ad-id>","action":"active"}'
+
+# sell a promotion against a Valmont Web package
+curl -X POST localhost:3000/api/admin -H 'Content-Type: application/json' \
+  -H 'x-admin-password: admin123' -d '{
+    "id":"<ad-id>","action":"promote","tier":"spotlight",
+    "clientName":"Akosua Styles","websiteUrl":"https://akosuastyles.com",
+    "packageRef":"VW-2026-0142"
+  }'
 ```
 
 ---
+
+## How it makes money (and why posting stays free)
+
+Free listings are the **inventory**. No free ads → no listings → no visitors →
+nothing worth paying to advertise in front of. So posting is free forever, and
+the revenue comes from the other side of the marketplace.
+
+**Promotions are sold as a Valmont Web package add-on.** A client who buys a
+website can pay to have their products featured here, and every promoted ad
+links **out to their own site** via `/api/go/:id`.
+
+That placement is deliberate. valmontweb.com promises *"nobody sits between you
+and the people you serve"* — so a promotion is a **billboard pointing at the
+shop we built them**, never a checkout we own. The pitch becomes "we build your
+site *and* bring people to it", which reinforces the Web offer instead of
+competing with it.
+
+| Tier | Default run | What the client gets |
+|---|---|---|
+| Spotlight | 30 days | Top of the default view, Sponsored badge, click-through to their site |
+| Boost | 14 days | Same placement, shorter run |
+
+Two rules protect the marketplace's credibility, both enforced in code and
+covered by tests:
+
+1. **Paid placement only reorders the default view.** The moment a buyer states
+   an intent — *cheapest first*, *most viewed* — money stops affecting the
+   order. Rankings a buyer can't trust are worth nothing to advertisers either.
+2. **Every promotion is labelled.** A `Sponsored` badge and a "Paid promotion by
+   {client}" line, plus a note on the ad that Valmont takes no commission and
+   handles no payment. Undisclosed paid placement is how classifieds sites lose
+   their audience.
+
+Promotions expire on their own and decay back to ordinary free ads. Clicks and
+impressions are tracked per campaign so there's a real number to show at
+renewal — see the **Paid promotions** table in `/admin`.
 
 ## Rules baked into the code
 

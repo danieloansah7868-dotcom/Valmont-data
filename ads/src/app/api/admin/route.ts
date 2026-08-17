@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { listAds, setStatus, stats, toggleFeatured, listLeads } from "@/lib/store";
-import type { AdStatus } from "@/lib/types";
+import {
+  listAds,
+  setStatus,
+  stats,
+  toggleFeatured,
+  listLeads,
+  promoteAd,
+  unpromoteAd,
+  promotionReport,
+} from "@/lib/store";
+import type { AdStatus, PromotionTier } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +26,13 @@ export async function GET(req: NextRequest) {
   const status = (req.nextUrl.searchParams.get("status") as AdStatus | "all") ?? "all";
   const { items } = listAds({ status, perPage: 200, sort: "recent", featuredFirst: false });
 
-  return NextResponse.json({ ok: true, stats: stats(), ads: items, leads: listLeads().slice(0, 30) });
+  return NextResponse.json({
+    ok: true,
+    stats: stats(),
+    ads: items,
+    leads: listLeads().slice(0, 30),
+    promotions: promotionReport(),
+  });
 }
 
 export async function POST(req: NextRequest) {
@@ -32,6 +47,24 @@ export async function POST(req: NextRequest) {
 
   const id = String(body.id ?? "");
   const action = String(body.action ?? "");
+
+  if (action === "promote") {
+    const result = promoteAd(id, {
+      tier: (body.tier as PromotionTier) ?? "spotlight",
+      clientName: String(body.clientName ?? ""),
+      websiteUrl: String(body.websiteUrl ?? ""),
+      packageRef: body.packageRef ? String(body.packageRef) : undefined,
+      days: body.days ? Number(body.days) : undefined,
+    });
+    if (!result.ok) return NextResponse.json(result, { status: 400 });
+    return NextResponse.json({ ok: true, ad: result.ad });
+  }
+
+  if (action === "unpromote") {
+    const ad = unpromoteAd(id);
+    if (!ad) return NextResponse.json({ ok: false, error: "Ad not found" }, { status: 404 });
+    return NextResponse.json({ ok: true, ad });
+  }
 
   if (action === "feature") {
     const ad = toggleFeatured(id);

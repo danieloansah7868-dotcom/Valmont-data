@@ -32,6 +32,7 @@ export default async function AdDetailPage({ params }: { params: Params }) {
   const cat = CATEGORY_MAP.get(ad.category);
   const related = relatedAds(ad, 4);
   const isActive = ad.status === "active";
+  const promo = ad.promotion && +new Date(ad.promotion.expiresAt) > Date.now() ? ad.promotion : null;
 
   const specs = [
     { k: "Condition", v: CONDITION_LABEL[ad.condition] ?? ad.condition },
@@ -138,6 +139,28 @@ export default async function AdDetailPage({ params }: { params: Params }) {
         </div>
 
         <div className="lg:sticky lg:top-40 lg:self-start">
+          {promo && (
+            <div className="mb-4 rounded-2xl bg-[var(--color-navy-900)] p-5 text-white">
+              <p className="text-[10px] font-black tracking-widest text-white/50 uppercase">Sponsored</p>
+              <p className="mt-2 text-sm leading-relaxed text-white/80">
+                <strong className="text-white">{promo.clientName}</strong> has a full online shop — browse their
+                complete range, prices and delivery options on their own website.
+              </p>
+              <a
+                href={`/api/go/${ad.id}`}
+                target="_blank"
+                rel="noopener noreferrer sponsored"
+                className="mt-4 block rounded-xl bg-[var(--color-orange-brand)] py-3 text-center text-sm font-extrabold transition hover:brightness-110 active:scale-95"
+              >
+                Visit {promo.clientName} →
+              </a>
+              <p className="mt-3 text-[10px] leading-relaxed text-white/40">
+                You buy directly from {promo.clientName} on their own site. Valmont Ads takes no commission and
+                handles no payment.
+              </p>
+            </div>
+          )}
+
           <ContactSeller
             adId={ad.id}
             adRef={ad.ref}

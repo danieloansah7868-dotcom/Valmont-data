@@ -12,7 +12,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
-import type { Ad, AdInput, AdStatus, Lead, ListQuery } from "./types";
+import type { Ad, AdInput, AdStatus, Lead, ListQuery, PromotionTier } from "./types";
 import { seedAds } from "./seed";
 
 const MODE = process.env.ADS_STORE === "memory" ? "memory" : "file";
@@ -113,6 +113,12 @@ export function screenAd(input: AdInput): { ok: boolean; reason?: string } {
 
 /* ------------------------------------------------------------------ reads */
 
+/** A promotion counts only while it is inside its paid window. */
+export function isPromoted(ad: Ad): boolean {
+  if (!ad.promotion) return false;
+  return +new Date(ad.promotion.expiresAt) > Date.now();
+}
+
 export function listAds(query: ListQuery = {}) {
   const db = load();
   const {
@@ -156,8 +162,12 @@ export function listAds(query: ListQuery = {}) {
   };
   rows.sort(cmp[sort] ?? cmp.recent);
 
-  if (featuredFirst && sort === "recent") {
-    rows.sort((a, b) => Number(b.featured) - Number(a.featured));
+  /* Paid placement only ever reorders the DEFAULT view. When a buyer states an
+     intent — cheapest first, most viewed — money must not move the results, or
+     the rankings become worthless and buyers stop trusting them. */
+  if (sort === "recent") {
+    const rank = (a: Ad) => (isPromoted(a) ? 2 : a.featured ? 1 : 0);
+    rows.sort((a, b) => rank(b) - rank(a));
   }
 
   const total = rows.length;
@@ -312,6 +322,109 @@ export function toggleFeatured(id: string): Ad | null {
   ad.updatedAt = new Date().toISOString();
   persist();
   return ad;
+}
+
+/* ------------------------------------------------------- promotions (paid) */
+
+const PROMO_DAYS: Record<PromotionTier, number> = { spotlight: 30, boost: 14 };
+
+/**
+ * Attach a paid promotion, sold as an add-on to a Valmont Web package.
+ * `websiteUrl` is mandatory: the whole proposition is driving traffic to the
+ * client's OWN site, so a promotion with nowhere to send people is invalid.
+ */
+export function promoteAd(
+  id: string,
+  input: { tier: PromotionTier; clientName: string; websiteUrl: string; packageRef?: string; days?: number },
+): { ok: true; ad: Ad } | { ok: false; error: string } {
+  const db = load();
+  const ad = db.ads.find((a) => a.id === id || a.ref === id);
+  if (!ad) return { ok: false, error: "Ad not found" };
+
+  const tier: PromotionTier = input.tier === "boost" ? "boost" : "spotlight";
+
+  let url: URL;
+  try {
+    url = new URL(input.websiteUrl.trim());
+  } catch {
+    return { ok: false, error: "A valid website URL is required (e.g. https://client.com)" };
+  }
+  if (!/^https?:$/.test(url.protocol)) {
+    return { ok: false, error: "Website URL must start with http:// or https://" };
+  }
+
+  const clientName = (input.clientName || "").trim();
+  if (clientName.length < 2) return { ok: false, error: "Client/business name is required" };
+
+  const now = new Date();
+  const days = input.days && input.days > 0 ? Math.min(input.days, 365) : PROMO_DAYS[tier];
+
+  ad.promotion = {
+    tier,
+    clientName,
+    websiteUrl: url.toString(),
+    packageRef: input.packageRef?.trim() || undefined,
+    startedAt: now.toISOString(),
+    expiresAt: new Date(now.getTime() + days * 24 * 3600 * 1000).toISOString(),
+    impressions: ad.promotion?.impressions ?? 0,
+    clicks: ad.promotion?.clicks ?? 0,
+  };
+  /* A promoted ad must be visible to be worth paying for. */
+  if (ad.status === "pending") ad.status = "active";
+  ad.updatedAt = now.toISOString();
+  persist();
+  return { ok: true, ad };
+}
+
+export function unpromoteAd(id: string): Ad | null {
+  const db = load();
+  const ad = db.ads.find((a) => a.id === id || a.ref === id);
+  if (!ad) return null;
+  delete ad.promotion;
+  ad.updatedAt = new Date().toISOString();
+  persist();
+  return ad;
+}
+
+/** Click-through to the client's own site — the metric they actually bought. */
+export function recordPromoClick(id: string): string | null {
+  const db = load();
+  const ad = db.ads.find((a) => a.id === id || a.slug === id || a.ref === id);
+  if (!ad?.promotion || !isPromoted(ad)) return null;
+  ad.promotion.clicks += 1;
+  persist();
+  return ad.promotion.websiteUrl;
+}
+
+export function recordImpressions(ids: string[]) {
+  const db = load();
+  let touched = false;
+  for (const id of ids) {
+    const ad = db.ads.find((a) => a.id === id);
+    if (ad?.promotion && isPromoted(ad)) {
+      ad.promotion.impressions += 1;
+      touched = true;
+    }
+  }
+  if (touched) persist();
+}
+
+/** Campaign report for the admin console. */
+export function promotionReport() {
+  const db = load();
+  const promoted = db.ads.filter((a) => a.promotion);
+  return promoted
+    .map((a) => ({
+      id: a.id,
+      ref: a.ref,
+      slug: a.slug,
+      title: a.title,
+      status: a.status,
+      live: isPromoted(a),
+      ...a.promotion!,
+      ctr: a.promotion!.impressions > 0 ? a.promotion!.clicks / a.promotion!.impressions : 0,
+    }))
+    .sort((x, y) => Number(y.live) - Number(x.live) || y.clicks - x.clicks);
 }
 
 export function recordView(id: string) {

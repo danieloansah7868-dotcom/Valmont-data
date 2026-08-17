@@ -21,12 +21,39 @@ export interface Ad {
   sellerType: "private" | "business";
   status: AdStatus;
   featured: boolean;
+  /** Paid placement, sold as a Valmont Web add-on. Absent = ordinary free ad. */
+  promotion?: Promotion;
   views: number;
   leads: number;
   createdAt: string;
   updatedAt: string;
   expiresAt: string;
   rejectionReason?: string;
+}
+
+/* ---------------------------------------------------------------------------
+   Promotions — the paid layer.
+
+   Bought as an add-on to a Valmont Web package. A promoted ad ALWAYS links out
+   to the client's own website: we drive traffic to the shop we built them, we
+   never sit between them and their customer. That keeps this consistent with
+   the valmontweb.com promise ("100% yours — keys included").
+   ------------------------------------------------------------------------- */
+
+export type PromotionTier = "spotlight" | "boost";
+
+export interface Promotion {
+  tier: PromotionTier;
+  /** Business name as it should appear on the sponsored label. */
+  clientName: string;
+  /** The client's own domain — where every click goes. Required. */
+  websiteUrl: string;
+  /** Valmont Web package/invoice reference this promotion was sold under. */
+  packageRef?: string;
+  startedAt: string;
+  expiresAt: string;
+  impressions: number;
+  clicks: number;
 }
 
 export interface Lead {
