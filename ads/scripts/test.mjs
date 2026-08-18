@@ -8,6 +8,7 @@
 
 const BASE = process.env.BASE || "http://localhost:3000";
 const ADMIN = process.env.ADMIN_PASSWORD || "admin123";
+const adminHeaders = { "x-admin-password": ADMIN };
 
 let passed = 0;
 let failed = 0;
@@ -53,6 +54,45 @@ async function post(path, body, headers = {}) {
     /* no body */
   }
   return { res, json };
+}
+
+async function patch(path, body, headers = {}) {
+  const res = await fetch(BASE + path, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...headers },
+    body: JSON.stringify(body),
+  });
+  let json = null;
+  try {
+    json = await res.json();
+  } catch {
+    /* no body */
+  }
+  return { res, json };
+}
+
+async function del(path, headers = {}) {
+  const res = await fetch(BASE + path, { method: "DELETE", headers });
+  let json = null;
+  try {
+    json = await res.json();
+  } catch {
+    /* no body */
+  }
+  return { res, json };
+}
+
+function daysUntil(iso) {
+  return Math.round((+new Date(iso) - Date.now()) / 86_400_000);
+}
+
+/* Sign a seller in the way the browser does: ask for a code, read it back
+   from the dev-only devCode field, exchange it for a token. */
+async function signIn(phone) {
+  const asked = await post("/api/auth", { action: "request", phone });
+  if (!asked.json?.devCode) return null;
+  const done = await post("/api/auth", { action: "verify", phone, code: asked.json.devCode });
+  return done.json?.token ?? null;
 }
 
 /* Unique per run so the 10-minute duplicate guard doesn't block re-runs
@@ -269,12 +309,110 @@ async function main() {
   );
 
   /* -------------------------------------------------------------- my ads */
-  section("Seller dashboard lookup");
-  const mine = await get(`/api/my-ads?phone=0247654321`);
+  section("Seller login");
+  /* The whole point of this section: the old endpoint handed a stranger's
+     buyer messages to anyone who typed their number, and that number is
+     printed on every ad. */
+  check("My-ads with no token → 401", (await get("/api/my-ads")).res.status === 401);
+  check(
+    "My-ads no longer accepts a bare phone number → 401",
+    (await get("/api/my-ads?phone=0247654321")).res.status === 401,
+  );
+  check("My-ads with a junk token → 401", (await get("/api/my-ads", { "x-session-token": "not-a-token" })).res.status === 401);
+
+  const unknownCode = await post("/api/auth", { action: "request", phone: "0500000000" });
+  check("Login code refused for a number with no ads", unknownCode.res.status === 400);
+  const badNumber = await post("/api/auth", { action: "request", phone: "12345" });
+  check("Login code refused for an invalid number", badNumber.res.status === 400);
+
+  const asked = await post("/api/auth", { action: "request", phone: "0247654321" });
+  check("Login code sent to a real seller", asked.json?.ok === true);
+  check("Dev mode returns the code so this suite can log in", typeof asked.json?.devCode === "string");
+  check("Code is 6 digits", /^\d{6}$/.test(asked.json?.devCode ?? ""));
+
+  const wrongCode = await post("/api/auth", { action: "verify", phone: "0247654321", code: "000000" });
+  check(
+    "Wrong code → 401",
+    wrongCode.res.status === 401 || wrongCode.json?.ok === false,
+    JSON.stringify(wrongCode.json),
+  );
+
+  const signedIn = await post("/api/auth", { action: "verify", phone: "0247654321", code: asked.json.devCode });
+  check("Correct code returns a session token", typeof signedIn.json?.token === "string");
+  const sellerToken = signedIn.json.token;
+  const auth = { "x-session-token": sellerToken };
+
+  check("Whoami reports the signed-in number", (await get("/api/auth", auth)).json?.phone === "0247654321");
+  check("A used code cannot be replayed", (await post("/api/auth", { action: "verify", phone: "0247654321", code: asked.json.devCode })).res.status === 401);
+
+  section("Seller dashboard");
+  const mine = await get("/api/my-ads", auth);
   check("My-ads finds the new ad", mine.json.ads.some((a) => a.id === newAd.id));
-  const intl = await get(`/api/my-ads?phone=%2B233247654321`);
-  check("My-ads normalises +233 numbers", intl.json.ads.some((a) => a.id === newAd.id));
-  check("My-ads ignores unknown numbers", (await get("/api/my-ads?phone=0500000000")).json.ads.length === 0);
+  check("My-ads returns only that seller's ads", mine.json.ads.every((a) => a.sellerPhone === "0247654321"));
+
+  /* A token proves one number, not the site. */
+  const otherAd = await post("/api/ads", validAd({
+    title: `Standing fan for a shop ${RUN}`,
+    sellerPhone: "0209988776",
+    description: "An 18-inch standing fan used in a shop for one year, still strong and quiet at every speed.",
+  }));
+  check("Second seller can post", otherAd.res.status === 201);
+  const stolen = await patch(`/api/my-ads/${otherAd.json.ad.id}`, { title: `Hijacked listing ${RUN}` }, auth);
+  check("A seller cannot edit someone else's ad → 403", stolen.res.status === 403, `got ${stolen.res.status}`);
+  const stolenDelete = await del(`/api/my-ads/${otherAd.json.ad.id}`, auth);
+  check("A seller cannot delete someone else's ad → 403", stolenDelete.res.status === 403);
+
+  section("Seller edits their own ad");
+  const cheap = await patch(`/api/my-ads/${newAd.id}`, { price: 999 }, auth);
+  check("Price edit saves", cheap.json?.ad?.price === 999);
+  check("A price-only edit does not re-queue the ad", cheap.json?.requeued === false);
+
+  const tooShort = await patch(`/api/my-ads/${newAd.id}`, { title: "Nope" }, auth);
+  check("Too-short title rejected → 400", tooShort.res.status === 400);
+  const shortDesc = await patch(`/api/my-ads/${newAd.id}`, { description: "tiny" }, auth);
+  check("Too-short description rejected → 400", shortDesc.res.status === 400);
+  check("Edit with no token → 401", (await patch(`/api/my-ads/${newAd.id}`, { price: 5 })).res.status === 401);
+
+  /* Approve it, then check that rewriting the words sends it back for review —
+     otherwise editing is a way to walk a scam straight past moderation. */
+  await post("/api/admin", { id: newAd.id, action: "active" }, adminHeaders);
+  const reworded = await patch(
+    `/api/my-ads/${newAd.id}`,
+    { description: "Completely different wording for this listing, long enough to pass the minimum length rule." },
+    auth,
+  );
+  check("Rewriting the description re-queues the ad", reworded.json?.requeued === true);
+  check("Re-queued ad goes back to pending", reworded.json?.ad?.status === "pending");
+
+  section("Mark sold, re-list, delete");
+  await post("/api/admin", { id: newAd.id, action: "active" }, adminHeaders);
+  const soldBySeller = await post(`/api/my-ads/${newAd.id}`, { action: "sold" }, auth);
+  check("Seller can mark their own ad sold", soldBySeller.json?.ad?.status === "sold");
+  check("Mark sold with no token → 401", (await post(`/api/my-ads/${newAd.id}`, { action: "sold" })).res.status === 401);
+
+  const relisted = await post(`/api/my-ads/${newAd.id}`, { action: "relist" }, auth);
+  check("Sold ad can be re-listed", relisted.json?.ad?.status === "pending");
+  check("Re-listing pushes the expiry back out", daysUntil(relisted.json.ad.expiresAt) >= 29);
+
+  const junkAction = await post(`/api/my-ads/${newAd.id}`, { action: "explode" }, auth);
+  check("Unknown seller action → 400", junkAction.res.status === 400);
+
+  /* Delete needs its own throwaway ad — newAd is used further down. */
+  const doomed = await post("/api/ads", validAd({
+    title: `Kitchen cabinet to clear ${RUN}`,
+    sellerPhone: "0247654321",
+    description: "A two-door kitchen cabinet in fair condition, being cleared because we are moving house this month.",
+  }));
+  check("Throwaway ad created", doomed.res.status === 201);
+  const gone = await del(`/api/my-ads/${doomed.json.ad.id}`, auth);
+  check("Seller can delete their own ad", gone.json?.ok === true);
+  check("Deleted ad is really gone → 404", (await get(`/api/ads/${doomed.json.ad.id}`)).res.status === 404);
+  check("Deleting twice → 404", (await del(`/api/my-ads/${doomed.json.ad.id}`, auth)).res.status === 404);
+
+  section("Sign out")
+  const signedOut = await post("/api/auth", { action: "logout" }, auth);
+  check("Logout succeeds", signedOut.json?.ok === true);
+  check("Token stops working after logout → 401", (await get("/api/my-ads", auth)).res.status === 401);
 
   /* --------------------------------------------------------------- admin */
   section("Moderation console");
@@ -283,7 +421,6 @@ async function main() {
   const badAuth = await get("/api/admin", { "x-admin-password": "wrong" });
   check("Admin API rejects wrong password → 401", badAuth.res.status === 401);
 
-  const adminHeaders = { "x-admin-password": ADMIN };
   const dash = await get("/api/admin?status=pending", adminHeaders);
   check("Admin API accepts the password", dash.json?.ok === true);
   check("Admin sees pending queue", dash.json.ads.some((a) => a.id === newAd.id));
@@ -513,8 +650,16 @@ async function main() {
 
   const leadList = await get(`/api/ads/${newAd.id}/leads`);
   check("Lead is retrievable on the ad", leadList.json.leads.some((l) => l.phone === "0551234567"));
-  const sellerView = await get("/api/my-ads?phone=0247654321");
+  /* Signed in again: the logout check above deliberately killed the token. */
+  const leadAuth = { "x-session-token": await signIn("0247654321") };
+  const sellerView = await get("/api/my-ads", leadAuth);
   check("Seller sees the lead in My ads", sellerView.json.leads.some((l) => l.phone === "0551234567"));
+  check(
+    "A stranger cannot read those leads",
+    !((await get("/api/my-ads", { "x-session-token": await signIn("0209988776") })).json.leads ?? []).some(
+      (l) => l.phone === "0551234567",
+    ),
+  );
 
   /* ---------------------------------------------------- seller reputation */
   /* ------------------------------------------------------------ security */
@@ -669,6 +814,40 @@ async function main() {
   check("Leads blocked on inactive ads", soldLead.res.status === 400);
   await post("/api/admin", { id: scam.json.ad.id, action: "rejected", reason: "test cleanup" }, adminHeaders);
   check("Rejected test ad stays rejected", true);
+
+  /* -------------------------------------------------------------- expiry */
+  section("Ads expire");
+  /* The token from the login section was deliberately destroyed by the logout
+     check, so sign in again. */
+  const auth2 = { "x-session-token": await signIn("0247654321") };
+  /* expiresAt used to be written at creation and then never read, so nothing
+     ever expired: a listing from January still showed as Live in December. */
+  const fresh = await post("/api/ads", validAd({
+    title: `Office chair with wheels ${RUN}`,
+    sellerPhone: "0247654321",
+    description: "A swivel office chair with working wheels and gas lift, used at home for about a year only.",
+  }));
+  check("New ad is stamped with an expiry date", typeof fresh.json?.ad?.expiresAt === "string");
+  check("New ad expires in about 30 days", daysUntil(fresh.json.ad.expiresAt) >= 29 && daysUntil(fresh.json.ad.expiresAt) <= 30);
+  check("Expiry is after the posting date", +new Date(fresh.json.ad.expiresAt) > +new Date(fresh.json.ad.createdAt));
+
+  const expiredList = await get("/api/admin?status=expired", adminHeaders);
+  check("Expired is a real, queryable status", expiredList.json?.ok === true);
+  check("Nothing in the fresh catalogue has expired yet", Array.isArray(expiredList.json.ads));
+
+  /* Drive one ad through the whole lifecycle by hand: an admin can force the
+     expired state, and the seller can bring it back. */
+  await post("/api/admin", { id: fresh.json.ad.id, action: "active" }, adminHeaders);
+  const forced = await post("/api/admin", { id: fresh.json.ad.id, action: "expired" }, adminHeaders);
+  check("Admin can expire an ad", forced.json?.ad?.status === "expired");
+  check(
+    "Expired ad leaves the public list",
+    !(await get("/api/ads?perPage=48")).json.items.some((a) => a.id === fresh.json.ad.id),
+  );
+  const revived = await post(`/api/my-ads/${fresh.json.ad.id}`, { action: "relist" }, auth2);
+  check("Seller can re-list an expired ad", revived.json?.ad?.status === "pending");
+  check("Re-listed ad gets a fresh 30 days", daysUntil(revived.json.ad.expiresAt) >= 29);
+  await del(`/api/my-ads/${fresh.json.ad.id}`, auth2);
 
   /* -------------------------------------------------------------- report */
   const total = passed + failed;

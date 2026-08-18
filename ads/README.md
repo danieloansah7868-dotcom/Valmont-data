@@ -28,7 +28,7 @@ rest sold/pending so seller track records are real) on first boot,
 so nothing is ever empty. In a second terminal:
 
 ```bash
-npm test             # 159-check end-to-end suite (dev server must be running)
+npm test             # 207-check end-to-end suite (dev server must be running)
 ```
 
 | Script | What it does |
@@ -36,7 +36,7 @@ npm test             # 159-check end-to-end suite (dev server must be running)
 | `npm run dev` | Dev server on `0.0.0.0:3000` |
 | `npm run build` | Production build |
 | `npm start` | Serve the production build |
-| `npm test` | 159-check API + page smoke suite |
+| `npm test` | 207-check API + page smoke suite |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run check` | typecheck + full suite, the one to run before pushing |
 
@@ -51,13 +51,15 @@ npm test             # 159-check end-to-end suite (dev server must be running)
 | Ad detail | `/ads/[slug]` | Gallery, specs, description, contact reveal, lead form, similar ads |
 | Post an ad | `/post` | 4-step form with live photo previews and validation |
 | Categories | `/categories` | All 10 categories with live counts and subcategory chips |
-| My ads | `/my-ads` | Seller dashboard by phone number — stats, statuses, buyer messages |
+| My ads | `/my-ads` | Seller dashboard — sign in by SMS code, then edit / mark sold / re-list / delete your ads and read buyer messages |
 | Safety | `/safety` | Buyer/seller safety tips and the banned-items list |
 | Seller profile | `/seller/[phone]` | Public track record — reputation score, earned badges, all live ads |
 | Admin | `/admin` | Moderation console — approve, reject, feature, mark sold, verify sellers |
 
 **Admin password:** `admin123` (dev default — override with `ADMIN_PASSWORD`).
-**Demo seller number** for `/my-ads`: `0244118822`.
+**Demo seller number** for `/my-ads`: `0244118822`. In development the login
+code is shown on screen and printed to the server log, so you never need an SMS
+account to try the flow.
 
 ---
 
@@ -73,7 +75,12 @@ All endpoints return JSON `{ ok: true, ... }` or `{ ok: false, error }`.
 | `POST` | `/api/ads/:id` | Increment the view counter |
 | `GET` | `/api/ads/:id/leads` | Leads for one ad |
 | `POST` | `/api/ads/:id/leads` | Buyer sends a message |
-| `GET` | `/api/my-ads?phone=` | A seller's ads + leads (phone normalised) |
+| `POST` | `/api/auth` | `{action:"request",phone}` sends a code · `{action:"verify",phone,code}` returns a session token · `{action:"logout"}` ends it |
+| `GET` | `/api/auth` | Who am I — needs `x-session-token` |
+| `GET` | `/api/my-ads` | A seller's own ads + leads — **needs `x-session-token`** |
+| `PATCH` | `/api/my-ads/:id` | Edit your own ad: `title, description, price, negotiable, condition, images, town` |
+| `POST` | `/api/my-ads/:id` | `{action:"sold"}` or `{action:"relist"}` on your own ad |
+| `DELETE` | `/api/my-ads/:id` | Delete your own ad and its leads |
 | `GET` | `/api/sellers/:phone` | Public reputation — badges, score, stats + that seller's live ads |
 | `GET` | `/api/admin?status=` | Queue + stats — needs `x-admin-password` |
 | `POST` | `/api/admin` | `{ id, action }` where action is `active \| rejected \| sold \| pending \| expired \| feature \| promote \| unpromote`, or `{ phone, action }` for `verify \| unverify` |
@@ -265,8 +272,9 @@ ads/
 │   ├── ads/                  browse + [slug] detail
 │   ├── seller/[phone]/       public seller profile + reputation
 │   ├── post/ categories/ my-ads/ safety/ admin/
-│   └── api/                  ads · ads/[id] · ads/[id]/leads · my-ads ·
-│                             sellers/[phone] · admin · go/[id]
+│   └── api/                  ads · ads/[id] · ads/[id]/leads · auth ·
+│                             my-ads · my-ads/[id] · sellers/[phone] ·
+│                             admin · go/[id]
 ├── src/components/           SiteHeader, SiteFooter, AdCard, Filters, SortSelect,
 │                             PostForm, ContactSeller, Gallery, MyAdsClient,
 │                             AdminConsole, SellerBadges, ShareAd,
@@ -274,12 +282,57 @@ ads/
 ├── src/lib/
 │   ├── store.ts              data layer (validation, screening, CRUD, queries)
 │   ├── reputation.ts         badge + score engine (earned, never buyable)
+│   ├── session.ts            SMS-code login: codes, tokens, expiry windows
 │   ├── screening.ts          scam/junk filters, device fingerprint for admin
 │   ├── seed.ts               57-listing catalogue (36 live + sales history)
 │   ├── taxonomy.ts           categories, regions, towns, conditions
 │   ├── types.ts  format.ts   shared types and GH₵ / time / phone formatting
-└── scripts/test.mjs          159-check smoke suite
+└── scripts/test.mjs          207-check smoke suite
 ```
+
+### Sellers own their listings
+
+Three things a classifieds site cannot ship without, added after the first round:
+
+**1. Sellers can sign in.** `/api/my-ads` used to take `?phone=` from the query
+string and return that seller's ads *and every buyer message sent to them* —
+names, numbers, message text. The phone number is printed on every ad, so this
+was copy-and-paste, not a guess. Now a 6-digit code goes to the number and is
+exchanged for a session token; the token is the only thing that opens the
+dashboard. No password, no signup — the same flow everyone already uses for
+MoMo. Codes expire in 10 minutes, die after 5 wrong guesses, and can only be
+requested once a minute and only for a number that has actually posted, so the
+endpoint cannot be turned into a free SMS cannon.
+
+`src/lib/session.ts` → `sendCode()` is the single function to change when an SMS
+gateway exists. Until then it logs, and `LOGIN_DEBUG` returns the code in the
+response **in development only** — see the environment table.
+
+**2. Edit, mark sold, re-list, delete.** Previously a seller could do none of
+these: sold the fridge, could not take it down. Two deliberate limits:
+
+- *Category, region and phone cannot be edited.* Those are what buyers filtered
+  on to find the ad. Swapping an approved phone listing into a car listing is
+  the oldest trick in classifieds. Post again instead.
+- *Editing the title or description sends the ad back to review*, and re-runs
+  the scam screen. Otherwise editing is a hole straight through moderation:
+  post something clean, get approved, rewrite it as a scam. Price and photo
+  edits do not re-queue.
+
+Delete is a real delete, leads included — someone who wants their personal
+number off the internet should get exactly that. The one exception is a
+**rejected** ad, which cannot be deleted: otherwise the caution badge is one tap
+away from being erased and means nothing.
+
+**3. Ads actually expire.** `expiresAt` was stamped at creation and then never
+read, so nothing ever expired — a listing posted in January still showed as Live
+in December, with a number that stopped answering months ago. A sweep now runs
+on read, throttled to once a minute, and flips overdue `active` ads to
+`expired`. It is lazy rather than a cron because there is no scheduler here and
+serverless deploys freeze between requests: a page load is the only reliable
+clock. A paid campaign that is still running keeps its ad alive — the client
+bought a window of exposure and the free 30-day clock must not cut it short.
+Sellers see "expires in N days" from a week out and can re-list in one tap.
 
 **Persistence.** `src/lib/store.ts` writes to `.data/ads.json` (gitignored) so
 data survives restarts and is shared across every browser hitting the server —
@@ -300,6 +353,7 @@ matching the rest of the Valmont estate.
 | Variable | Default | Purpose |
 |---|---|---|
 | `ADMIN_PASSWORD` | `admin123` | Moderation console password |
+| `LOGIN_DEBUG` | off in production | `1` returns the SMS code in the API response. Development convenience — **never set this in production**, it hands every account to anyone who asks. |
 | `ADS_STORE` | `file` | `memory` for an ephemeral in-memory store |
 | `NEXT_PUBLIC_SITE_URL` | `http://localhost:3000` | Public origin. **Set this before go-live** — without it, shared listings have no WhatsApp/Facebook preview image. |
 

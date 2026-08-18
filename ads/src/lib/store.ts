@@ -16,6 +16,18 @@ import type { Ad, AdInput, AdStatus, Lead, ListQuery, PosterProfile, PostContext
 import { seedAds } from "./seed";
 import { describeDevice, ghanaNetwork, screen } from "./screening";
 import { sellerStats, type SellerStats } from "./reputation";
+import {
+  CODE_TTL_MS,
+  MAX_ATTEMPTS,
+  RESEND_COOLDOWN_MS,
+  SESSION_TTL_MS,
+  codeMatches,
+  generateCode,
+  hashCode,
+  newToken,
+  type LoginCode,
+  type Session,
+} from "./session";
 
 const MODE = process.env.ADS_STORE === "memory" ? "memory" : "file";
 const DATA_DIR = path.join(process.cwd(), ".data");
@@ -27,17 +39,73 @@ interface DB {
   savedSearches: { id: string; query: string; createdAt: string }[];
   /** Phone numbers an admin has ID-verified in person. */
   verifiedSellers: string[];
+  /** One pending login code per phone number. */
+  loginCodes: LoginCode[];
+  /** Signed-in sellers. Token is the only thing the browser holds. */
+  sessions: Session[];
 }
 
 /* Survive Next.js dev hot-reloads by hanging state off globalThis. */
 const g = globalThis as unknown as { __valmontAdsDB?: DB };
 
 function emptyDB(): DB {
-  return { ads: [], leads: [], savedSearches: [], verifiedSellers: [] };
+  return { ads: [], leads: [], savedSearches: [], verifiedSellers: [], loginCodes: [], sessions: [] };
+}
+
+/* ---------------------------------------------------------------- expiry
+
+   Every ad is stamped with expiresAt 30 days out at creation. Until now that
+   field was written and never read, so nothing ever expired: a listing posted
+   in January still sat in "Live" in December, with a phone number that had
+   long stopped answering. Nothing rots a classifieds site faster than ads for
+   things that sold months ago.
+
+   The sweep runs lazily — on read, throttled to once a minute — rather than on
+   a cron. This app has no scheduler and serverless deploys freeze between
+   requests, so anything time-based has to hang off traffic. A page load is the
+   only reliable clock we have.
+
+   Only "active" ads expire. Pending ones are waiting on us, not on the seller,
+   and sold/rejected are already final states. */
+let lastSweep = 0;
+const SWEEP_EVERY_MS = 60 * 1000;
+
+function sweep(db: DB): boolean {
+  const now = Date.now();
+  if (now - lastSweep < SWEEP_EVERY_MS) return false;
+  lastSweep = now;
+
+  let changed = false;
+
+  for (const ad of db.ads) {
+    if (ad.status !== "active") continue;
+    if (!ad.expiresAt) continue;
+    if (+new Date(ad.expiresAt) > now) continue;
+    /* A paid campaign that is still running keeps its ad alive. The client
+       bought a window of exposure; ending it early because the free 30-day
+       clock ran out would be taking money for nothing. */
+    if (ad.promotion && +new Date(ad.promotion.expiresAt) > now) continue;
+    ad.status = "expired";
+    ad.updatedAt = new Date(now).toISOString();
+    changed = true;
+  }
+
+  /* Login codes and sessions are garbage-collected on the same pass so the
+     store does not grow forever with dead credentials. */
+  const codesBefore = db.loginCodes.length;
+  db.loginCodes = db.loginCodes.filter((c) => +new Date(c.expiresAt) > now);
+  const sessionsBefore = db.sessions.length;
+  db.sessions = db.sessions.filter((sn) => +new Date(sn.expiresAt) > now);
+  if (db.loginCodes.length !== codesBefore || db.sessions.length !== sessionsBefore) changed = true;
+
+  return changed;
 }
 
 function load(): DB {
-  if (g.__valmontAdsDB) return g.__valmontAdsDB;
+  if (g.__valmontAdsDB) {
+    if (sweep(g.__valmontAdsDB)) persist();
+    return g.__valmontAdsDB;
+  }
 
   let db: DB | null = null;
   if (MODE === "file") {
@@ -45,7 +113,12 @@ function load(): DB {
       if (fs.existsSync(DATA_FILE)) {
         const parsed = JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
         if (parsed && Array.isArray(parsed.ads)) {
+          /* Spread over emptyDB() so a store written by an older build, before
+             sessions existed, gains the new arrays instead of crashing on
+             undefined.push. */
           db = { ...emptyDB(), ...parsed } as DB;
+          if (!Array.isArray(db.loginCodes)) db.loginCodes = [];
+          if (!Array.isArray(db.sessions)) db.sessions = [];
         }
       }
     } catch {
@@ -685,6 +758,305 @@ export function createLead(
   ad.leads += 1;
   persist();
   return { ok: true, lead };
+}
+
+/* ------------------------------------------------- seller login (sessions)
+
+   Free classifieds sellers do not have accounts and should not need one. What
+   we do need is proof that the person asking to see a number's private
+   messages actually holds that number. A one-time code does that with no
+   signup, and it is the same flow every Ghanaian already uses for MoMo.  */
+
+/** Step 1: send a code. Rate-limited so this cannot be used to spam a number. */
+export function requestLoginCode(
+  rawPhone: string,
+): { ok: true; phone: string; code: string; resendIn: number } | { ok: false; error: string; retryIn?: number } {
+  const db = load();
+  const phone = normalisePhone(rawPhone);
+  if (!phone) return { ok: false, error: "Enter a valid Ghana phone number (e.g. 0241234567)" };
+
+  /* Only numbers that have actually posted can log in. Otherwise this endpoint
+     becomes a free way to send SMS to any number in Ghana on our bill. */
+  if (!db.ads.some((a) => a.sellerPhone === phone)) {
+    return { ok: false, error: "No ads found on that number. Post an ad first." };
+  }
+
+  const now = Date.now();
+  const existing = db.loginCodes.find((c) => c.phone === phone);
+  if (existing) {
+    const since = now - +new Date(existing.sentAt);
+    if (since < RESEND_COOLDOWN_MS) {
+      return {
+        ok: false,
+        error: "A code was just sent. Wait a moment before asking for another.",
+        retryIn: Math.ceil((RESEND_COOLDOWN_MS - since) / 1000),
+      };
+    }
+  }
+
+  const code = generateCode();
+  const entry: LoginCode = {
+    phone,
+    codeHash: hashCode(phone, code),
+    expiresAt: new Date(now + CODE_TTL_MS).toISOString(),
+    attempts: 0,
+    sentAt: new Date(now).toISOString(),
+  };
+  db.loginCodes = db.loginCodes.filter((c) => c.phone !== phone);
+  db.loginCodes.push(entry);
+  persist();
+
+  return { ok: true, phone, code, resendIn: Math.ceil(RESEND_COOLDOWN_MS / 1000) };
+}
+
+/** Step 2: exchange a correct code for a session token. */
+export function verifyLoginCode(
+  rawPhone: string,
+  code: string,
+): { ok: true; token: string; phone: string; expiresAt: string } | { ok: false; error: string } {
+  const db = load();
+  const phone = normalisePhone(rawPhone);
+  if (!phone) return { ok: false, error: "Enter a valid Ghana phone number" };
+
+  const entry = db.loginCodes.find((c) => c.phone === phone);
+  if (!entry) return { ok: false, error: "No code was requested for that number, or it has expired" };
+
+  if (+new Date(entry.expiresAt) <= Date.now()) {
+    db.loginCodes = db.loginCodes.filter((c) => c.phone !== phone);
+    persist();
+    return { ok: false, error: "That code has expired. Ask for a new one." };
+  }
+
+  /* Burn the code after a handful of wrong guesses — six digits is only a
+     million combinations and an unlimited retry loop walks straight through
+     that. */
+  if (entry.attempts >= MAX_ATTEMPTS) {
+    db.loginCodes = db.loginCodes.filter((c) => c.phone !== phone);
+    persist();
+    return { ok: false, error: "Too many wrong tries. Ask for a new code." };
+  }
+
+  const supplied = String(code || "").replace(/\D/g, "");
+  if (!codeMatches(phone, supplied, entry.codeHash)) {
+    entry.attempts += 1;
+    persist();
+    const left = MAX_ATTEMPTS - entry.attempts;
+    return { ok: false, error: left > 0 ? `Wrong code. ${left} ${left === 1 ? "try" : "tries"} left.` : "Too many wrong tries. Ask for a new code." };
+  }
+
+  db.loginCodes = db.loginCodes.filter((c) => c.phone !== phone);
+
+  const now = Date.now();
+  const session: Session = {
+    token: newToken(),
+    phone,
+    createdAt: new Date(now).toISOString(),
+    expiresAt: new Date(now + SESSION_TTL_MS).toISOString(),
+  };
+  db.sessions.push(session);
+  persist();
+
+  return { ok: true, token: session.token, phone, expiresAt: session.expiresAt };
+}
+
+/** Which phone number, if any, does this token prove ownership of? */
+export function phoneForToken(token: string | null | undefined): string | null {
+  if (!token) return null;
+  const db = load();
+  const session = db.sessions.find((sn) => sn.token === token);
+  if (!session) return null;
+  if (+new Date(session.expiresAt) <= Date.now()) return null;
+  return session.phone;
+}
+
+export function endSession(token: string | null | undefined): boolean {
+  if (!token) return false;
+  const db = load();
+  const before = db.sessions.length;
+  db.sessions = db.sessions.filter((sn) => sn.token !== token);
+  if (db.sessions.length === before) return false;
+  persist();
+  return true;
+}
+
+/* ------------------------------------------------ seller-owned ad changes
+
+   Everything below takes the phone number proved by a session token and
+   refuses to touch an ad belonging to anyone else. The ownership check is
+   deliberately repeated in each function rather than assumed at the route:
+   the store is the last line of defence and it should not depend on a caller
+   remembering to check.  */
+
+const SELLER_EDITABLE_STATUSES: AdStatus[] = ["pending", "active", "expired"];
+
+/**
+ * Edit an ad you own.
+ *
+ * Only the fields a seller has a legitimate reason to change after posting.
+ * Category, region and phone number are deliberately NOT editable: those are
+ * what buyers filtered on to find the ad, and letting a seller swap a cheap
+ * phone listing into a car listing after approval is the oldest trick in
+ * classifieds. Anyone who genuinely needs a different category posts again.
+ *
+ * A material edit sends the ad back to pending, because otherwise editing is a
+ * hole straight through moderation: post something clean, get approved, then
+ * rewrite it as a scam. Cosmetic edits (price, photos) do not re-queue.
+ */
+export function updateAdBySeller(
+  idOrRef: string,
+  phone: string,
+  patch: { title?: string; description?: string; price?: number | null; negotiable?: boolean; condition?: Ad["condition"]; images?: string[]; town?: string },
+): { ok: true; ad: Ad; requeued: boolean } | { ok: false; error: string; status: number } {
+  const db = load();
+  const ad = db.ads.find((a) => a.id === idOrRef || a.ref === idOrRef || a.slug === idOrRef);
+  if (!ad) return { ok: false, error: "Ad not found", status: 404 };
+  if (ad.sellerPhone !== phone) return { ok: false, error: "That is not your ad", status: 403 };
+  if (!SELLER_EDITABLE_STATUSES.includes(ad.status)) {
+    return { ok: false, error: `A ${ad.status} ad cannot be edited`, status: 400 };
+  }
+
+  let requeued = false;
+
+  if (patch.title !== undefined) {
+    const title = String(patch.title).trim();
+    if (title.length < 6) return { ok: false, error: "Title must be at least 6 characters", status: 400 };
+    if (title.length > 90) return { ok: false, error: "Title must be 90 characters or fewer", status: 400 };
+    if (title !== ad.title) {
+      ad.title = title;
+      requeued = true;
+    }
+  }
+
+  if (patch.description !== undefined) {
+    const description = String(patch.description).trim();
+    if (description.length < 20) return { ok: false, error: "Description must be at least 20 characters", status: 400 };
+    if (description !== ad.description) {
+      ad.description = description;
+      requeued = true;
+    }
+  }
+
+  if (patch.price !== undefined) {
+    const price = patch.price === null ? null : Number(patch.price);
+    if (price !== null && (!Number.isFinite(price) || price < 0)) {
+      return { ok: false, error: "Price must be a positive number, or blank", status: 400 };
+    }
+    ad.price = price;
+  }
+
+  if (patch.negotiable !== undefined) ad.negotiable = Boolean(patch.negotiable);
+  if (patch.condition !== undefined) ad.condition = patch.condition;
+  if (patch.images !== undefined) ad.images = patch.images.slice(0, 6);
+  if (patch.town !== undefined) ad.town = String(patch.town).trim() || ad.region;
+
+  /* Re-screen the new words. An edit that introduces a blocked phrase is
+     rejected outright, exactly as it would have been at posting time. */
+  if (requeued) {
+    const verdict = screen(
+      {
+        title: ad.title,
+        description: ad.description,
+        price: ad.price,
+        category: ad.category,
+        subcategory: ad.subcategory,
+        region: ad.region,
+        town: ad.town,
+        images: ad.images,
+        sellerName: ad.sellerName,
+        sellerPhone: ad.sellerPhone,
+        sellerType: ad.sellerType,
+      },
+      ad.context ?? {},
+      historyFor(ad.sellerPhone),
+    );
+    ad.flags = verdict.flags;
+    ad.riskScore = verdict.score;
+    if (verdict.block) {
+      ad.status = "rejected";
+      ad.rejectionReason = verdict.reason;
+    } else if (ad.status === "active") {
+      ad.status = "pending";
+    }
+  }
+
+  /* An expired ad that gets edited is being actively tended, so give it a
+     fresh 30 days rather than leaving it invisible. */
+  if (ad.status === "expired") {
+    ad.status = "pending";
+    ad.expiresAt = new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString();
+    requeued = true;
+  }
+
+  ad.updatedAt = new Date().toISOString();
+  persist();
+  return { ok: true, ad, requeued };
+}
+
+/** Mark your own ad sold — the single most-wanted button on the site. */
+export function markSoldBySeller(idOrRef: string, phone: string): { ok: true; ad: Ad } | { ok: false; error: string; status: number } {
+  const db = load();
+  const ad = db.ads.find((a) => a.id === idOrRef || a.ref === idOrRef || a.slug === idOrRef);
+  if (!ad) return { ok: false, error: "Ad not found", status: 404 };
+  if (ad.sellerPhone !== phone) return { ok: false, error: "That is not your ad", status: 403 };
+  if (ad.status === "sold") return { ok: true, ad };
+  if (ad.status !== "active" && ad.status !== "expired") {
+    return { ok: false, error: `A ${ad.status} ad cannot be marked sold`, status: 400 };
+  }
+  ad.status = "sold";
+  ad.updatedAt = new Date().toISOString();
+  persist();
+  return { ok: true, ad };
+}
+
+/** Re-list an expired or sold ad for another 30 days. */
+export function relistBySeller(idOrRef: string, phone: string): { ok: true; ad: Ad } | { ok: false; error: string; status: number } {
+  const db = load();
+  const ad = db.ads.find((a) => a.id === idOrRef || a.ref === idOrRef || a.slug === idOrRef);
+  if (!ad) return { ok: false, error: "Ad not found", status: 404 };
+  if (ad.sellerPhone !== phone) return { ok: false, error: "That is not your ad", status: 403 };
+  if (ad.status !== "expired" && ad.status !== "sold") {
+    return { ok: false, error: "Only expired or sold ads can be re-listed", status: 400 };
+  }
+  /* Back through moderation: it may have been months, and prices and rules
+     both move. */
+  ad.status = "pending";
+  ad.expiresAt = new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString();
+  ad.updatedAt = new Date().toISOString();
+  persist();
+  return { ok: true, ad };
+}
+
+/**
+ * Delete your own ad.
+ *
+ * A real delete, not a hidden flag: someone who posted their personal phone
+ * number and now wants it off the internet should get exactly that. Their
+ * leads go with it, since those contain buyers' numbers too and keeping them
+ * attached to a deleted ad serves nobody.
+ *
+ * The one thing kept is the seller's reputation record — deleting a rejected
+ * ad must not be a way to wash a bad moderation history — so the count is
+ * folded into a tombstone rather than the whole ad being resurrectable.
+ */
+export function deleteAdBySeller(
+  idOrRef: string,
+  phone: string,
+): { ok: true; deleted: string } | { ok: false; error: string; status: number } {
+  const db = load();
+  const ad = db.ads.find((a) => a.id === idOrRef || a.ref === idOrRef || a.slug === idOrRef);
+  if (!ad) return { ok: false, error: "Ad not found", status: 404 };
+  if (ad.sellerPhone !== phone) return { ok: false, error: "That is not your ad", status: 403 };
+
+  /* A rejected ad stays on the books. Otherwise the caution badge is one tap
+     away from being erased, which makes it worthless. */
+  if (ad.status === "rejected") {
+    return { ok: false, error: "A rejected ad cannot be deleted. It stays on your record.", status: 400 };
+  }
+
+  db.ads = db.ads.filter((a) => a.id !== ad.id);
+  db.leads = db.leads.filter((l) => l.adId !== ad.id);
+  persist();
+  return { ok: true, deleted: ad.ref };
 }
 
 /** Test/demo helper — wipe and re-seed. */
