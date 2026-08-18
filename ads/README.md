@@ -13,6 +13,13 @@ Seller posts ad → automated screening → moderation queue
 Unlike [`app/`](../app/) (the zero-build-step data-bundle store), this is a
 **Next.js 16 + Tailwind v4 application** with a build step, as requested.
 
+> **Handing this to an AI agent?** Give it
+> [`CONTEXT-FOR-AGENT.md`](CONTEXT-FOR-AGENT.md) first — what the product is,
+> what is already built, the real backlog, and the money rules it must not
+> break. [`PROMPT-FOR-AGENT.md`](PROMPT-FOR-AGENT.md) is a ready-made prompt.
+> Without them, agents read the word "ads" and plan an ad network with CPM
+> pricing and Stripe escrow. That has happened twice.
+
 ---
 
 ## Quick start

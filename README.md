@@ -128,6 +128,8 @@ Valmont sites). A build step needs a written justification.
 | [`GET-STARTED.md`](GET-STARTED.md) | Go-live runbook: Supabase → Valmont-Pay → Vercel → supplier → smoke test |
 | [`app/README.md`](app/README.md) | Production app: architecture, run/test, deploy |
 | [`ads/README.md`](ads/README.md) | Valmont Ads classifieds: page map, API, moderation rules |
+| [`ads/CONTEXT-FOR-AGENT.md`](ads/CONTEXT-FOR-AGENT.md) | Brief for an AI agent: what Valmont Ads is, what exists, the real backlog |
+| [`ads/PROMPT-FOR-AGENT.md`](ads/PROMPT-FOR-AGENT.md) | Copy-paste prompt for continuing the classifieds work |
 | [`prototype/README.md`](prototype/README.md) | Design blueprint: page map, pricing, UX decisions |
 | [`starter-nextjs/README.md`](starter-nextjs/README.md) | Superseded starter (kept for the provider/ driver ideas) |
 
