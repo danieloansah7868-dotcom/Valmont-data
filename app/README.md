@@ -64,6 +64,35 @@ The **webhook handler is the heart of the system** (`api/valmontpay/webhook.js`)
 
 ---
 
+## Multi-supplier routing and outage protection
+
+Production can route through Typhonic and RemaData in priority order:
+
+```env
+SUPPLIER_ORDER=typhonic,remadata
+```
+
+`lib/supplier.js` provides one normalized contract for both suppliers. The
+router checks configuration, observes a per-instance circuit breaker, records
+every routing decision in `orders.supplier_response`, and automatically tries
+the next supplier only after a **definitive rejection** (for example, an
+explicit failed/refunded response or a 4xx validation error).
+
+A timeout, connection reset, HTTP 5xx, or accepted/pending response is treated
+as **unresolved**. Failover is paused and the order remains `delivering`, because
+the first supplier may still complete it; submitting to a backup at that point
+could send the customer two bundles. Cron/admin retries also respect this
+duplicate guard. The admin wallet view shows every configured supplier and
+`GET /api/admin/suppliers` exposes priority/configuration/circuit state.
+
+Typhonic's endpoint contract is available only after agent approval, so its URL,
+paths, auth header and request field names are environment-configurable. Copy
+them exactly from the agent documentation into the `TYPHONIC_*` variables in
+`.env.example`; the driver remains disabled until the purchase path is set.
+Never paste an API key or webhook secret into source control or screenshots.
+
+---
+
 ## Auto-reload — how it works
 
 **The opt-in place** is `autoreload.html` (linked from the dashboard and the

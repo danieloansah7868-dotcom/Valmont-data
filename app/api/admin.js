@@ -23,7 +23,7 @@ const { db } = require("../lib/supabase");
 const { requireAdmin, sign } = require("../lib/auth");
 const orders = require("../lib/orders");
 const phones = require("../lib/phones");
-const { getSupplier } = require("../lib/supplier");
+const { getSupplier, getSupplierRouter, getSupplierHealth } = require("../lib/supplier");
 
 async function handler(req, res) {
   const url = new URL(req.url, "http://local");
@@ -146,6 +146,7 @@ async function handler(req, res) {
         attempts: o.attempts,
         provider_reference: o.provider_reference,
         supplier_ref: o.supplier_ref,
+        supplier: o.supplier_response?.supplier || o.supplier_response?.raw?.supplier || null,
         supplier_error: o.supplier_response?.error || null,
         supplier_response: o.supplier_response,
         created_at: o.created_at,
@@ -238,22 +239,25 @@ async function handler(req, res) {
     return json(res, 200, { ok: true, supplier: supplier.name, supplier_bundles: supplierBundles, bundles: comparison });
   }
 
-  // 7. /api/admin/wallet-balance
+  // 7. /api/admin/wallet-balance — every configured supplier, in routing order
   if (pathname.includes("/wallet-balance")) {
     if (req.method !== "GET") return json(res, 405, { error: "GET only" });
-    const supplier = getSupplier();
-    try {
-      const data = await supplier.fetchWalletBalance();
-      return json(res, 200, {
-        ok: true,
-        supplier: supplier.name,
-        balance: Number(data.balance) || 0,
-        currency: data.currency || "GHS",
-        mock: !!data.mock,
-      });
-    } catch (err) {
-      return json(res, 502, { error: `Failed to fetch wallet balance: ${err.message}` });
-    }
+    const balances = await getSupplierRouter().fetchWalletBalances();
+    const primary = balances[0] || {};
+    return json(res, balances.some((b) => b.ok) ? 200 : 502, {
+      ok: balances.some((b) => b.ok),
+      supplier: primary.supplier || null,
+      balance: Number(primary.balance) || 0,
+      currency: primary.currency || "GHS",
+      mock: !!primary.mock,
+      suppliers: balances,
+    });
+  }
+
+  // 7a. /api/admin/suppliers — priority, circuit-breaker and configuration state
+  if (pathname.includes("/suppliers")) {
+    if (req.method !== "GET") return json(res, 405, { error: "GET only" });
+    return json(res, 200, { ok: true, suppliers: getSupplierHealth() });
   }
 
   // 7b. /api/admin/overview — summary stats for WhatsApp, referrals, resellers

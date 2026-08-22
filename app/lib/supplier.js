@@ -103,9 +103,13 @@ const remadata = {
       const isSuccess = res.ok && (data.status === "success" || data.status === "pending" || data.success === true);
 
       if (!isSuccess) {
-        // RemaData returns status: "error" and auto-refunds the wallet
-        const errorMsg = data.message || data.error || (data.status === "error" ? "Supplier order error (auto-refunded)" : `HTTP ${res.status}`);
-        return { ok: false, error: errorMsg, raw: data };
+        // An explicit supplier rejection / 4xx is safe to route elsewhere.
+        // A 5xx may have happened after the supplier accepted the order, so it
+        // is deliberately ambiguous: immediate failover could deliver twice.
+        const explicitRejection = data.status === "error" || data.success === false;
+        const safeToFailover = explicitRejection || (res.status >= 400 && res.status < 500);
+        const errorMsg = data.message || data.error || (explicitRejection ? "Supplier order rejected (wallet auto-refunded)" : `HTTP ${res.status}`);
+        return { ok: false, error: errorMsg, raw: data, safeToFailover, ambiguous: !safeToFailover, httpStatus: res.status };
       }
 
       const ref = (data.data && (data.data.reference || data.data.client_reference))
@@ -115,11 +119,14 @@ const remadata = {
 
       return {
         ok: true,
+        pending: data.status === "pending",
         supplier_ref: String(ref),
         raw: data,
       };
     } catch (e) {
-      return { ok: false, error: e.message };
+      // A timeout/network reset is not proof that the request failed. Keep the
+      // order unresolved until status can be reconciled; never fail over now.
+      return { ok: false, error: e.message, ambiguous: true, safeToFailover: false };
     }
   },
 
@@ -171,11 +178,223 @@ const remadata = {
   },
 };
 
-function getSupplier() {
-  const driver = process.env.SUPPLIER_DRIVER || "mock";
-  if (driver === "remadata") return remadata;
-  if (driver !== "mock") console.warn(`Supplier "${driver}" not registered — using mock`);
-  return mock;
+/* ---------- Typhonic Data Hub ----------
+   Their agent dashboard exposes API keys + webhooks after approval, but the
+   endpoint contract is not public. Paths and field names are therefore env
+   configured rather than guessed. This driver stays disabled until the live
+   documentation values are supplied. */
+const TYPHONIC_BASE = () => (process.env.TYPHONIC_API_URL || "").replace(/\/$/, "");
+const TYPHONIC_KEY = () => process.env.TYPHONIC_API_KEY || "";
+
+function typhonicPath(name, fallback = "") {
+  const value = process.env[name] || fallback;
+  return value && value.startsWith("/") ? value : (value ? `/${value}` : "");
 }
 
-module.exports = { getSupplier, mock, remadata };
+function typhonicHeaders() {
+  const key = TYPHONIC_KEY();
+  const header = process.env.TYPHONIC_AUTH_HEADER || "Authorization";
+  const configuredScheme = process.env.TYPHONIC_AUTH_SCHEME === undefined ? "Bearer" : process.env.TYPHONIC_AUTH_SCHEME;
+  const scheme = configuredScheme && !configuredScheme.endsWith(" ") ? `${configuredScheme} ` : configuredScheme;
+  return { [header]: `${scheme}${key}`, "Content-Type": "application/json", Accept: "application/json" };
+}
+
+function pick(obj, dottedPaths, fallback) {
+  for (const path of dottedPaths) {
+    let value = obj;
+    for (const part of path.split(".")) value = value && value[part];
+    if (value !== undefined && value !== null) return value;
+  }
+  return fallback;
+}
+
+const typhonic = {
+  name: "typhonic",
+  isConfigured() {
+    return !!(TYPHONIC_BASE() && TYPHONIC_KEY() && typhonicPath("TYPHONIC_PURCHASE_PATH"));
+  },
+  async submit(order) {
+    if (!this.isConfigured()) {
+      return { ok: false, safeToFailover: true, error: "Typhonic API is not fully configured" };
+    }
+    const body = {};
+    body[process.env.TYPHONIC_REFERENCE_FIELD || "reference"] = order.reference;
+    body[process.env.TYPHONIC_PHONE_FIELD || "phone"] = order.phone;
+    body[process.env.TYPHONIC_NETWORK_FIELD || "network"] = order.network;
+    body[process.env.TYPHONIC_VOLUME_FIELD || "volumeInMB"] = Number(order.sizeMb);
+    try {
+      const res = await fetch(`${TYPHONIC_BASE()}${typhonicPath("TYPHONIC_PURCHASE_PATH")}`, {
+        method: "POST", headers: typhonicHeaders(), body: JSON.stringify(body),
+        signal: AbortSignal.timeout(Number(process.env.SUPPLIER_TIMEOUT_MS || "15000")),
+      });
+      const data = await res.json().catch(() => ({}));
+      const status = String(pick(data, ["status", "data.status"], "")).toLowerCase();
+      const success = res.ok && (data.success === true || ["success", "successful", "completed", "delivered", "pending", "processing"].includes(status));
+      const ref = pick(data, ["data.reference", "data.order_id", "reference", "order_id", "id"], order.reference);
+      if (success) return {
+        ok: true,
+        pending: ["pending", "processing"].includes(status),
+        supplier_ref: String(ref),
+        raw: data,
+      };
+      const explicitRejection = data.success === false || ["error", "failed", "rejected", "refunded"].includes(status);
+      const safeToFailover = explicitRejection || (res.status >= 400 && res.status < 500);
+      return {
+        ok: false,
+        error: pick(data, ["message", "error", "data.message"], `Typhonic HTTP ${res.status}`),
+        raw: data,
+        httpStatus: res.status,
+        safeToFailover,
+        ambiguous: !safeToFailover,
+      };
+    } catch (e) {
+      return { ok: false, error: e.message, ambiguous: true, safeToFailover: false };
+    }
+  },
+  async lookup(reference) {
+    const template = typhonicPath("TYPHONIC_STATUS_PATH");
+    if (!this.isConfigured() || !template) return { found: false, unsupported: true };
+    const path = template.includes("{reference}")
+      ? template.replace("{reference}", encodeURIComponent(reference))
+      : `${template}${template.includes("?") ? "&" : "?"}reference=${encodeURIComponent(reference)}`;
+    try {
+      const res = await fetch(`${TYPHONIC_BASE()}${path}`, {
+        headers: typhonicHeaders(), signal: AbortSignal.timeout(Number(process.env.SUPPLIER_TIMEOUT_MS || "15000")),
+      });
+      const data = await res.json().catch(() => ({}));
+      const status = String(pick(data, ["status", "data.status"], "")).toLowerCase();
+      if (res.status === 404 || ["not_found", "not found"].includes(status)) return { found: false, definitive: true, raw: data };
+      if (["success", "successful", "completed", "delivered"].includes(status)) return { found: true, delivered: true, raw: data, supplier_ref: String(pick(data, ["data.reference", "reference", "order_id"], reference)) };
+      if (["error", "failed", "rejected", "refunded"].includes(status)) return { found: true, failed: true, definitive: true, raw: data };
+      return { found: res.ok, pending: res.ok, raw: data };
+    } catch (e) {
+      return { found: false, ambiguous: true, error: e.message };
+    }
+  },
+  async fetchBundles() {
+    const path = typhonicPath("TYPHONIC_BUNDLES_PATH");
+    if (!this.isConfigured() || !path) throw new Error("Typhonic bundles endpoint is not configured");
+    const res = await fetch(`${TYPHONIC_BASE()}${path}`, { headers: typhonicHeaders() });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(pick(data, ["message", "error"], `HTTP ${res.status}`));
+    const list = pick(data, ["data.bundles", "data", "bundles"], []);
+    return Array.isArray(list) ? list.map((b) => ({
+      network: String(pick(b, ["network", "networkType", "network_code"], "")).toLowerCase(),
+      volumeInMB: Number(pick(b, ["volumeInMB", "volume_mb", "size_mb"], 0)),
+      price: Number(pick(b, ["price", "agent_price", "cost_price"], 0)),
+      name: pick(b, ["name", "label"], ""),
+    })) : [];
+  },
+  async fetchWalletBalance() {
+    const path = typhonicPath("TYPHONIC_BALANCE_PATH");
+    if (!this.isConfigured() || !path) throw new Error("Typhonic wallet endpoint is not configured");
+    const res = await fetch(`${TYPHONIC_BASE()}${path}`, { headers: typhonicHeaders() });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(pick(data, ["message", "error"], `HTTP ${res.status}`));
+    return { balance: Number(pick(data, ["data.balance", "balance", "wallet.balance"], 0)), currency: pick(data, ["data.currency", "currency"], "GHS") };
+  },
+};
+
+/* ---------- router + conservative failover ---------- */
+const circuitState = new Map();
+function circuitConfig() {
+  return {
+    threshold: Math.max(1, Number(process.env.SUPPLIER_CIRCUIT_FAILURES || "3")),
+    cooldownMs: Math.max(1000, Number(process.env.SUPPLIER_CIRCUIT_COOLDOWN_MS || "300000")),
+  };
+}
+function circuit(name) {
+  if (!circuitState.has(name)) circuitState.set(name, { failures: 0, openUntil: 0, lastError: null, lastSuccessAt: null });
+  return circuitState.get(name);
+}
+function circuitAvailable(name) { return circuit(name).openUntil <= Date.now(); }
+function recordSuccess(name) { Object.assign(circuit(name), { failures: 0, openUntil: 0, lastError: null, lastSuccessAt: new Date().toISOString() }); }
+function recordFailure(name, error) {
+  const state = circuit(name); const cfg = circuitConfig();
+  state.failures += 1; state.lastError = error || "unknown error";
+  if (state.failures >= cfg.threshold) state.openUntil = Date.now() + cfg.cooldownMs;
+}
+
+const drivers = { mock, remadata, typhonic };
+function configuredNames(network) {
+  const networkKey = network ? `SUPPLIER_ORDER_${String(network).toUpperCase().replace(/[^A-Z0-9]/g, "")}` : null;
+  const explicit = (networkKey && process.env[networkKey]) || process.env.SUPPLIER_ORDER || process.env.SUPPLIER_DRIVERS;
+  const disabled = new Set(String(process.env.SUPPLIER_DISABLED || "").split(",").map((x) => x.trim().toLowerCase()).filter(Boolean));
+  if (explicit) return explicit.split(",").map((x) => x.trim().toLowerCase()).filter((x) => drivers[x] && !disabled.has(x));
+  return [String(process.env.SUPPLIER_DRIVER || "mock").toLowerCase()].filter((x) => drivers[x] && !disabled.has(x));
+}
+function getSupplier(name) {
+  const chosen = name
+    ? drivers[String(name).toLowerCase()]
+    : getSuppliers().find((s) => typeof s.isConfigured !== "function" || s.isConfigured());
+  if (chosen) return chosen;
+  console.warn(`Supplier "${name || process.env.SUPPLIER_DRIVER}" not registered/configured — using mock`);
+  return mock;
+}
+function getSuppliers(network) { return configuredNames(network).map((name) => drivers[name]); }
+
+const router = {
+  name: "router",
+  suppliers: getSuppliers,
+  health() {
+    return getSuppliers().map((s, priority) => ({
+      name: s.name, priority: priority + 1,
+      configured: typeof s.isConfigured === "function" ? s.isConfigured() : true,
+      circuit_open: !circuitAvailable(s.name), ...circuit(s.name),
+    }));
+  },
+  async submit(order) {
+    const attempts = [];
+    const suppliers = getSuppliers(order.network);
+    if (!suppliers.length) return { ok: false, safeToFailover: false, error: `No suppliers configured for ${order.network}`, routing_attempts: attempts };
+
+    for (const supplier of suppliers) {
+      if (!circuitAvailable(supplier.name)) {
+        attempts.push({ supplier: supplier.name, skipped: true, reason: "circuit_open" });
+        continue;
+      }
+      if (typeof supplier.isConfigured === "function" && !supplier.isConfigured()) {
+        attempts.push({ supplier: supplier.name, skipped: true, reason: "not_configured" });
+        continue;
+      }
+      const result = await supplier.submit(order);
+      attempts.push({
+        supplier: supplier.name, ok: !!result.ok, pending: !!result.pending,
+        ambiguous: !!result.ambiguous, safe_to_failover: !!result.safeToFailover,
+        error: result.error || null, supplier_ref: result.supplier_ref || null,
+      });
+      if (result.ok) {
+        recordSuccess(supplier.name);
+        return { ...result, supplier: supplier.name, routing_attempts: attempts,
+          raw: { supplier: supplier.name, response: result.raw || {}, routing_attempts: attempts } };
+      }
+      // Only infrastructure/ambiguous failures count toward the circuit.
+      // Customer validation, unsupported bundles and low wallet are definitive
+      // business rejections and must not mark an otherwise healthy API down.
+      if (result.ambiguous || Number(result.httpStatus || 0) >= 500) recordFailure(supplier.name, result.error);
+      if (!result.safeToFailover) {
+        return { ...result, supplier: supplier.name, routing_attempts: attempts,
+          raw: { supplier: supplier.name, response: result.raw || {}, routing_attempts: attempts } };
+      }
+    }
+    return { ok: false, safeToFailover: false, error: "All configured suppliers rejected or were unavailable", routing_attempts: attempts,
+      raw: { routing_attempts: attempts } };
+  },
+  async fetchWalletBalances() {
+    return Promise.all(getSuppliers().map(async (supplier, priority) => {
+      try {
+        const data = await supplier.fetchWalletBalance();
+        recordSuccess(supplier.name);
+        return { ok: true, supplier: supplier.name, priority: priority + 1, ...data };
+      } catch (e) {
+        recordFailure(supplier.name, e.message);
+        return { ok: false, supplier: supplier.name, priority: priority + 1, error: e.message };
+      }
+    }));
+  },
+};
+
+function getSupplierRouter() { return router; }
+function getSupplierHealth() { return router.health(); }
+
+module.exports = { getSupplier, getSuppliers, getSupplierRouter, getSupplierHealth, mock, remadata, typhonic };
