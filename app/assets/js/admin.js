@@ -136,11 +136,12 @@
           .join("");
 
         if (walletInfo) {
-          cardsHtml += `<div class="stat-card" style="border-top:3px solid var(--orange)">
-            <div class="label">RemaData Wallet</div>
-            <div class="value ok">${fmt(walletInfo.balance)}</div>
-            <div class="sub">${walletInfo.mock ? "Simulated wallet" : "Live wholesale balance"}</div>
-          </div>`;
+          const supplierWallets = walletInfo.suppliers || [walletInfo];
+          cardsHtml += supplierWallets.map((w) => `<div class="stat-card" style="border-top:3px solid ${w.ok ? "var(--orange)" : "#d33"}">
+            <div class="label">${(w.supplier || "Supplier").replace(/^./, (c) => c.toUpperCase())} Wallet${w.priority ? ` · #${w.priority}` : ""}</div>
+            <div class="value ${w.ok ? "ok" : "low"}">${w.ok ? fmt(w.balance) : "Unavailable"}</div>
+            <div class="sub">${w.ok ? (w.mock ? "Simulated wallet" : "Live wholesale balance") : (w.error || "Health check failed")}</div>
+          </div>`).join("");
         }
 
         cards.innerHTML = cardsHtml;
@@ -346,7 +347,7 @@
                 <td>${fmt(o.margin)}</td>
                 <td><span class="pill ${o.status}">${o.status}</span></td>
                 <td>${o.attempts}</td>
-                <td>${o.supplier_error ? `<span class="err">${o.supplier_error}</span>` : o.supplier_ref || "—"}</td>
+                <td>${o.supplier ? `<small style="display:block;color:var(--orange)">${o.supplier}</small>` : ""}${o.supplier_error ? `<span class="err">${o.supplier_error}</span>` : o.supplier_ref || "—"}</td>
                 <td>${o.retryable ? `<button class="btn btn-ghost btn-sm" data-retry="${o.reference}">Retry</button>` : ""}</td>
               </tr>`
             )

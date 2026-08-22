@@ -4,7 +4,7 @@
    ============================================================================ */
 
 const { db } = require("./supabase");
-const { getSupplier } = require("./supplier");
+const { getSupplierRouter } = require("./supplier");
 const { notify } = require("./notify");
 const valmontpay = require("./valmontpay");
 const { genReference } = require("./ids");
@@ -151,7 +151,7 @@ async function deliverOrder(order) {
     return { ok: false, reason: "insufficient_float", attempts };
   }
 
-  const supplier = getSupplier();
+  const supplier = getSupplierRouter();
   const result = await supplier.submit({
     reference: order.reference,
     network: full.network_code,
@@ -159,6 +159,26 @@ async function deliverOrder(order) {
     phone: order.phone,
     attempts,
   });
+
+  // Accepted-but-pending responses and network timeouts are unresolved, not
+  // failures. Never send these to a backup supplier: the first provider may
+  // still deliver, which would create a costly duplicate bundle.
+  if (result.pending || result.ambiguous) {
+    await setStatus(order.id, "delivering", {
+      supplier_ref: result.supplier_ref || null,
+      supplier_response: {
+        ...(result.raw || {}),
+        supplier: result.supplier || result.raw?.supplier || null,
+        unresolved: true,
+        pending: !!result.pending,
+        ambiguous: !!result.ambiguous,
+        error: result.error || null,
+      },
+      attempts,
+    });
+    await notify.alert(`Order ${order.reference} is awaiting supplier confirmation (${result.supplier || "unknown"}); backup routing is paused to prevent duplicate delivery.`);
+    return { ok: false, reason: "supplier_unconfirmed", unresolved: true, attempts };
+  }
 
   if (result.ok) {
     const nowIso = new Date().toISOString();
@@ -218,7 +238,13 @@ async function deliverOrder(order) {
   }
 
   await setStatus(order.id, "failed", {
-    supplier_response: { ok: false, error: result.error, raw: result.raw || {} },
+    supplier_response: {
+      ok: false,
+      error: result.error,
+      supplier: result.supplier || null,
+      routing_attempts: result.routing_attempts || [],
+      raw: result.raw || {},
+    },
     attempts,
   });
   if (attempts >= MAX_ATTEMPTS) {
@@ -245,6 +271,19 @@ async function retryOrder(order) {
   if (Number(order.attempts || 0) >= MAX_ATTEMPTS) return { retried: false, reason: "max attempts reached" };
   const fresh = await findOrderByReference(order.reference);
   if (!fresh) return { retried: false, reason: "order not found" };
+
+  // Conservative duplicate guard. An accepted-pending request or a timeout is
+  // not safe to resubmit (to the same provider or a backup) until the original
+  // supplier confirms failure/not-found through its status API or webhook.
+  if (fresh.status === "delivering" && fresh.supplier_response?.unresolved) {
+    return {
+      retried: false,
+      reason: "awaiting_supplier_confirmation",
+      supplier: fresh.supplier_response?.supplier || null,
+      duplicate_guard: true,
+    };
+  }
+
   const result = await deliverOrder(fresh);
   return { retried: true, ...result };
 }

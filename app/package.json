@@ -9,6 +9,7 @@
     "sim:webhook": "node scripts/sim-webhook.js",
     "seed:demo": "node scripts/seed-demo.js",
     "seed:demo:sql": "node scripts/seed-demo.js --sql",
-    "test": "bash scripts/test.sh"
+    "test": "bash scripts/test.sh && node scripts/test-supplier-router.js",
+    "test:suppliers": "node scripts/test-supplier-router.js"
   }
 }
