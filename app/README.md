@@ -28,6 +28,8 @@ The **webhook handler is the heart of the system** (`api/valmontpay/webhook.js`)
 | Path | Purpose |
 |---|---|
 | `index.html` | Storefront — network tabs, bundle grid, customer accounts, saved numbers, time-based greeting, confirm-before-pay, auto-reload opt-in checkbox, SMS opt-in popup (10s) |
+| `sitemap.xml` | Search engine sitemap — the 9 public pages (canonical URLs, `https://valmontdata.com`) |
+| `robots.txt` | Crawler rules — allows public pages, blocks `/api/`, admin/auth-gated pages; points to the sitemap |
 | `status.html` | Public order tracking by reference (no login) |
 | `dashboard.html` | Signed-in dashboard — quick actions + **"My bundles & auto-reload"** summary card (live usage bars per line) |
 | `autoreload.html` | **The opt-in place** — per-line usage tracking, active rules (pause/resume/remove), and the consent form (line, bundle, threshold, pre-authorized MoMo) |

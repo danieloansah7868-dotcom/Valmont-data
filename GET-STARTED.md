@@ -275,6 +275,7 @@ Works automatically — every customer gets a referral code on first access to `
 - [ ] Live smoke test order delivered; P&L row present; data arrived
 - [ ] `ADMIN_PASSWORD` + `AUTH_SECRET` are strong and unique
 - [ ] No secrets anywhere in git history
+- [ ] `valmontdata.com` verified in Google Search Console; `sitemap.xml` submitted
 
 ---
 

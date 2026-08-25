@@ -7,6 +7,26 @@
   <meta name="description" content="Buy MTN, Telecel and AirtelTigo data bundles instantly. Cheap, fast, reliable.">
   <link rel="icon" type="image/png" sizes="512x512" href="assets/img/valmont-data-favicon.png">
   <link rel="apple-touch-icon" href="assets/img/valmont-data-favicon.png">
+  <script>
+    // SEO: bare /storefront.html (no slug) is an error shell → noindex.
+    // Reseller storefronts (/s/<slug>) are real pages → keep indexable,
+    // with a canonical to the /s/<slug> URL (the form resellers share).
+    (function () {
+      var m = location.pathname.match(/^\/s\/([a-z0-9-]+)/i);
+      var slug = m ? m[1] : new URLSearchParams(location.search).get('slug');
+      if (!slug) {
+        var meta = document.createElement('meta');
+        meta.name = 'robots';
+        meta.content = 'noindex';
+        document.head.appendChild(meta);
+      } else {
+        var link = document.createElement('link');
+        link.rel = 'canonical';
+        link.href = 'https://valmontdata.com/s/' + slug;
+        document.head.appendChild(link);
+      }
+    })();
+  </script>
   <style>
     :root { --navy: #0b1a38; --orange: #ff8c00; --white: #f8fafc; --gray: #64748b; --green: #22c55e; }
     * { box-sizing: border-box; margin: 0; padding: 0; }

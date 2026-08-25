@@ -1,0 +1,16 @@
+# Valmont Data — https://valmontdata.com
+# Public storefront pages are crawlable; app/admin/API endpoints are not.
+
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin.html
+Disallow: /dashboard.html
+Disallow: /history
+Disallow: /otp.html
+Disallow: /autoreload.html
+Disallow: /offline.html
+Disallow: /sw.js
+Disallow: /manifest.json
+
+Sitemap: https://valmontdata.com/sitemap.xml
