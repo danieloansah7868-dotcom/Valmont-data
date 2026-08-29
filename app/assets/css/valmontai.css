@@ -1,0 +1,297 @@
+/* ============================================================================
+   ValmontAI — 24/7 Website Assistant for Valmont Data (valmontdata.com)
+   ----------------------------------------------------------------------------
+   Self-contained widget styles. House palette: navy #0b1a38 / #0b1f3a,
+   orange #ff8c00, off-white #f8fafc. Loaded on every customer-facing page by
+   assets/js/valmontai.js (which also injects the launcher + panel markup).
+   Everything is namespaced .vai-* so it can never clash with page styles.
+   ============================================================================ */
+
+.vai-launcher {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 58px;
+  height: 58px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--orange, #ff8c00);
+  color: #1a0f00;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(245, 140, 20, 0.45);
+  z-index: 250;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  padding: 0;
+}
+.vai-launcher:hover { transform: scale(1.08); box-shadow: 0 8px 26px rgba(245, 140, 20, 0.55); }
+.vai-launcher svg { width: 28px; height: 28px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.vai-launcher .vai-dot {
+  position: absolute;
+  top: 2px;
+  right: 3px;
+  width: 13px;
+  height: 13px;
+  background: #22c55e;
+  border: 2.5px solid var(--orange, #ff8c00);
+  border-radius: 50%;
+}
+.vai-launcher-tip {
+  position: absolute;
+  bottom: 70px;
+  right: 0;
+  background: #fff;
+  color: #1a0f00;
+  padding: 9px 14px;
+  border-radius: 12px;
+  font-size: 12.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  animation: vaiFadeUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+.vai-launcher-tip::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  right: 20px;
+  width: 12px;
+  height: 12px;
+  background: #fff;
+  transform: rotate(45deg);
+}
+.vai-launcher-tip[hidden] { display: none; }
+
+/* ---- Chat panel ------------------------------------------------------ */
+.vai-panel {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: min(380px, calc(100vw - 24px));
+  height: min(580px, calc(100dvh - 110px));
+  background: #f8fafc;
+  border-radius: 18px;
+  overflow: hidden;
+  display: none;
+  flex-direction: column;
+  box-shadow: 0 18px 60px rgba(4, 10, 26, 0.45);
+  z-index: 250;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  animation: vaiPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.vai-panel.vai-open { display: flex; }
+
+.vai-header {
+  background: linear-gradient(135deg, #0b1a38 0%, #122a55 100%);
+  color: #fff;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.vai-header-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--orange, #ff8c00);
+  color: #1a0f00;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.vai-header-avatar svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.vai-header-text { flex: 1; min-width: 0; }
+.vai-header-text b { display: block; font-size: 15.5px; letter-spacing: 0.01em; }
+.vai-header-text span { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: rgba(255, 255, 255, 0.75); }
+.vai-header-text .vai-dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; display: inline-block; }
+.vai-header-actions { display: flex; gap: 6px; }
+.vai-icon-btn {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease;
+}
+.vai-icon-btn:hover { background: rgba(255, 255, 255, 0.22); }
+.vai-icon-btn svg { width: 17px; height: 17px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ---- Messages -------------------------------------------------------- */
+.vai-msgs {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 14px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background:
+    radial-gradient(circle at 85% -10%, rgba(255, 140, 0, 0.06), transparent 45%),
+    #f8fafc;
+  -webkit-overflow-scrolling: touch;
+}
+.vai-msg {
+  max-width: 86%;
+  padding: 10px 14px;
+  border-radius: 16px;
+  font-size: 13.8px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  animation: vaiFadeUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.vai-msg-bot {
+  align-self: flex-start;
+  background: #fff;
+  color: #1e293b;
+  border: 1px solid rgba(11, 26, 56, 0.08);
+  border-bottom-left-radius: 5px;
+  box-shadow: 0 1px 3px rgba(11, 26, 56, 0.06);
+}
+.vai-msg-user {
+  align-self: flex-end;
+  background: var(--orange, #ff8c00);
+  color: #1a0f00;
+  font-weight: 600;
+  border-bottom-right-radius: 5px;
+}
+.vai-msg b { font-weight: 800; }
+.vai-msg-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.vai-action {
+  display: inline-block;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: #0b1a38;
+  color: #fff !important;
+  font-size: 12.5px;
+  font-weight: 700;
+  text-decoration: none;
+  border: 0;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.vai-action:hover { background: #16306b; }
+.vai-action.vai-action-wa { background: #25D366; }
+.vai-action.vai-action-wa:hover { background: #1fb457; }
+
+/* typing indicator */
+.vai-typing {
+  align-self: flex-start;
+  background: #fff;
+  border: 1px solid rgba(11, 26, 56, 0.08);
+  border-radius: 16px;
+  border-bottom-left-radius: 5px;
+  padding: 12px 16px;
+  display: flex;
+  gap: 5px;
+}
+.vai-typing i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #94a3b8;
+  animation: vaiBlink 1.2s infinite ease-in-out;
+}
+.vai-typing i:nth-child(2) { animation-delay: 0.2s; }
+.vai-typing i:nth-child(3) { animation-delay: 0.4s; }
+
+/* ---- Quick-reply chips ---------------------------------------------- */
+.vai-chips {
+  padding: 6px 12px 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  flex-shrink: 0;
+}
+.vai-chip {
+  border: 1px solid rgba(11, 26, 56, 0.18);
+  background: #fff;
+  color: #0b1a38;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 7px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.vai-chip:hover { background: #0b1a38; color: #fff; border-color: #0b1a38; }
+
+/* ---- Input row ------------------------------------------------------- */
+.vai-input-row {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px 14px;
+  background: #fff;
+  border-top: 1px solid rgba(11, 26, 56, 0.08);
+  flex-shrink: 0;
+}
+.vai-input {
+  flex: 1;
+  border: 1px solid rgba(11, 26, 56, 0.18);
+  border-radius: 999px;
+  padding: 11px 16px;
+  font-size: 13.8px;
+  outline: none;
+  background: #f8fafc;
+  color: #1e293b;
+  min-width: 0;
+}
+.vai-input:focus { border-color: var(--orange, #ff8c00); background: #fff; }
+.vai-send {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--orange, #ff8c00);
+  color: #1a0f00;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+.vai-send:hover { transform: scale(1.06); background: #ffa033; }
+.vai-send svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.vai-foot {
+  text-align: center;
+  font-size: 10.5px;
+  color: #94a3b8;
+  padding: 0 0 8px;
+  background: #fff;
+  flex-shrink: 0;
+}
+
+/* ---- Mobile ---------------------------------------------------------- */
+@media (max-width: 480px) {
+  .vai-launcher { bottom: 18px; right: 16px; width: 54px; height: 54px; }
+  .vai-panel {
+    right: 0;
+    bottom: 0;
+    width: 100vw;
+    height: 100dvh;
+    border-radius: 0;
+  }
+}
+
+@keyframes vaiFadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes vaiPop {
+  from { opacity: 0; transform: translateY(14px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes vaiBlink {
+  0%, 80%, 100% { opacity: 0.35; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-3px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vai-launcher, .vai-panel, .vai-msg, .vai-launcher-tip, .vai-typing i { animation: none; transition: none; }
+}
