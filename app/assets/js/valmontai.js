@@ -31,7 +31,7 @@
     howToBuy: 'Choose network, tap bundle, enter recipient line, confirm, then pay',
     delivery: 'Guaranteed 30-Second Instant Delivery — Auto-credited to your line',
     stockNotice: 'MTN, Telecel, AirtelTigo running low — some bundles paused while restocking',
-    warning: 'Wrong numbers are not refundable — double-check before paying',
+    warning: 'Wrong numbers are not refundable.',
   };
 
   const NETWORK_NAMES = { mtn: 'MTN', telecel: 'Telecel', airteltigo: 'AirtelTigo' };
@@ -123,7 +123,7 @@
     if (has(text, ' wrong number', ' mistyp', ' entered the wrong', ' sent to wrong', ' refund', ' reverse',
       ' return policy', ' cancel my order', ' incorrect number', ' number mistake', ' mistake on the number')) {
       return {
-        text: 'Please double-check the recipient number before paying. ' + config.warning +
+        text: 'Please double-check the recipient number before paying — wrong numbers are not refundable.' +
           '\nFor assistance, please WhatsApp ' + config.whatsapp + '.',
         actions: whatsappAction,
       };
