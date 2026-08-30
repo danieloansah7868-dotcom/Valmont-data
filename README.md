@@ -21,6 +21,8 @@ Customer → bundle + number → Valmont-Pay checkout (MoMo/card)
 | [`prototype/`](prototype/) | 27-page interactive design reference (simulated payments/auth, localStorage) | 📐 Reference only |
 | [`starter-nextjs/`](starter-nextjs/) | First-attempt Next.js + Paystack starter | ⚠️ **Superseded** — reference only (esp. `src/lib/providers/remadata.ts`) |
 | [`GET-STARTED.md`](GET-STARTED.md) | **Launch runbook** — Supabase → Valmont-Pay → Vercel → supplier → live smoke test | Follow this to go live |
+| [`valmont-everything.zip`](valmont-everything.zip) | The **whole repository** as one downloadable file — `ads/`, `app/`, `prototype/`, docs, plus a `START-HERE.txt` | 📦 Download |
+| [`val-ads.zip`](val-ads.zip) | **Valmont Ads only** — the classifieds app as one downloadable file | 📦 Download |
 
 ## Quick start (production app, 2 minutes, no database needed)
 
@@ -132,6 +134,25 @@ Valmont sites). A build step needs a written justification.
 | [`ads/PROMPT-FOR-AGENT.md`](ads/PROMPT-FOR-AGENT.md) | Copy-paste prompt for continuing the classifieds work |
 | [`prototype/README.md`](prototype/README.md) | Design blueprint: page map, pricing, UX decisions |
 | [`starter-nextjs/README.md`](starter-nextjs/README.md) | Superseded starter (kept for the provider/ driver ideas) |
+
+## Downloads (zips, kept in the repo)
+
+Two archives are committed to the repo so they can be fetched straight from
+GitHub — no clone needed. Both are built from tracked files only, so they
+never contain `node_modules`, `.next` or `.data`. Each has a `START-HERE.txt`
+at the root.
+
+| File | What is inside | Direct link (branch `arena/01a00ce7-valmont-data`) |
+|---|---|---|
+| `valmont-everything.zip` | The whole repo: `ads/` + `app/` + `prototype/` + `starter-nextjs/` + docs | [download](https://github.com/danieloansah7868-dotcom/Valmont-data/raw/arena/01a00ce7-valmont-data/valmont-everything.zip) |
+| `val-ads.zip` | Valmont Ads classifieds app only | [download](https://github.com/danieloansah7868-dotcom/Valmont-data/raw/arena/01a00ce7-valmont-data/val-ads.zip) |
+
+Rebuild them any time with:
+
+```bash
+git archive HEAD ads | tar -x -C /tmp/ads --strip-components=1   # then zip /tmp/ads
+git archive HEAD -- . ':(exclude)val-ads.zip'                    # then zip that tree
+```
 
 ---
 
