@@ -15,6 +15,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Valmont Data">
   <link rel="stylesheet" href="assets/css/style.css">
+  <!-- ValmontAI — 24/7 website assistant widget -->
+  <link rel="stylesheet" href="assets/css/valmontai.css">
   <style>
     body {
       background: var(--navy);
@@ -166,51 +168,6 @@
       font-weight: 600;
       text-decoration: none;
       z-index: 100;
-    }
-
-    .chat-float {
-      position: fixed;
-      bottom: 24px;
-      right: 24px;
-      width: 56px;
-      height: 56px;
-      background: var(--orange);
-      border-radius: 50%;
-      display: grid;
-      place-items: center;
-      color: #1a0f00;
-      box-shadow: 0 4px 12px rgba(245, 140, 20, 0.4);
-      z-index: 100;
-      cursor: pointer;
-      transition: var(--transition);
-    }
-    .chat-float:hover {
-      background: var(--orange-2);
-      transform: translateY(-2px);
-    }
-    .chat-float svg { width: 28px; height: 28px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-    .chat-bubble {
-      position: absolute;
-      bottom: 70px;
-      right: 0;
-      background: white;
-      color: #333;
-      padding: 10px 16px;
-      border-radius: 12px;
-      font-size: 13px;
-      font-weight: 600;
-      white-space: nowrap;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-    }
-    .chat-bubble::after {
-      content: '';
-      position: absolute;
-      bottom: -6px;
-      right: 22px;
-      width: 12px;
-      height: 12px;
-      background: white;
-      transform: rotate(45deg);
     }
 
     @media(max-width: 768px) {
@@ -375,15 +332,13 @@
   </a>
   <a href="https://whatsapp.com/channel/0029Vb9DIKG8V0terg2V4K2Y" target="_blank" rel="noopener" class="wa-channel-btn">Join 50,000+ Ghanaians<br>on our WhatsApp Channel</a>
 
-  <div class="chat-float" onclick="window.open('https://wa.me/233542451578','_blank')">
-    <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-    <div class="chat-bubble">👋 Valmont support is here!</div>
-  </div>
+  <!-- ValmontAI assistant (launcher + panel injected by assets/js/valmontai.js) -->
 
   <div class="modal-back" id="accountModal"></div>
   <script src="assets/js/storefront.js"></script>
   <script src="assets/js/pwa.js"></script>
   <script src="assets/js/autoreload.js"></script>
+  <script src="assets/js/valmontai.js" defer></script>
   <script>
     // Load referral + store data on dashboard
     (async function loadDashExtras() {

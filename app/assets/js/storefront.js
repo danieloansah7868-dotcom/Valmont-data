@@ -992,9 +992,8 @@
         openReferModal();
       })
     );
-    $("#btnLiveChat")?.addEventListener("click", () => {
-      window.open("https://wa.me/233542451578", "_blank", "noopener");
-    });
+    // Live chat is handled by ValmontAI (assets/js/valmontai.js) — the old
+    // WhatsApp-redirect "btnLiveChat" widget was replaced by the assistant.
 
     // SMS marketing lead popup — auto-triggers after 10s on the storefront
     scheduleSmsLeadPopup();

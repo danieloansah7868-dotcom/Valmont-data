@@ -52,6 +52,10 @@ The **webhook handler is the heart of the system** (`api/valmontpay/webhook.js`)
 | `scripts/seed-demo.js` | Demo data: seed the mock DB (`SEED_DEMO=1`), verify consistency, or regenerate `supabase/seed-demo.sql` |
 | `scripts/sim-webhook.js` | Sign + send a fake payment webhook to test delivery |
 | `scripts/sim-usage.js` | Simulate usage reports (`--ref VD-... --used-mb N` or `--percent N`, or `--phone ...`) — dev stand-in for the telco/supplier usage feed |
+| `scripts/test-valmontai.js` | ValmontAI brain tests (27 checks — every prompt rule + live-stock branches); `node scripts/test-valmontai.js` |
+| `assets/js/valmontai.js` | **ValmontAI assistant** — self-injecting chat widget + rule-based brain (greeting, how-to-buy, delivery, wrong-number, track order, install, payments, support). Stock answers read live from `GET /api/bundles` (60s cache); the config notice is only a fallback. Loaded on every customer page; excluded from `admin.html` |
+| `assets/css/valmontai.css` | ValmontAI widget styles (`.vai-*`, house navy/orange palette, mobile full-screen panel) |
+| `valmontai-data-config.json` | ValmontAI business info (WhatsApp, products, delivery promise, stock notice, wrong-number warning) — fetched at runtime with hardcoded fallbacks |
 | `assets/img/valmont-data-logo.png` | **Official brand banner** — dot-matrix globe badge (orange-gold gradient ring and dots on navy) + "VALMONT DATA" wordmark (VALMONT white · DATA orange); header/nav logo |
 | `assets/img/valmont-data-favicon.png` | **Official brand icon** — orange-gold dot-matrix globe; used for all favicon/apple-touch-icon links and manifest.json icons |
 
