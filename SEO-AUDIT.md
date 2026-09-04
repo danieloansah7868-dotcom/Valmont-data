@@ -213,7 +213,20 @@ Pre-existing `scripts/test.sh` failures, unchanged by this work (all six also fa
 ## 6. Manual follow-ups (things code cannot do)
 
 1. **Google Search Console** — verify the property, submit `https://valmontdata.com/sitemap.xml`, request indexing for `/`, `/bundles/` and the three network pages, then watch the "Indexed, though blocked by robots.txt" warning clear (it should, now that those pages are crawlable).
-2. **Regenerate on every catalogue change.** Cheapest reliable wiring: add `npm run seo:generate:live && npm run seo:check` to the Vercel **build command** (or a pre-deploy step) so prices in the SERP can never drift from checkout. Until then, run it by hand after any price/size edit and commit the HTML — generated pages are intentionally committed (`.gitignore` does not exclude them).
+2. **Regenerate on every catalogue change.** The workflow that fits this repo:
+   when you change a price or add a bundle, write the `supabase/migrations/…` SQL **and** update
+   `lib/demo-data.js` (its documented mirror), then run `npm run seo:generate` and commit the HTML —
+   generated pages are committed on purpose (`.gitignore` does not exclude them).
+   To check the *deployed* site against the *live* catalogue at any time:
+   `SEO_API=https://valmontdata.com npm run seo:check` (fails if any published price differs).
+
+   **Do not** put `npm run seo:generate:live` in the Vercel build command. No API is running at build
+   time, `--api` defaults to `http://localhost:8787`, and an unreachable `--api` is a hard error by
+   design — it would fail every deploy. If you want automation, the two shapes that actually work are
+   (a) a GitHub Action that runs `npm run seo:generate` from the seed when `lib/demo-data.js` or
+   `supabase/migrations/` changes and opens a PR with the regenerated pages, or (b) teaching the
+   generator to read Supabase directly (`SUPABASE_URL` + service key) at build time. Say the word and
+   I will build either.
 3. **`about.html` contradicts the footer.** About says Valmont Data does not advertise on social media, while the homepage footer links Facebook and TikTok. The copy was left as written and those profiles were **excluded** from `Organization.sameAs`; decide which is true and align both.
 4. **Reseller storefronts (`/s/<slug>`)** are indexable but get their canonical/title from JavaScript, and they are not in `sitemap.xml` (they cannot be enumerated statically). If store traffic matters, add a small dynamic sitemap endpoint that lists live stores, and consider server-rendering the canonical (an edge function or an API route that returns the shell with the slug baked in).
 5. **Product images.** `Product` schema has no `image` because the catalogue has none. Adding one real screenshot/illustration per bundle would unlock richer results; do not use stock art of phones.

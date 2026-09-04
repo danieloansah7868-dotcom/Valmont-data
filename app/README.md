@@ -377,8 +377,15 @@ npm run test:seo            # 94 checks; add -- --base=http://localhost:8787 for
 
 **Why a script and not a build step:** the project's zero-build rule stands. The generator has no
 dependencies and writes committed static HTML, so Vercel still deploys plain files — nothing runs at
-request time and no toolchain is introduced. Run it whenever the catalogue changes and commit the
-output (or wire `npm run seo:generate:live && npm run seo:check` into the deploy step).
+request time and no toolchain is introduced.
+
+**When the catalogue changes:** update the `supabase/migrations/` SQL *and* `lib/demo-data.js` (its
+mirror), then `npm run seo:generate` and commit the HTML. To audit the deployed site against the live
+catalogue at any time: `SEO_API=https://valmontdata.com npm run seo:check`.
+
+Do **not** add `seo:generate:live` to the Vercel build command — no API runs at build time, `--api`
+defaults to `http://localhost:8787`, and an unreachable `--api` fails hard by design, so it would
+break every deploy.
 
 ## Tested
 
