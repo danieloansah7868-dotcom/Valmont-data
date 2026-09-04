@@ -28,8 +28,15 @@ The **webhook handler is the heart of the system** (`api/valmontpay/webhook.js`)
 | Path | Purpose |
 |---|---|
 | `index.html` | Storefront — network tabs, bundle grid, customer accounts, saved numbers, time-based greeting, confirm-before-pay, auto-reload opt-in checkbox, SMS opt-in popup (10s) |
-| `sitemap.xml` | Search engine sitemap — the 9 public pages (canonical URLs, `https://valmontdata.com`) |
-| `robots.txt` | Crawler rules — allows public pages, blocks `/api/`, admin/auth-gated pages; points to the sitemap |
+| `sitemap.xml` | Search engine sitemap — **43 canonical URLs** (every generated landing page plus the public pages). Rebuilt by `npm run seo:generate`; each `<loc>` is byte-identical to that page's own canonical, and `noindex` pages are excluded |
+| `robots.txt` | Crawler rules — allows all public pages, blocks only `/api/` and `/r/` (referral campaign URLs). Pages we don't want indexed stay **crawlable** so Google can read their `noindex` (blocking them is what produces "Indexed, though blocked by robots.txt") |
+| `bundles/` | **Generated SEO landing pages** — `/bundles/` hub, `/bundles/{mtn,telecel,airteltigo}.html`, 24 product pages (`/bundles/mtn/10gb.html`), `/bundles/{cheap,big,rollover}.html`. Do not edit; run `npm run seo:generate` |
+| `auto-top-up.html` · `buy-data-on-whatsapp.html` · `network-prefixes.html` | Generated service/utility landing pages (same generator, same guarantees) |
+| `lib/keywords.js` | **The vocabulary module** — isomorphic (Node + browser `window.ValmontKeywords`): `SITE`, `LOCATIONS`, `SITE_TERMS`, 17 `CATEGORIES` with 382 terms/phrases each mapped to a real page, `WEIGHTS`, `expandQuery`, `matchCategories`, `detectNetwork`, `sizeFromText`, `scoreItem`, `searchCatalogue`, `metaKeywords`, `alsoSearchedAs`. One source of truth for keywords meta, visible copy, on-site search, ValmontAI and the WhatsApp bot |
+| `assets/js/catalogue-search.js` | On-site catalogue search — synonym expansion as a **graded score boost** (exact matches still win), never a hard filter; unmatched queries fall back to the full catalogue plus page hints instead of an empty state |
+| `assets/css/seo.css` | Styles for the generated pages' SEO blocks (`.seo-aka` synonym rows, `.seo-faq`, `.seo-links`, `.seo-table`, `.seo-picked` deep-link highlight) |
+| `scripts/generate-seo-pages.js` | **Static SEO generator** (zero dependencies): builds the 34 pages from `lib/demo-data.js` or `GET /api/bundles`, injects the homepage price list + `<head>`, generates `faq.html`/`store.html` FAQPage schema from their visible Q&A, rebuilds `sitemap.xml`. `--api[=url]`, `--check`, `--list`, `--quiet` |
+| `scripts/test-seo.js` | SEO verification suite (94 file checks + optional live HTTP checks): sitemap↔canonical parity, one H1, title/description lengths, JSON-LD parses and matches visible copy, no fabricated ratings/stock, links resolve, every vocabulary term has a destination, prices present in raw HTML, robots.txt consistency |
 | `status.html` | Public order tracking by reference (no login) |
 | `dashboard.html` | Signed-in dashboard — quick actions + **"My bundles & auto-reload"** summary card (live usage bars per line) |
 | `autoreload.html` | **The opt-in place** — per-line usage tracking, active rules (pause/resume/remove), and the consent form (line, bundle, threshold, pre-authorized MoMo) |
@@ -344,6 +351,35 @@ SMS is wired into the existing `notify.js` system — fires in parallel with web
 
 ---
 
+## SEO — what a crawler can see
+
+The catalogue used to exist only as JavaScript state behind `/?net=…&size=…` filters: 9 indexable
+URLs, no page for "mtn data", "10gb" or "non expiry", no structured data, no Open Graph.
+`SEO-AUDIT.md` (repo root) has the full before/after; the short version:
+
+- **34 generated landing pages** (`/bundles/…` + 3 service pages), each with one `<h1>`, a
+  self-canonical, an intent-led title ≤62 chars, a description built from live counts and prices,
+  a visible "Also searched as:" synonym row, 600–1200 words of copy, a real price table, a visible
+  FAQ mirrored as `FAQPage`, `BreadcrumbList` + `CollectionPage`/`ItemList`/`Product`, and cross-links.
+- **`sitemap.xml` 9 → 43 URLs**, byte-identical to the canonicals, `noindex` pages excluded.
+- **`lib/keywords.js`** is the single vocabulary: keywords meta, visible copy, on-site search,
+  ValmontAI and the WhatsApp bot all read the same 17 categories / 382 terms.
+- **Honesty rules the generator enforces:** no fabricated prices, stock, ratings, reviews or FAQ
+  answers; no `availability` in `Product` schema (float is operational, not a catalogue fact); no
+  city pages and no separate "non-expiry" page (both would be duplicates/doorways); no fake "was" prices.
+
+```bash
+npm run seo:generate        # rebuild pages + sitemap from lib/demo-data.js
+npm run seo:generate:live   # …or from GET /api/bundles (add --api=http://host:port)
+npm run seo:check           # fail if a published price/page no longer matches the catalogue
+npm run test:seo            # 94 checks; add -- --base=http://localhost:8787 for live HTTP checks
+```
+
+**Why a script and not a build step:** the project's zero-build rule stands. The generator has no
+dependencies and writes committed static HTML, so Vercel still deploys plain files — nothing runs at
+request time and no toolchain is introduced. Run it whenever the catalogue changes and commit the
+output (or wire `npm run seo:generate:live && npm run seo:check` into the deploy step).
+
 ## Tested
 
 `scripts/test.sh` runs the full 104-check pipeline against the dev server (mock DB):
@@ -366,5 +402,20 @@ opt-out removes the rule → auth guards 401 →
 **SMS**: mock mode → template rendering → provider config.
 
 Run it with `npm test` (after starting `npm run dev`).
+
+`npm test` runs **all four** suites through `scripts/run-tests.js` and prints a summary:
+`test.sh` (end-to-end API pipeline), `test-supplier-router.js` (multi-supplier failover),
+`test-valmontai.js` (27 assistant checks) and `test-seo.js` (94 SEO checks). It used to chain them
+with `&&`, so the API suite's pre-existing float failures stopped the other three from ever running —
+the runner fixes that, and judges `test.sh` against a pass-count baseline (152) instead of zero
+failures. `npm run test:api` runs the API pipeline on its own.
+
+`test.sh` needs **`SEED_DEMO=1`** (`npm run dev:demo`) — without the demo seed, orders/history/float
+state is missing and ~84 checks fail. Six checks still fail on a seeded database by design: five
+assume an *unseeded* float of GH₵200 (the seed starts around GH₵3,300) and one is
+`paused rule not swept`. All six fail identically on the pristine `eb0bc71` tree, so they are
+environmental, not regressions. `scripts/sim-webhook.js` defaults to `:8787`, so run the suite
+against a server on that port (and start it fresh — a second run inherits the first run's orders
+and float).
 
 © 2026 Valmont Group of Companies.

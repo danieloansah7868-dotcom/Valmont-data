@@ -34,6 +34,17 @@
     warning: 'Wrong numbers are not refundable.',
   };
 
+  /* The site-wide search vocabulary (lib/keywords.js). One list of words drives
+     the landing pages, the on-site catalogue search, this assistant and the
+     WhatsApp bot, so a synonym added there works everywhere at once. It is
+     optional here: if the script is missing the assistant behaves exactly as
+     it did before. */
+  let KW = null;
+  try {
+    if (typeof window !== 'undefined' && window.ValmontKeywords) KW = window.ValmontKeywords;
+    else if (typeof require === 'function') KW = require('../../lib/keywords.js');
+  } catch (e) { KW = null; }
+
   const NETWORK_NAMES = { mtn: 'MTN', telecel: 'Telecel', airteltigo: 'AirtelTigo' };
   const NETWORK_ALIASES = [
     { code: 'mtn', keys: ['mtn'] },
@@ -53,6 +64,7 @@
   /* configured stock notice instead of claiming anything.              */
   /* ------------------------------------------------------------------ */
   function detectNetwork(text) {
+    if (KW && KW.detectNetwork) return KW.detectNetwork(text);
     const t = ' ' + text.toLowerCase() + ' ';
     for (const n of NETWORK_ALIASES) {
       if (n.keys.some((k) => t.includes(k))) return n.code;
@@ -138,6 +150,18 @@
       };
     }
 
+    /* Vocabulary router — a query that means a specific page goes to that page.
+       Uses lib/keywords.js, so the hrefs can never drift from the generated
+       landing pages (they come from CATEGORIES[id].page). It sits after the
+       explicit dispute and tracking rules (those always win) and before the
+       stock rule, so "can I buy on whatsapp" or "do you have big bundles"
+       reaches the page that actually answers it instead of a stock notice.
+       A visitor clearly asking for a human skips the router entirely. */
+    if (!has(text, ' human', ' agent', ' speak to', ' customer care', ' complaint', ' office', ' contact ')) {
+      const routed = pageAnswer(rawText, { buyAction, whatsappAction, wa, asksHowTo });
+      if (routed) return routed;
+    }
+
     /* 3 — Stock / availability — answered from LIVE data (rule 9: never invent).
        "How do I buy…" / "…price?" are how-to questions, not stock questions.
        Explicit stock wording ("do you have", "available", "any bundles") wins
@@ -204,6 +228,85 @@
       text: 'For more information, please WhatsApp ' + config.whatsapp + '.',
       actions: whatsappAction,
     };
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Vocabulary router.                                                  */
+  /* ------------------------------------------------------------------ */
+  const ROUTE_TEXT = {
+    cheap: 'Every bundle we sell at the low end of the price list is on one page, cheapest first, with the price per GB so you can compare properly.',
+    big: 'Large bundles — including the biggest we sell — are listed on one page, with the price per GB for each so you can see where the value is.',
+    'auto-top-up': 'You can switch on automatic top-up: pick a line, a bundle and how low it has to fall, and we re-buy it. Every charge sends a MoMo prompt you approve with your PIN — nothing is taken silently.',
+    whatsapp: 'You can buy on WhatsApp without opening the website. Send "hi" for the menus, or type a quick order like "2gb mtn 0241234567".',
+    reseller: 'You can open a free reseller store: pick a name, set your markup, share your link, and earn on every bundle sold through it.',
+    prefixes: 'Which network a number belongs to depends on its prefix. Our prefix list shows every Ghanaian range and flags the ones that overlap.',
+    referral: 'Every account gets a referral code. When a friend signs up with it and makes a first purchase, you both get credit towards future orders.',
+    'non-expiry': 'Non-expiry means there is no validity clock — unused data stays on the line. Every non-expiry bundle we sell is MTN.',
+    rollover: 'Rollover bundles are valid for 60 days and unused data carries over inside that window. They are the Telecel and AirtelTigo bundles.',
+  };
+
+  /**
+   * Turn a raw query into "here is the page that answers that", using the
+   * shared vocabulary. Returns null when the query does not clearly mean one
+   * of those pages, so the existing rule chain continues untouched.
+   */
+  function pageAnswer(rawText, ctx) {
+    if (!KW || !KW.expandQuery) return null;
+    let expanded;
+    try { expanded = KW.expandQuery(rawText); } catch (e) { return null; }
+    const cats = expanded.categories || [];
+
+    /* 1. an explicit size we actually stock → the bundle's own page(s) */
+    if (expanded.sizes && expanded.sizes.length && stock && Array.isArray(stock.bundles)) {
+      const want = expanded.sizes;
+      const net = expanded.networks && expanded.networks.length ? expanded.networks[0] : null;
+      const hits = stock.bundles.filter((b) => b.size_mb && want.indexOf(Number(b.size_mb)) !== -1);
+      if (hits.length) {
+        const pick = (net ? hits.filter((h) => h.network === net) : hits).concat(net ? hits.filter((h) => h.network !== net) : []);
+        const first = pick[0];
+        const label = KW.sizeLabel(first.size_mb);
+        const actions = pick.slice(0, 3).map((h) => ({
+          label: (NETWORK_NAMES[h.network] || h.network) + ' ' + label + ' →',
+          href: '/bundles/' + h.network + '/' + KW.sizeSlug(h.size_mb) + '.html',
+        }));
+        actions.push({ label: 'Buy Data →', href: '/#buy' });
+        const askedNetHasIt = !net || hits.some((h) => h.network === net);
+        const where = pick.map((h) => NETWORK_NAMES[h.network] || h.network);
+        const text = askedNetHasIt
+          ? 'We have ' + label + (pick.length > 1 ? ' on ' + pick.length + ' networks' : ' on ' + where[0]) +
+            ' — open a bundle for its live price, or pick it in the Buy Data section.'
+          : (NETWORK_NAMES[net] || net) + ' has no ' + label + ' bundle — we have ' + label + ' on ' +
+            where.slice(0, 2).join(' and ') + ' instead.';
+        return { text: text, actions: actions };
+      }
+      /* Size asked for, size not sold — say so plainly (from live data) instead
+         of dropping the visitor into the generic "WhatsApp us" fallback. */
+      if (stock.bundles.some((b) => b.size_mb)) {
+        const asked = KW.sizeLabel(want[0]);
+        const sizes = stock.bundles.map((b) => Number(b.size_mb)).sort((a, b) => a - b);
+        const smallest = KW.sizeLabel(sizes[0]);
+        const largest = KW.sizeLabel(sizes[sizes.length - 1]);
+        const netName = net ? (NETWORK_NAMES[net] || net) : null;
+        return {
+          text: (netName ? netName + ' has no ' + asked + ' bundle' : 'We do not sell a ' + asked + ' bundle') +
+            ' — our sizes run from ' + smallest + ' to ' + largest + '. The full price list is on the bundles page.',
+          actions: [{ label: 'All bundles & prices →', href: '/bundles/' }].concat(ctx.buyAction),
+        };
+      }
+    }
+
+    /* 2. a page the vocabulary says this query means */
+    const order = ['auto-top-up', 'whatsapp', 'reseller', 'prefixes', 'referral', 'cheap', 'big', 'non-expiry', 'rollover'];
+    for (const id of order) {
+      if (cats.indexOf(id) === -1) continue;
+      const cat = KW.CATEGORIES[id];
+      if (!cat || !cat.page || !ROUTE_TEXT[id]) continue;
+      return {
+        text: ROUTE_TEXT[id],
+        actions: [{ label: cat.label + ' →', href: cat.page }].concat(ctx.buyAction),
+      };
+    }
+    return null;
   }
 
   /* Stock answer built from LIVE data; falls back to the configured notice. */

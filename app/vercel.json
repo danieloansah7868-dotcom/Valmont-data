@@ -32,6 +32,12 @@
     { "source": "/api/cron/retry", "destination": "/api/cron?job=retry" },
     { "source": "/api/cron/autoreload", "destination": "/api/cron?job=autoreload" },
     { "source": "/history", "destination": "/history.html" },
+
+    { "source": "/bundles/:network/:size", "destination": "/bundles/:network/:size.html" },
+    { "source": "/bundles/:page", "destination": "/bundles/:page.html" },
+    { "source": "/auto-top-up", "destination": "/auto-top-up.html" },
+    { "source": "/buy-data-on-whatsapp", "destination": "/buy-data-on-whatsapp.html" },
+    { "source": "/network-prefixes", "destination": "/network-prefixes.html" },
     { "source": "/s/:slug", "destination": "/storefront.html" },
     { "source": "/r/:code", "destination": "/index.html" }
   ],

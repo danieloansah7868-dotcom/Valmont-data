@@ -137,23 +137,48 @@ const server = http.createServer(async (req, res) => {
     return res.end(JSON.stringify({ error: "Not found" }));
   }
 
-  // 2) Static files
-  let filePath = url.pathname === "/" ? "/index.html" : url.pathname;
-  const full = path.join(ROOT, filePath);
-  if (!full.startsWith(ROOT)) {
-    res.statusCode = 403;
-    return res.end("Forbidden");
+  // 2) Static files — resolution mirrors what Vercel does in production, so a
+  //    URL that works locally works when deployed:
+  //      /bundles/            → /bundles/index.html      (directory index)
+  //      /bundles/mtn         → /bundles/mtn.html        (extension-less)
+  //      /bundles/mtn.html    → itself
+  let decoded;
+  try {
+    decoded = decodeURIComponent(url.pathname);
+  } catch {
+    res.statusCode = 400;
+    return res.end("Bad request");
   }
-  fs.readFile(full, (err, data) => {
-    if (err) {
+  const candidates = [];
+  if (decoded === "/" || decoded.endsWith("/")) {
+    candidates.push(decoded + "index.html");
+  } else {
+    candidates.push(decoded);
+    if (!path.extname(decoded)) {
+      candidates.push(decoded + ".html");
+      candidates.push(decoded + "/index.html");
+    }
+  }
+
+  const tryNext = (i) => {
+    if (i >= candidates.length) {
       res.statusCode = 404;
       res.setHeader("Content-Type", "text/html");
       return res.end("<h1>404</h1>");
     }
-    res.statusCode = 200;
-    res.setHeader("Content-Type", MIME[path.extname(full)] || "application/octet-stream");
-    res.end(data);
-  });
+    const full = path.join(ROOT, candidates[i]);
+    if (!full.startsWith(ROOT)) {
+      res.statusCode = 403;
+      return res.end("Forbidden");
+    }
+    fs.readFile(full, (err, data) => {
+      if (err) return tryNext(i + 1);
+      res.statusCode = 200;
+      res.setHeader("Content-Type", MIME[path.extname(full)] || "application/octet-stream");
+      res.end(data);
+    });
+  };
+  tryNext(0);
 });
 
 server.listen(PORT, () => {

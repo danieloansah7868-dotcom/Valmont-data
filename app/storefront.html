@@ -5,8 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Buy Data | Valmont Data</title>
   <meta name="description" content="Buy MTN, Telecel and AirtelTigo data bundles instantly. Cheap, fast, reliable.">
-  <link rel="icon" type="image/png" sizes="512x512" href="assets/img/valmont-data-favicon.png">
-  <link rel="apple-touch-icon" href="assets/img/valmont-data-favicon.png">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Valmont Data">
+  <meta property="og:locale" content="en_GH">
+  <meta property="og:title" content="Buy data | Valmont Data reseller store">
+  <meta property="og:description" content="A Valmont Data reseller store — MTN, Telecel and AirtelTigo data bundles, paid with Mobile Money or card.">
+  <meta property="og:image" content="https://valmontdata.com/assets/img/valmont-data-logo.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" type="image/png" sizes="512x512" href="/assets/img/valmont-data-favicon.png">
+  <link rel="apple-touch-icon" href="/assets/img/valmont-data-favicon.png">
   <script>
     // SEO: bare /storefront.html (no slug) is an error shell → noindex.
     // Reseller storefronts (/s/<slug>) are real pages → keep indexable,
@@ -66,7 +73,7 @@
     .loading { text-align: center; padding: 60px 0; color: var(--gray); }
   </style>
   <!-- ValmontAI — 24/7 website assistant widget -->
-  <link rel="stylesheet" href="assets/css/valmontai.css">
+  <link rel="stylesheet" href="/assets/css/valmontai.css">
 </head>
 <body>
   <div class="container">
@@ -139,6 +146,20 @@
         const data = await res.json();
         storeData = data.store;
         document.getElementById('storeName').textContent = storeData.store_name;
+        // SEO: /s/<slug> is indexable and canonicalises to itself, so give each
+        // store its own title and description instead of the generic shell's.
+        // Both come from the store's own record — nothing is invented here.
+        var seoTitle = storeData.store_name + ' — data bundles | Valmont Data store';
+        document.title = seoTitle;
+        var descTag = document.querySelector('meta[name="description"]');
+        if (descTag) {
+          descTag.setAttribute('content',
+            storeData.store_name + ' is a Valmont Data reseller store' +
+            (storeData.tagline ? ': ' + storeData.tagline : '') +
+            '. Buy MTN, Telecel and AirtelTigo data bundles with Mobile Money or card.');
+        }
+        var ogTitle = document.querySelector('meta[property="og:title"]');
+        if (ogTitle) ogTitle.setAttribute('content', seoTitle);
         document.getElementById('storeTagline').textContent = storeData.tagline || '';
         document.getElementById('storeOwner').textContent = 'By ' + storeData.owner_name;
         document.title = storeData.store_name + ' | Buy Data';
@@ -280,6 +301,7 @@
 
     loadStore();
   </script>
-  <script src="assets/js/valmontai.js" defer></script>
+  <script src="/lib/keywords.js"></script>
+  <script src="/assets/js/valmontai.js" defer></script>
 </body>
 </html>
