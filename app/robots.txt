@@ -24,4 +24,11 @@ Disallow: /r/
 # itself; served as /s/<slug> it is a real, indexable page that canonicalises to
 # the /s/<slug> URL the reseller shares.
 
+# Two sitemaps, both advertised (Google accepts several Sitemap: lines):
+#   sitemap.xml        — 43 committed URLs: catalogue landing pages + public pages.
+#                        Rebuilt by `npm run seo:generate`.
+#   sitemap-stores.xml — reseller storefronts (/s/<slug>), served by api/sitemap.js.
+#                        They are created by customers at runtime, so no build step
+#                        can know them; a static list would go stale.
 Sitemap: https://valmontdata.com/sitemap.xml
+Sitemap: https://valmontdata.com/sitemap-stores.xml

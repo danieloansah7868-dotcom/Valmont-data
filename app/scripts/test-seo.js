@@ -348,7 +348,8 @@ for (const p of noindexPages) {
 }
 ok(contradictions === 0, 'no noindexed page is also Disallowed in robots.txt');
 ok(robots.includes('/api/'), 'robots.txt still blocks /api/');
-ok(robots.includes('Sitemap: ' + SITE + '/sitemap.xml'), 'robots.txt advertises the sitemap');
+ok(robots.includes('Sitemap: ' + SITE + '/sitemap.xml'), 'robots.txt advertises the static sitemap');
+ok(robots.includes('Sitemap: ' + SITE + '/sitemap-stores.xml'), 'robots.txt advertises the reseller-store sitemap');
 
 /* ========================================================================= */
 const baseArg = (process.argv.find((a) => a.startsWith('--base=')) || '').split('=')[1] || process.env.SEO_BASE;
@@ -360,7 +361,8 @@ const baseArg = (process.argv.find((a) => a.startsWith('--base=')) || '').split(
     const routes = ['/', '/bundles/', '/bundles/mtn', '/bundles/mtn.html', '/bundles/mtn/10gb', '/bundles/mtn/10gb.html',
                     '/bundles/telecel.html', '/bundles/airteltigo.html', '/bundles/cheap.html', '/bundles/big.html',
                     '/bundles/rollover.html', '/auto-top-up.html', '/buy-data-on-whatsapp.html', '/network-prefixes.html',
-                    '/faq.html', '/about.html', '/contact.html', '/store.html', '/sitemap.xml', '/robots.txt'];
+                    '/faq.html', '/about.html', '/contact.html', '/store.html', '/sitemap.xml',
+                    '/sitemap-stores.xml', '/robots.txt'];
     let bad = 0;
     for (const r of routes) {
       let res, body = '';
@@ -380,6 +382,16 @@ const baseArg = (process.argv.find((a) => a.startsWith('--base=')) || '').split(
           bad++; console.log(`    ! ${r}: clean URL canonicalises to ${c}`);
         }
         console.log(`    ${res.status}  ${r.padEnd(31)} ${t.slice(0, 56).padEnd(57)} ${d.slice(0, 46)}…`);
+      } else if (r === '/sitemap-stores.xml') {
+        // reseller storefronts are created at runtime, so the list may be empty —
+        // but it must be a valid urlset and every <loc> must be a /s/<slug> URL.
+        const locs = [...body.matchAll(/<loc>([\s\S]*?)<\/loc>/g)].map((m) => m[1].trim());
+        const bad = locs.filter((u) => !/^https?:\/\/[^/]+\/s\/[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(u));
+        if (!/<urlset xmlns="http:\/\/www.sitemaps.org\/schemas\/sitemap\/0.9">/.test(body)) {
+          bad++; console.log('    ! /sitemap-stores.xml is not a valid urlset');
+        }
+        if (bad.length) { bad++; console.log(`    ! /sitemap-stores.xml has ${bad} bad <loc> entries`); }
+        console.log(`    ${res.status}  ${r.padEnd(31)} ${locs.length} storefront URL(s), ${body.length} bytes`);
       } else {
         console.log(`    ${res.status}  ${r.padEnd(31)} ${body.length} bytes`);
       }

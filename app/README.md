@@ -49,6 +49,7 @@ The **webhook handler is the heart of the system** (`api/valmontpay/webhook.js`)
 | `api/autoreload.js` | Auto-reload API (customer token): `GET` (lines + usage + rules + catalogue), `POST` (opt-in / update / pause-resume toggle), `DELETE` (opt-out) — explicit consent required |
 | `api/usage.js` | **Usage reports** — how the web "tracks" the bundle: `POST` `{action:"report", reference|phone, used_mb}` updates a delivered bundle's `used_mb`; returns `low` + `should_ask` flags; `GET ?phone=&reference=` reads state. Auth: admin token or `x-usage-key: USAGE_REPORT_KEY` (supplier/telco pipeline) |
 | `api/bundles.js` | Public catalogue with server-side availability (never cost_price) |
+| `api/sitemap.js` | **Dynamic sitemap** for reseller storefronts — served as `/sitemap-stores.xml` (rewrite in `vercel.json`). Stores are created by customers at runtime, so no build step can list them; publishes only slugs + `lastmod`, never names/owners/earnings. 11th function of Vercel Hobby's 12 |
 | `api/admin/*` | Login, float (+top-up), orders (+retry), P&L, SMS leads (`GET /sms-leads`), webhook log |
 | `api/cron.js` | Unified cron (one function): `GET /api/cron/retry` retries failed deliveries (max 3) + low-float alert; `GET /api/cron/autoreload` sweeps opted-in lines and re-buys low/expired bundles via the normal webhook pipeline. Daily Vercel crons (07:00 / 07:30 UTC). Dev/demo: `curl /api/cron/autoreload` |
 | `lib/` | `supabase.js` (data layer + mock), `valmontpay.js` (client + HMAC-SHA512, incl. `initiateCharge` direct MoMo charge), `supplier.js` (adapter), `orders.js` (engine — creates `bundle_usage` on delivery), `autoreload.js` (engine — thresholds, cooldown, in-flight guard, dev webhook simulation), `whatsapp.js` (WhatsApp Cloud API client), `whatsapp-bot.js` (conversation engine), `referrals.js` (referral codes + credits), `sms.js` (SMS providers: Arkesel/mNotify/Hubtel), `phones.js`, `notify.js` (+ SMS on delivery), `auth.js` |
@@ -379,13 +380,16 @@ npm run test:seo            # 94 checks; add -- --base=http://localhost:8787 for
 dependencies and writes committed static HTML, so Vercel still deploys plain files — nothing runs at
 request time and no toolchain is introduced.
 
-**When the catalogue changes:** update the `supabase/migrations/` SQL *and* `lib/demo-data.js` (its
-mirror), then `npm run seo:generate` and commit the HTML. To audit the deployed site against the live
-catalogue at any time: `SEO_API=https://valmontdata.com npm run seo:check`.
+**When the catalogue changes:** see **`CHANGE-A-PRICE.md`** (repo root) — and you don't need to
+remember it. The `pages-in-sync` workflow (committed at `ci/seo.yml`; activate it with the `git mv` in
+`ci/README.md`) regenerates the pages on every PR and **fails the build** if
+the committed HTML is stale; a weekly job compares the *published* pages with the *live* catalogue and
+opens an issue if they disagree (that catches a price edited straight into Supabase with no commit).
 
 Do **not** add `seo:generate:live` to the Vercel build command — no API runs at build time, `--api`
 defaults to `http://localhost:8787`, and an unreachable `--api` fails hard by design, so it would
-break every deploy.
+break every deploy. The generator also honours `SEO_DATE=YYYY-MM-DD`, which is how CI regenerates
+deterministically (otherwise the stamped date would differ every day and every diff would be noise).
 
 ## Tested
 
@@ -412,7 +416,7 @@ Run it with `npm test` (after starting `npm run dev`).
 
 `npm test` runs **all four** suites through `scripts/run-tests.js` and prints a summary:
 `test.sh` (end-to-end API pipeline), `test-supplier-router.js` (multi-supplier failover),
-`test-valmontai.js` (27 assistant checks) and `test-seo.js` (94 SEO checks). It used to chain them
+`test-valmontai.js` (27 assistant checks) and `test-seo.js` (96 SEO checks). It used to chain them
 with `&&`, so the API suite's pre-existing float failures stopped the other three from ever running —
 the runner fixes that, and judges `test.sh` against a pass-count baseline (152) instead of zero
 failures. `npm run test:api` runs the API pipeline on its own.

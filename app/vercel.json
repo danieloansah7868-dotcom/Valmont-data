@@ -38,6 +38,7 @@
     { "source": "/auto-top-up", "destination": "/auto-top-up.html" },
     { "source": "/buy-data-on-whatsapp", "destination": "/buy-data-on-whatsapp.html" },
     { "source": "/network-prefixes", "destination": "/network-prefixes.html" },
+    { "source": "/sitemap-stores.xml", "destination": "/api/sitemap" },
     { "source": "/s/:slug", "destination": "/storefront.html" },
     { "source": "/r/:code", "destination": "/index.html" }
   ],

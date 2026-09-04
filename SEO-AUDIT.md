@@ -159,7 +159,7 @@ npm run test:seo -- --base=http://localhost:8787
 npm test
 ```
 
-**`npm run test:seo` → 94 file checks + 20 live routes, all passing.** It verifies: pages are current vs the catalogue; sitemap↔canonical byte parity; title/description/canonical/H1/word-count/synonym-row on all 41 indexable pages; every JSON-LD block parses and only describes visible content; no ratings/reviews/availability claims; internal links resolve and no filter URLs survive; all 382 vocabulary terms expand and all 17 categories point at a page (and anchor) that exists; search never dead-ends; honesty guards; all 24 prices present in raw HTML; robots.txt does not contradict the pages. With `--base` it fetches 20 routes and asserts 200 + their own title/description/canonical, including clean URLs.
+**`npm run test:seo` → 96 file checks + 21 live routes, all passing.** It verifies: pages are current vs the catalogue; sitemap↔canonical byte parity; title/description/canonical/H1/word-count/synonym-row on all 41 indexable pages; every JSON-LD block parses and only describes visible content; no ratings/reviews/availability claims; internal links resolve and no filter URLs survive; all 382 vocabulary terms expand and all 17 categories point at a page (and anchor) that exists; search never dead-ends; honesty guards; all 24 prices present in raw HTML; robots.txt does not contradict the pages. With `--base` it fetches 20 routes and asserts 200 + their own title/description/canonical, including clean URLs.
 
 Live route sample (dev server, `SEED_DEMO=1`):
 
@@ -213,7 +213,18 @@ Pre-existing `scripts/test.sh` failures, unchanged by this work (all six also fa
 ## 6. Manual follow-ups (things code cannot do)
 
 1. **Google Search Console** — verify the property, submit `https://valmontdata.com/sitemap.xml`, request indexing for `/`, `/bundles/` and the three network pages, then watch the "Indexed, though blocked by robots.txt" warning clear (it should, now that those pages are crawlable).
-2. **Regenerate on every catalogue change.** The workflow that fits this repo:
+2. ~~**Regenerate on every catalogue change.**~~ **Done — CI enforces it now.**
+   The workflow (committed at `ci/seo.yml`, one `git mv` from being active — see `ci/README.md`,
+   GitHub only runs workflows from `.github/workflows/` and the automation token cannot write there)
+   has two jobs: `pages-in-sync` (every PR and push to `main`) regenerates
+   the pages with `SEO_DATE` pinned to the committed date and **fails the build** if the HTML differs,
+   printing the fix command; `production-audit` (Mondays 06:17 UTC, or on demand) compares the pages
+   published on `https://valmontdata.com` with the live catalogue and **opens an issue** on drift —
+   which is the one failure mode nothing else can see: a price edited directly in the Supabase SQL
+   editor, with no commit. The human-facing checklist lives in **`CHANGE-A-PRICE.md`** (repo root),
+   which is what the CI failure message points at.
+
+   The underlying workflow, for reference:
    when you change a price or add a bundle, write the `supabase/migrations/…` SQL **and** update
    `lib/demo-data.js` (its documented mirror), then run `npm run seo:generate` and commit the HTML —
    generated pages are committed on purpose (`.gitignore` does not exclude them).
@@ -228,7 +239,13 @@ Pre-existing `scripts/test.sh` failures, unchanged by this work (all six also fa
    generator to read Supabase directly (`SUPABASE_URL` + service key) at build time. Say the word and
    I will build either.
 3. **`about.html` contradicts the footer.** About says Valmont Data does not advertise on social media, while the homepage footer links Facebook and TikTok. The copy was left as written and those profiles were **excluded** from `Organization.sameAs`; decide which is true and align both.
-4. **Reseller storefronts (`/s/<slug>`)** are indexable but get their canonical/title from JavaScript, and they are not in `sitemap.xml` (they cannot be enumerated statically). If store traffic matters, add a small dynamic sitemap endpoint that lists live stores, and consider server-rendering the canonical (an edge function or an API route that returns the shell with the slug baked in).
+4. **Reseller storefronts (`/s/<slug>`)** — the sitemap half is **done**: `api/sitemap.js` serves
+   `/sitemap-stores.xml` from the live `resellers` table (slugs and `lastmod` only), `robots.txt`
+   advertises it as a second `Sitemap:` line, and `vercel.json` rewrites the pretty URL. What is still
+   open: their canonical/title/description are set by JavaScript, because Vercel serves the static
+   `storefront.html` shell for every `/s/<slug>`. Google renders JS and honours it, but if store
+   traffic ever matters, server-render that shell (an edge function or an API route returning the HTML
+   with the slug baked in) and the storefronts become first-class pages.
 5. **Product images.** `Product` schema has no `image` because the catalogue has none. Adding one real screenshot/illustration per bundle would unlock richer results; do not use stock art of phones.
 6. **Ratings/reviews** — only if they become real (post-delivery review flow). The suite will fail if schema claims them without visible copy.
 7. **Ranking note, not a bug:** for a query naming a network *and* a size that network does not sell ("tigo 2gb"), site search ranks the exact size on another network above the named network's nearest sizes; the assistant answers the question explicitly instead. Deliberate — nearest-size boosts are capped so they can never outrank an exact match.

@@ -49,6 +49,7 @@ const cronRouter = require("../api/cron.js");
    fewer files so Vercel Hobby stays under the 12-function cap. */
 const routes = {
   "GET /api/bundles": require("../api/bundles.js"),
+  "GET /api/sitemap": require("../api/sitemap.js"),
   "GET /api/orders": require("../api/orders.js"),
   "POST /api/orders": require("../api/orders.js"),
   "POST /api/auth/customer": authRouter,
@@ -135,6 +136,13 @@ const server = http.createServer(async (req, res) => {
     res.statusCode = 404;
     res.setHeader("Content-Type", "application/json");
     return res.end(JSON.stringify({ error: "Not found" }));
+  }
+
+  // 1b) Public rewrites that vercel.json performs in production, mirrored here so
+  //     a pretty URL that works when deployed also works locally.
+  //       /sitemap-stores.xml → /api/sitemap   (dynamic reseller-storefront sitemap)
+  if (req.method === "GET" && url.pathname === "/sitemap-stores.xml") {
+    return require("../api/sitemap.js")(req, res);
   }
 
   // 2) Static files — resolution mirrors what Vercel does in production, so a
