@@ -169,6 +169,27 @@ async function getStoreOrders(resellerId, limit = 20) {
   }));
 }
 
+/* Slugs of every active store, most recently updated first.
+   Feeds /sitemap-stores.xml so reseller storefronts are discoverable by search
+   engines without being enumerable from the static sitemap (they are created at
+   runtime, by customers, so no build step can know them).
+   Only the slug and its timestamp leave this function — never the store name,
+   the owner, the markup or the earnings. The projection is done here in JS on
+   purpose: the mock data layer returns whole rows, and this list is public. */
+async function listActiveStores(limit = 5000) {
+  const rows = await db.select({
+    from: "resellers",
+    where: { status: "eq.active" },
+    select: "slug,updated_at",
+    order: "updated_at.desc",
+    limit,
+  });
+  return (rows || [])
+    .filter((r) => r && r.slug)
+    .map((r) => ({ slug: String(r.slug), updated_at: r.updated_at || null }))
+    .sort((a, b) => String(b.updated_at || "").localeCompare(String(a.updated_at || "")));
+}
+
 /* Check if slug is available */
 async function isSlugAvailable(slug) {
   const rows = await db.select({ from: "resellers", where: { slug: `eq.${slug}` } });
@@ -184,4 +205,5 @@ module.exports = {
   getEarnings,
   getStoreOrders,
   isSlugAvailable,
+  listActiveStores,
 };

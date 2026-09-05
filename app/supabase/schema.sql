@@ -430,6 +430,56 @@ create policy resellers_anon_select on public.resellers for select to anon
   using (status = 'active');
 
 -- ============================================================================
+-- PRODUCT REVIEWS (verified purchases only — 2026-09-04)
+-- ============================================================================
+-- A review here is always tied to a delivered order for that exact bundle, so
+-- "Verified buyer" on the page is a fact and the AggregateRating schema the
+-- landing pages emit can only describe reviews that exist and are visible.
+-- Written only by the API (service role); public read of published rows only.
+-- See migrations/2026-09-04_product_reviews.sql for the standalone version.
+create table if not exists public.product_reviews (
+  id              bigint generated always as identity primary key,
+  bundle_id       bigint not null references public.bundles(id),
+  network_id      bigint not null references public.networks(id),
+  size_mb         integer not null check (size_mb > 0),   -- denormalised: retiring a bundle must not orphan a review
+  customer_id     bigint not null references public.customers(id),
+  order_id        bigint references public.orders(id),     -- the delivered order that verified this review
+  order_reference text,
+  rating          integer not null check (rating between 1 and 5),
+  title           text check (title is null or length(btrim(title)) between 1 and 80),
+  body            text check (body is null or length(btrim(body)) between 1 and 600),
+  status          text not null default 'published' check (status in ('published','removed')),
+  created_at      timestamptz not null default now(),
+  updated_at      timestamptz not null default now(),
+  unique (bundle_id, customer_id)                          -- one review per customer per bundle
+);
+create index if not exists product_reviews_bundle_idx   on public.product_reviews(bundle_id, created_at desc);
+create index if not exists product_reviews_status_idx   on public.product_reviews(status);
+create index if not exists product_reviews_customer_idx on public.product_reviews(customer_id);
+
+-- Aggregate for one bundle: PUBLISHED rows only, so no number can be quoted
+-- that the page is not also showing.
+create or replace function public.bundle_review_summary(p_bundle_id bigint)
+returns table(review_count bigint, rating_average numeric(3,2))
+language sql stable as $$
+  select count(*),
+         coalesce(round(avg(rating)::numeric, 2), 0)
+  from   public.product_reviews
+  where  bundle_id = p_bundle_id
+    and  status = 'published';
+$$;
+
+alter table public.product_reviews enable row level security;
+
+-- anon/authenticated: read published reviews (the API adds the author's first name)
+drop policy if exists product_reviews_public_read on public.product_reviews;
+create policy product_reviews_public_read on public.product_reviews
+  for select to anon, authenticated
+  using (status = 'published');
+-- No write policies for anon/authenticated: every insert/update goes through the
+-- API with the service role key, which is what keeps "verified purchase" true.
+
+-- ============================================================================
 -- SEEDS
 -- ============================================================================
 insert into public.networks (code, name, is_active) values

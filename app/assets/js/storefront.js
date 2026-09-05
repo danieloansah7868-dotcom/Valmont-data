@@ -999,7 +999,52 @@
     scheduleSmsLeadPopup();
   });
 
-  loadBundles().catch((e) => {
+  /* ---------- deep links from the catalogue landing pages ----------
+     The generated pages (/bundles/mtn/10gb.html and friends) link their buy
+     buttons here as /?net=mtn&size=10240#buy. Every one of those URLs
+     canonicalises to "/" — this is an entry point into the buy flow, not a
+     separate indexable page.
+
+     We deliberately do NOT auto-open the buy modal: openBuy() redirects to
+     signup when there is no session, so arriving from a search result would
+     bounce the visitor straight off the storefront. Instead we select the
+     network, highlight the exact bundle and scroll it into view. */
+  function applyDeepLink() {
+    const params = new URLSearchParams(window.location.search);
+    const net = params.get("net");
+    const size = Number(params.get("size") || "0");
+    if (net && state.networks.some((n) => n.code === net)) {
+      state.currentNet = net;
+      renderTabs();
+      renderGrid();
+    }
+    if (!size) return;
+    const bundle = state.bundles.find(
+      (b) => Number(b.size_mb) === size && (!net || b.network === net)
+    );
+    if (!bundle) return;
+    if (bundle.network !== state.currentNet) {
+      state.currentNet = bundle.network;
+      renderTabs();
+      renderGrid();
+    }
+    const card = $('[data-bundle="' + bundle.id + '"]');
+    if (card) {
+      card.classList.add("seo-picked");
+      if (card.scrollIntoView) card.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    const notice = $("#floatNotice");
+    if (notice) {
+      const sizeLabel = bundle.size_mb >= 1024 ? bundle.size_mb / 1024 + "GB" : bundle.size_mb + "MB";
+      const name = NETWORK_NAMES[bundle.network] || bundle.network;
+      notice.innerHTML =
+        '<div class="notice ok"><b>' + name + " " + sizeLabel + "</b> — the bundle you came for is highlighted below." +
+        (bundle.available ? " Tap it to buy." : " It is paused while we restock; the other sizes are live.") +
+        "</div>" + notice.innerHTML;
+    }
+  }
+
+  loadBundles().then(() => applyDeepLink()).catch((e) => {
     if ($("#bundleGrid")) {
       $("#bundleGrid").innerHTML = `<div class="notice">Failed to load bundles: ${e.message}</div>`;
     }

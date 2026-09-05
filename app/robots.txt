@@ -1,16 +1,34 @@
 # Valmont Data — https://valmontdata.com
-# Public storefront pages are crawlable; app/admin/API endpoints are not.
+#
+# The rule applied here: a page we do not want in the index carries a `noindex`
+# meta tag AND stays crawlable. Disallowing a noindexed page hides the noindex
+# from Google, which then indexes the bare URL as "Blocked by robots.txt" — the
+# contradiction Search Console reports as "Indexed, though blocked by robots.txt".
+# The previous version of this file did exactly that for /admin.html,
+# /dashboard.html, /autoreload.html, /otp.html and /offline.html.
+#
+# So the only things blocked below are the API (not HTML, never indexable) and
+# the referral short links (campaign URLs that all canonicalise to the homepage).
 
 User-agent: *
 Allow: /
 Disallow: /api/
-Disallow: /admin.html
-Disallow: /dashboard.html
-Disallow: /history
-Disallow: /otp.html
-Disallow: /autoreload.html
-Disallow: /offline.html
-Disallow: /sw.js
-Disallow: /manifest.json
+Disallow: /r/
 
+# Crawlable on purpose — each of these carries <meta name="robots" content="noindex">
+# and is excluded from sitemap.xml by scripts/generate-seo-pages.js:
+#   /admin.html  /dashboard.html  /history.html  /status.html
+#   /otp.html    /autoreload.html /offline.html
+#
+# /storefront.html is the reseller storefront shell. Served bare it noindexes
+# itself; served as /s/<slug> it is a real, indexable page that canonicalises to
+# the /s/<slug> URL the reseller shares.
+
+# Two sitemaps, both advertised (Google accepts several Sitemap: lines):
+#   sitemap.xml        — 43 committed URLs: catalogue landing pages + public pages.
+#                        Rebuilt by `npm run seo:generate`.
+#   sitemap-stores.xml — reseller storefronts (/s/<slug>), served by api/sitemap.js.
+#                        They are created by customers at runtime, so no build step
+#                        can know them; a static list would go stale.
 Sitemap: https://valmontdata.com/sitemap.xml
+Sitemap: https://valmontdata.com/sitemap-stores.xml

@@ -60,7 +60,8 @@ const mockState = {
   referral_credits: [],
   resellers: [],
   reseller_earnings: [],
-  _seq: { bundles: 0, customers: 0, saved_numbers: 0, sms_leads: 0, orders: 0, bundle_usage: 0, auto_reload: 0, float_ledger: 0, webhook_log: 0, whatsapp_sessions: 0, whatsapp_log: 0, referrals: 0, referral_credits: 0, resellers: 0, reseller_earnings: 0 },
+  product_reviews: [],
+  _seq: { bundles: 0, customers: 0, saved_numbers: 0, sms_leads: 0, orders: 0, bundle_usage: 0, auto_reload: 0, float_ledger: 0, webhook_log: 0, whatsapp_sessions: 0, whatsapp_log: 0, referrals: 0, referral_credits: 0, resellers: 0, reseller_earnings: 0, product_reviews: 0 },
 };
 
 // Seed bundles mirroring supabase/schema.sql — single source of truth lives
@@ -181,6 +182,14 @@ function mockInsert(from, row) {
     }
     if (row.customer_id && mockState.resellers.some((r) => r.customer_id === row.customer_id)) {
       const err = new Error("duplicate key value violates unique constraint on resellers customer_id");
+      err.status = 409;
+      throw err;
+    }
+  }
+  if (from === "product_reviews") {
+    // mirrors: unique (bundle_id, customer_id) — one review per customer per bundle
+    if (mockState.product_reviews.some((r) => r.bundle_id === row.bundle_id && r.customer_id === row.customer_id)) {
+      const err = new Error("duplicate key value violates unique constraint on product_reviews (bundle_id, customer_id)");
       err.status = 409;
       throw err;
     }

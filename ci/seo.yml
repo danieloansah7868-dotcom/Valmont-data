@@ -1,0 +1,183 @@
+# =============================================================================
+# SEO guardrails — because "remember to regenerate the pages" is not a plan.
+#
+# Two independent jobs:
+#
+#   pages-in-sync     runs on every PR and every push to main. It regenerates the
+#                     landing pages from the catalogue and fails if the committed
+#                     HTML differs — i.e. someone changed a price, a bundle or the
+#                     vocabulary and did not re-run `npm run seo:generate`. The
+#                     failure message prints the exact command to fix it.
+#
+#   production-audit  runs weekly (and on demand). It compares what is *published*
+#                     on the live site with what the *live catalogue* says, which
+#                     catches the change nobody made in git: a price edited straight
+#                     in the Supabase SQL editor. On drift it opens an issue.
+#
+# Both are dependency-free (the repo has no npm dependencies), so there is no
+# install step and the whole workflow runs in seconds.
+# =============================================================================
+
+name: SEO
+
+on:
+  pull_request:
+    paths:
+      - "app/**"
+      - ".github/workflows/seo.yml"
+  push:
+    branches: [main]
+    paths:
+      - "app/lib/demo-data.js"
+      - "app/lib/keywords.js"
+      - "app/supabase/**"
+      - "app/scripts/generate-seo-pages.js"
+      - "app/bundles/**"
+      - "app/index.html"
+      - "app/faq.html"
+      - "app/store.html"
+      - "app/sitemap.xml"
+  schedule:
+    - cron: "17 6 * * 1" # Mondays 06:17 UTC — off-peak, and not on the hour
+  workflow_dispatch:
+    inputs:
+      site:
+        description: "Base URL to audit (defaults to production)"
+        required: false
+        default: "https://valmontdata.com"
+
+permissions:
+  contents: read
+
+env:
+  SITE: ${{ github.event.inputs.site || 'https://valmontdata.com' }}
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Are the committed pages still what the generator would produce?
+  # ---------------------------------------------------------------------------
+  pages-in-sync:
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # The generator stamps today's date into the homepage caption and every
+      # sitemap <lastmod>. Pinning it to the date already committed means the diff
+      # shows real content drift only — otherwise this job would fail every morning.
+      - name: Regenerate the pages from the catalogue
+        run: |
+          DATE="$(grep -m1 -o '<lastmod>[0-9-]\{10\}' app/sitemap.xml | cut -d'>' -f2)"
+          [ -n "$DATE" ] || DATE="$(date -u +%F)"
+          echo "Regenerating with SEO_DATE=$DATE"
+          cd app
+          SEO_DATE="$DATE" node scripts/generate-seo-pages.js --quiet
+
+      - name: Fail if the committed pages are stale
+        run: |
+          PATHS="app/bundles app/sitemap.xml app/index.html app/faq.html app/store.html \
+                 app/auto-top-up.html app/buy-data-on-whatsapp.html app/network-prefixes.html"
+          if git diff --quiet -- $PATHS; then
+            echo "Generated pages match the catalogue."
+            exit 0
+          fi
+          echo "::error title=Stale SEO pages::The generated landing pages do not match the catalogue in this branch."
+          echo ""
+          git --no-pager diff --stat -- $PATHS
+          echo ""
+          echo "Fix it, then push:"
+          echo "  cd app && npm run seo:generate"
+          echo "  git add -A && git commit -m 'SEO: regenerate landing pages'"
+          echo ""
+          echo "(If you changed a price or a bundle, update app/lib/demo-data.js and the"
+          echo " supabase/migrations/ SQL first — see CHANGE-A-PRICE.md.)"
+          exit 1
+
+      - name: SEO suite (96 checks)
+        run: cd app && node scripts/test-seo.js
+
+      # Lives here because it guards the same rule the SEO suite does: schema must
+      # not claim what the page does not show. It boots its own clean dev server on
+      # :8799, so it needs no database and no service from the other steps.
+      - name: Reviews suite — verified purchases, schema parity
+        run: cd app && node scripts/test-reviews.js
+
+  # ---------------------------------------------------------------------------
+  # Does the deployed site still agree with the live catalogue?
+  # ---------------------------------------------------------------------------
+  production-audit:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write # only this job needs it, and only to report drift
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Is the site reachable?
+        id: reachable
+        run: |
+          code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$SITE/api/bundles" || true)"
+          echo "status=$code" >> "$GITHUB_OUTPUT"
+          if [ "$code" = "200" ]; then
+            echo "$SITE/api/bundles is up — auditing."
+          else
+            echo "::notice::$SITE/api/bundles returned HTTP $code — skipping the audit rather than reporting a false drift."
+          fi
+
+      - name: Compare published pages with the live catalogue
+        if: steps.reachable.outputs.status == '200'
+        id: audit
+        run: |
+          cd app
+          set +e
+          SEO_API="$SITE" node scripts/generate-seo-pages.js --check 2>&1 | tee /tmp/audit.log
+          status="${PIPESTATUS[0]}"
+          set -e
+          echo "exit=$status" >> "$GITHUB_OUTPUT"
+          cat /tmp/audit.log
+
+      - name: Open an issue on drift
+        if: steps.audit.outputs.exit != '' && steps.audit.outputs.exit != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TITLE="SEO: published prices no longer match the live catalogue"
+          if gh issue list --state open --search "in:title $TITLE" | grep -q .; then
+            echo "An open issue already reports this — not filing a duplicate."
+            exit 0
+          fi
+          {
+            echo "The weekly SEO audit compared the pages **published on $SITE** with the"
+            echo "**live catalogue** at \`$SITE/api/bundles\` and they disagree."
+            echo
+            echo "This usually means a price or bundle was changed in Supabase without"
+            echo "regenerating the landing pages, so Google is being shown prices that"
+            echo "checkout does not honour."
+            echo
+            echo '```'
+            cat /tmp/audit.log
+            echo '```'
+            echo
+            echo "### Fix"
+            echo '```bash'
+            echo "# 1. bring the seed mirror in line with the database"
+            echo "#    (app/lib/demo-data.js + a supabase/migrations/ file)"
+            echo
+            echo "# 2. regenerate and verify"
+            echo "cd app && npm run seo:generate"
+            echo "SEO_API=$SITE npm run seo:check"
+            echo
+            echo "# 3. commit, merge, deploy"
+            echo '```'
+            echo
+            echo "Details in \`CHANGE-A-PRICE.md\` and \`SEO-AUDIT.md\`."
+          } > /tmp/issue.md
+          gh issue create --title "$TITLE" --body-file /tmp/issue.md

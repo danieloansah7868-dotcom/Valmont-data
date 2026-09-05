@@ -23,6 +23,7 @@
 
 const { db } = require("./supabase");
 const phones = require("./phones");
+const keywords = require("./keywords");
 const orders = require("./orders");
 const whatsapp = require("./whatsapp");
 const { genReference } = require("./ids");
@@ -81,25 +82,24 @@ function formatPrice(amount) {
   return `GH₵${Number(amount).toFixed(2)}`;
 }
 
-/* ---------- network detection from text ---------- */
+/* ---------- network detection from text ----------
+   Delegates to lib/keywords.js — the same vocabulary the landing pages, the
+   on-site search and the website assistant use, so "voda", "tigo", "at" and
+   "airtel" all resolve the same way everywhere.
+
+   (The hand-rolled version this replaced read "tigo" as Telecel: `a || b ||
+   c && !d` binds `&&` first, so "tigo 2gb" was routed to the wrong network
+   and the order could not deliver. lib/keywords.js has a test for it.) */
 function detectNetworkFromText(text) {
-  const t = text.toLowerCase().replace(/[^a-z0-9]/g, "");
-  if (t.includes("mtn")) return "mtn";
-  if (t.includes("telecel") || t.includes("voda") || t.includes("tigo") && !t.includes("airtel")) return "telecel";
-  if (t.includes("airteltigo") || t.includes("airtel") || t.includes("tigo")) return "airteltigo";
-  return null;
+  return keywords.detectNetwork(text);
 }
 
-/* ---------- size parsing ---------- */
+/* ---------- size parsing ----------
+   Also from lib/keywords.js: handles "2gb", "2 gigs", "500mb", "1.5gb" and
+   "10240 mb", and deliberately ignores a bare "5g" (that is a network
+   generation, not a size). */
 function parseSizeFromText(text) {
-  const t = text.toLowerCase().trim();
-  // Match patterns like "1gb", "5 gb", "500mb", "1.5gb", "10 GB"
-  const match = /(\d+(?:\.\d+)?)\s*(gb|mb)/i.exec(t);
-  if (!match) return null;
-  const num = parseFloat(match[1]);
-  const unit = match[2].toLowerCase();
-  const sizeMb = unit === "gb" ? Math.round(num * 1024) : Math.round(num);
-  return sizeMb;
+  return keywords.sizeFromText(text);
 }
 
 /* ---------- phone extraction from text ---------- */
