@@ -16,6 +16,7 @@
     "test:api": "bash scripts/test.sh",
     "test:suppliers": "node scripts/test-supplier-router.js",
     "test:valmontai": "node scripts/test-valmontai.js",
-    "test:seo": "node scripts/test-seo.js"
+    "test:seo": "node scripts/test-seo.js",
+    "test:reviews": "node scripts/test-reviews.js"
   }
 }

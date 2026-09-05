@@ -29,6 +29,8 @@
     { "source": "/api/store/public", "destination": "/api/account?section=store&sub=public" },
     { "source": "/api/store", "destination": "/api/account?section=store" },
     { "source": "/api/store/:path*", "destination": "/api/account?section=store" },
+    { "source": "/api/reviews", "destination": "/api/account?section=reviews" },
+    { "source": "/api/reviews/:path*", "destination": "/api/account?section=reviews" },
     { "source": "/api/cron/retry", "destination": "/api/cron?job=retry" },
     { "source": "/api/cron/autoreload", "destination": "/api/cron?job=autoreload" },
     { "source": "/history", "destination": "/history.html" },

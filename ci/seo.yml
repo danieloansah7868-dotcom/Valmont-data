@@ -97,8 +97,14 @@ jobs:
           echo " supabase/migrations/ SQL first — see CHANGE-A-PRICE.md.)"
           exit 1
 
-      - name: SEO suite (94 checks)
+      - name: SEO suite (96 checks)
         run: cd app && node scripts/test-seo.js
+
+      # Lives here because it guards the same rule the SEO suite does: schema must
+      # not claim what the page does not show. It boots its own clean dev server on
+      # :8799, so it needs no database and no service from the other steps.
+      - name: Reviews suite — verified purchases, schema parity
+        run: cd app && node scripts/test-reviews.js
 
   # ---------------------------------------------------------------------------
   # Does the deployed site still agree with the live catalogue?

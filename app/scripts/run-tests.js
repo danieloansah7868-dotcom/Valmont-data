@@ -6,7 +6,7 @@
  * short-circuited the chain and the supplier, assistant and SEO suites never ran
  * at all. Nobody notices a broken suite that never executes.
  *
- * So: run all four, print a summary, exit non-zero if anything regressed.
+ * So: run all five, print a summary, exit non-zero if anything regressed.
  *
  * scripts/test.sh is judged against a baseline rather than against zero
  * failures. On a fresh `SEED_DEMO=1` server the pristine tree at eb0bc71 scores
@@ -34,6 +34,9 @@ const suites = [
   { name: "supplier router", cmd: "node", args: ["scripts/test-supplier-router.js"] },
   { name: "valmontai", cmd: "node", args: ["scripts/test-valmontai.js"] },
   { name: "seo", cmd: "node", args: ["scripts/test-seo.js"] },
+  // Boots its own clean server on :8799, so it needs no SEED_DEMO state — but it
+  // does need that port free (REVIEWS_TEST_PORT to move it).
+  { name: "reviews", cmd: "node", args: ["scripts/test-reviews.js"] },
 ];
 
 const results = [];

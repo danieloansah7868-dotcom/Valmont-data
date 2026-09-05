@@ -24,15 +24,28 @@
      GET    /api/store/earnings     → earnings ledger (store owner)
      GET    /api/store/orders       → recent store orders (store owner)
      GET    /api/store/public       → public store data (no auth)
+
+   Product reviews (merged here for the same reason) — verified purchases only
+     GET    /api/reviews?network=mtn&size_mb=10240
+                                   → public: published reviews + the aggregate
+                                     (the ONLY numbers the landing pages may
+                                     turn into rating schema). Sends a `you`
+                                     block when a customer token is present.
+     POST   /api/reviews            → create/edit your review of a bundle you
+                                     have had delivered (customer-authenticated)
+     DELETE /api/reviews?id=123     → hide a review: admin (any review) or the
+                                     author (their own). Status change only —
+                                     the row and the order that verified it stay.
    ============================================================================ */
 
 const { json, readRawBody, wrap } = require("../lib/http");
-const { requireCustomer } = require("../lib/auth");
+const { requireCustomer, getCustomer, getAdmin } = require("../lib/auth");
 const { db } = require("../lib/supabase");
 const phones = require("../lib/phones");
 const orders = require("../lib/orders");
 const referrals = require("../lib/referrals");
 const resellers = require("../lib/resellers");
+const reviews = require("../lib/reviews");
 
 function getTimeGreeting(name, email) {
   const hour = new Date().getUTCHours(); // Ghana is UTC+0
@@ -619,12 +632,106 @@ async function handleStore(req, res, hint) {
   return json(res, 404, { error: "Not found" });
 }
 
+/* ---------------------------------------------------------------------------
+   Product reviews — verified purchases only.
+
+   The public GET is what the generated landing pages render; the same response
+   is what assets/js/reviews.js turns into AggregateRating/Review schema, so the
+   structured data can never claim a rating the page is not showing.
+
+   Writes require a customer token AND a delivered order for that exact bundle
+   (checked in lib/reviews.js). Admins can hide a review; nobody deletes rows.
+   --------------------------------------------------------------------------- */
+async function handleReviews(req, res, hint) {
+  const { url } = hint;
+
+  if (req.method === "GET") {
+    const network = url.searchParams.get("network") || "";
+    const size_mb = url.searchParams.get("size_mb") || url.searchParams.get("size") || "";
+    if (!network || !size_mb) {
+      return json(res, 400, { error: "network and size_mb are required (e.g. /api/reviews?network=mtn&size_mb=10240)" });
+    }
+
+    const customer = getCustomer(req);
+    const found = await reviews.listForBundle(network, size_mb, { limit: url.searchParams.get("limit") || 20 });
+    if (!found.bundle) return json(res, 404, { error: "We do not sell that bundle" });
+
+    const out = {
+      ok: true,
+      network: found.bundle.network,
+      size_mb: found.bundle.size_mb,
+      reviews: found.reviews,
+      summary: found.summary,
+    };
+
+    // `you` is per-account, so an authed read must never be shared-cached.
+    if (customer) {
+      const mine = await reviews.canReview(customer.id, network, size_mb);
+      out.you = {
+        signed_in: true,
+        can_review: Boolean(mine.ok),
+        already_reviewed: Boolean(mine.already_reviewed),
+        reason: mine.ok ? null : mine.reason,
+        order_reference: mine.order_reference || null,
+        review: mine.already_reviewed ? await reviews.myReview(customer.id, network, size_mb) : null,
+      };
+      res.setHeader("Cache-Control", "no-store");
+      return json(res, 200, out);
+    }
+
+    res.setHeader("Cache-Control", "public, s-maxage=300, stale-while-revalidate=86400");
+    return json(res, 200, out);
+  }
+
+  if (req.method === "POST") {
+    const auth = requireCustomer(req);
+    const body = await readRawBody(req).then((b) => {
+      try { return JSON.parse(b); } catch { return null; }
+    });
+    if (!body) return json(res, 400, { error: "Invalid JSON" });
+
+    const result = await reviews.upsertReview(auth.id, body);
+    if (!result.ok) return json(res, result.status || 400, { error: result.error });
+    return json(res, result.created ? 201 : 200, {
+      ok: true,
+      created: result.created,
+      review: result.review,
+      message: result.created ? "Thanks — your review is live" : "Review updated",
+    });
+  }
+
+  if (req.method === "DELETE") {
+    // Admin may hide any review; a customer may retract their own. Either way it
+    // is a status change — the row (and the order it was verified against) stays.
+    const admin = getAdmin(req);
+    const author = admin ? null : requireCustomer(req);   // throws 401 for a guest
+    let id = Number(url.searchParams.get("id") || 0);
+    if (!id) {
+      const body = await readRawBody(req).then((b) => {
+        try { return JSON.parse(b); } catch { return null; }
+      });
+      if (body && body.id) id = Number(body.id);
+    }
+    if (!id) return json(res, 400, { error: "id is required" });
+    const result = admin ? await reviews.removeReview(id) : await reviews.removeOwnReview(author.id, id);
+    if (!result.ok) return json(res, result.status || 400, { error: result.error });
+    return json(res, 200, { ok: true, removed: result.id });
+  }
+
+  return json(res, 405, { error: "Method not allowed" });
+}
+
 module.exports = wrap(async (req, res) => {
   const hint = routeHint(req);
   const { path, section, haystack } = hint;
 
   // Public SMS opt-in — no customer token required
   if (path.includes("/optin") || haystack.includes("/optin")) return optin(req, res);
+
+  // Product reviews — must match before the generic account GET
+  if (path.includes("/reviews") || section === "reviews" || haystack.includes("/reviews")) {
+    return handleReviews(req, res, hint);
+  }
 
   // Purchase history — must match before the generic account GET
   if (path.includes("/history") || section === "history" || haystack.includes("/history")) {

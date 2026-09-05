@@ -9,7 +9,7 @@ Short version: the site had **nine** indexable URLs and **zero** pages for the t
 - JSON-LD: **0 → 123 blocks across 39 files** (21 distinct `@type` values: Organization, WebSite, WebPage, CollectionPage, ItemList, Product, Offer, Service, FAQPage, Question, Answer, BreadcrumbList, ListItem, AboutPage, ContactPage, Brand, Thing, Country, PostalAddress, ContactPoint, OpeningHoursSpecification)
 - Open Graph tags: **0 → 40 files** · keywords meta: **0 → 39 files** · pages with >1 `<h1>`: **2 on the homepage → 0 anywhere**
 - `robots.txt` contradictions (noindexed *and* Disallowed): **5 → 0**
-- Tests: `npm run test:seo` → **94 file checks + 20 live routes, all green**; `npm test` → **152 passed / 6 failed, byte-identical to the baseline** (the 6 are pre-existing float-state assumptions in `scripts/test.sh`, listed in §5)
+- Tests: `npm run test:seo` → **96 file checks + 21 live routes, all green**; `npm run test:reviews` → **162 checks, all green**; `npm test` (all five suites) → API pipeline **152 passed / 6 failed, byte-identical to the baseline** (the 6 are pre-existing float-state assumptions in `scripts/test.sh`, listed in §5)
 
 ---
 
@@ -88,7 +88,8 @@ Every page has: one `<h1>`; a self-referencing absolute canonical; `index, follo
 
 - **City pages** ("data bundles in Kumasi"). A bundle is credited to a Ghanaian MSISDN seconds after payment — coverage, price and turnaround are identical nationwide, so a city page could only duplicate the national one. That is the doorway-page pattern. Cities live in `lib/keywords.js → LOCATIONS` and are used **only** for copy and `areaServed`, never as URLs.
 - **A separate "non-expiry" page.** Every non-expiry bundle we stock is MTN, so it would be a byte-for-byte twin of `/bundles/mtn.html`. The MTN page *is* the non-expiry page and owns that vocabulary.
-- **Reviews, ratings, stock levels, delivery-time promises, customer counts.** We have no such data, so there is no such schema and no such copy.
+- **Stock levels, delivery-time promises, customer counts.** We have no such data, so there is no such schema and no such copy.
+- **Reviews and ratings** were on that list too, and now they are real — but they stay out of the generated files: the generator emits only the mount point and the visible verified-purchase policy, and `assets/js/reviews.js` fills in the reviews and the `aggregateRating`/`review` schema live, only when at least one verified review exists (§6.6).
 
 ### 2.2 The generator — `app/scripts/generate-seo-pages.js`
 
@@ -141,7 +142,7 @@ Nav, footer, homepage tiles, breadcrumbs and cross-link grids now point at canon
 
 ## 3. Rules held to
 
-1. **Nothing fabricated.** No prices, stock counts, reviews, ratings, delivery-time promises or FAQ answers that are not derived from the catalogue, the schema, or copy already in the repo. `Product` schema carries `offers.price` + `priceCurrency` and **no** `availability`, `aggregateRating`, `review` or `image` — because we cannot prove any of them. The test suite fails the build if any of those words appear in schema.
+1. **Nothing fabricated.** No prices, stock counts, delivery-time promises or FAQ answers that are not derived from the catalogue, the schema, or copy already in the repo. `Product` schema as generated carries `offers.price` + `priceCurrency` and **no** `availability` or `image` — we cannot prove either. Ratings are the one thing that became provable: `aggregateRating`/`review` are injected at runtime from verified-purchase reviews (§6.6), never written into a static file, and `test-seo.js` still fails the build if any rating vocabulary appears in committed schema — while `test-reviews.js` proves the injected values equal the visible ones.
 2. **Schema matches visible content.** Every `FAQPage` question and answer is extracted from the rendered page; every `Product` price is asserted to appear in the visible copy; every breadcrumb item has a name and URL.
 3. **Live numbers only.** Counts, min/max prices, size ranges and per-GB figures come from the catalogue at generation time. `npm run seo:check` fails if a published price drifts from the live one.
 4. **No doorway pages, no thin duplicates, no stuffing.** See §2.1 for what was refused and why. Synonyms appear once as a visible "Also searched as:" row and in body prose, never as a keyword wall.
@@ -159,7 +160,7 @@ npm run test:seo -- --base=http://localhost:8787
 npm test
 ```
 
-**`npm run test:seo` → 96 file checks + 21 live routes, all passing.** It verifies: pages are current vs the catalogue; sitemap↔canonical byte parity; title/description/canonical/H1/word-count/synonym-row on all 41 indexable pages; every JSON-LD block parses and only describes visible content; no ratings/reviews/availability claims; internal links resolve and no filter URLs survive; all 382 vocabulary terms expand and all 17 categories point at a page (and anchor) that exists; search never dead-ends; honesty guards; all 24 prices present in raw HTML; robots.txt does not contradict the pages. With `--base` it fetches 20 routes and asserts 200 + their own title/description/canonical, including clean URLs.
+**`npm run test:seo` → 96 file checks + 21 live routes, all passing.** It verifies: pages are current vs the catalogue; sitemap↔canonical byte parity; title/description/canonical/H1/word-count/synonym-row on all 41 indexable pages; every JSON-LD block parses and only describes visible content; no ratings/reviews/availability claims in static schema; internal links resolve and no filter URLs survive; all 382 vocabulary terms expand and all 17 categories point at a page (and anchor) that exists; search never dead-ends; honesty guards; all 24 prices present in raw HTML; robots.txt does not contradict the pages. With `--base` it fetches 21 routes and asserts 200 + their own title/description/canonical, including clean URLs and both sitemaps.
 
 Live route sample (dev server, `SEED_DEMO=1`):
 
@@ -247,5 +248,19 @@ Pre-existing `scripts/test.sh` failures, unchanged by this work (all six also fa
    traffic ever matters, server-render that shell (an edge function or an API route returning the HTML
    with the slug baked in) and the storefronts become first-class pages.
 5. **Product images.** `Product` schema has no `image` because the catalogue has none. Adding one real screenshot/illustration per bundle would unlock richer results; do not use stock art of phones.
-6. **Ratings/reviews** — only if they become real (post-delivery review flow). The suite will fail if schema claims them without visible copy.
+6. ~~**Ratings/reviews**~~ **Done — the review flow is real, so the ratings are too.**
+   `product_reviews` (migration `supabase/migrations/2026-09-04_product_reviews.sql`) stores one
+   review per customer per bundle, writable only by an account with a **delivered order for that
+   exact bundle** — `lib/reviews.js` checks the order before every insert and records `order_id`,
+   so "Verified buyer" is a fact with a reference behind it. `GET /api/reviews?network=&size_mb=`
+   returns the published list *and* the aggregate computed from it; `assets/js/reviews.js` renders
+   both on the 24 product pages and adds `aggregateRating` + `review[]` to the page's existing
+   `Product` node **from that same response, only when `count > 0`**. Nothing is baked into the
+   generated HTML: a bundle with no reviews shows no stars and emits no rating schema, and
+   `test-seo.js` still fails the build if a static page ever claims one. Phone numbers typed into a
+   review are scrubbed at write time (these pages are public and indexed), authors appear as a first
+   name only, and moderation sets `status='removed'` rather than deleting the row.
+   Verified by `npm run test:reviews` (162 checks — the API contract against a clean server it boots
+   itself, the static contract across all 24 pages, and the widget executed in a DOM stub to prove
+   the injected schema matches the rendered list).
 7. **Ranking note, not a bug:** for a query naming a network *and* a size that network does not sell ("tigo 2gb"), site search ranks the exact size on another network above the named network's nearest sizes; the assistant answers the question explicitly instead. Deliberate — nearest-size boosts are capped so they can never outrank an exact match.

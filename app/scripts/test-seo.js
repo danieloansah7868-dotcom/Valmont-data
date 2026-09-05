@@ -181,9 +181,15 @@ for (const rel of [...generated, ...handPages]) {
       if (!visible.includes(label)) { priceFails++; console.log(`    ! ${rel}: Product price ${label} not visible on the page`); }
       if ((n.offers.priceCurrency || '') !== K.SITE.currency) priceFails++;
     });
-    // nothing invented: no ratings, no reviews, no stock claims
+    // Nothing invented in a *static* file: no ratings, no reviews, no stock
+    // claims. Ratings do exist now, but they are live — assets/js/reviews.js
+    // adds aggregateRating/review to the Product node at runtime, from the same
+    // /api/reviews response that renders the visible list, and only when at
+    // least one verified review is published. A count baked in here would be
+    // wrong the moment somebody reviews (or retracts), and wrong schema is
+    // worse than none. See scripts/test-reviews.js sections 10-13.
     if (JSON.stringify(b).match(/aggregateRating|"review"|availability|InStock|OutOfStock/i)) {
-      fabrications++; console.log(`    ! ${rel}: schema claims ratings/reviews/availability we do not have`);
+      fabrications++; console.log(`    ! ${rel}: static schema claims ratings/reviews/availability it cannot prove`);
     }
     // FAQ schema must mirror the visible questions word for word
     nodes.filter((n) => n['@type'] === 'FAQPage').forEach((n) => {
@@ -202,7 +208,7 @@ for (const rel of [...generated, ...handPages]) {
 }
 ok(parseFails === 0, `all ${ldTotal} JSON-LD blocks parse`);
 ok(priceFails === 0, 'every Product price in schema is visible on the page and in GHS');
-ok(fabrications === 0, 'no ratings, reviews or stock availability claimed in schema');
+ok(fabrications === 0, 'no ratings, reviews or stock availability baked into static schema (live reviews are injected at runtime)');
 ok(faqFails === 0, 'every FAQPage question/answer appears verbatim in the visible copy');
 ok(crumbFails === 0, 'every BreadcrumbList has named items with URLs');
 ['CollectionPage', 'ItemList', 'Product', 'BreadcrumbList', 'FAQPage', 'Service', 'Organization', 'ContactPage', 'AboutPage']

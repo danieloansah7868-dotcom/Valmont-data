@@ -279,3 +279,85 @@ a.seo-linkcard { color: inherit; }
   padding: 2px 9px;
   border-radius: 999px;
 }
+
+/* ---------- verified-purchase reviews (assets/js/reviews.js) ----------
+   The reviews block is the one part of these pages that needs JavaScript: the
+   numbers are live, and a rating we cannot show is a rating we must not claim.
+   Everything around it — price, specs, FAQ — still reads with scripts off. */
+.reviews-mount.rv-loading { opacity: 0.55; }
+.rv-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  padding: 14px 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+.rv-score { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 15px; color: var(--soft); }
+.rv-score b { color: var(--white); font-size: 17px; }
+.rv-count { color: var(--muted); font-size: 13px; }
+.rv-stars { color: var(--orange); letter-spacing: 1px; font-size: 15px; }
+.rv-stars-off { color: var(--line-strong); }
+.rv-histogram { display: grid; gap: 5px; }
+.rv-bar { display: grid; grid-template-columns: 58px minmax(0, 1fr) 26px; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+.rv-bar-track { height: 7px; border-radius: 999px; background: rgba(248, 250, 252, 0.08); overflow: hidden; }
+.rv-bar-fill { display: block; height: 100%; background: var(--orange); border-radius: 999px; }
+.rv-bar-count { text-align: right; font-variant-numeric: tabular-nums; }
+
+.rv-list { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 10px; }
+.rv-item { padding: 12px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; }
+.rv-item-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0; }
+.rv-title { color: var(--white); font-size: 14.5px; }
+.rv-body { margin: 7px 0 0; color: var(--soft); font-size: 14px; line-height: 1.6; }
+.rv-meta { margin: 9px 0 0; font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.rv-verified { color: var(--green); font-weight: 700; }
+.rv-none { margin: 0; padding: 13px 15px; background: var(--panel); border: 1px dashed var(--line-strong); border-radius: 14px; color: var(--muted); font-size: 13.5px; line-height: 1.6; }
+
+.rv-write { margin-top: 16px; }
+.rv-panel { padding: 14px 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; }
+.rv-panel p { margin: 0 0 8px; font-size: 13.5px; color: var(--soft); line-height: 1.6; }
+.rv-panel p:last-child { margin-bottom: 0; }
+.rv-link { color: var(--orange-2); font-weight: 700; }
+.rv-form { display: grid; gap: 12px; padding: 14px 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; }
+.rv-field { display: grid; gap: 6px; font-size: 13px; color: var(--muted); border: 0; padding: 0; margin: 0; }
+.rv-field legend { padding: 0; font-size: 13px; color: var(--muted); }
+.rv-field em { font-style: normal; opacity: 0.75; }
+.rv-field input, .rv-field textarea {
+  background: var(--navy-2);
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  color: var(--white);
+  font: inherit;
+  font-size: 14px;
+  padding: 9px 11px;
+}
+.rv-field textarea { resize: vertical; }
+.rv-field input:focus, .rv-field textarea:focus { outline: 2px solid var(--orange-glow); border-color: var(--orange); }
+.rv-rates { display: flex; flex-wrap: wrap; gap: 7px; }
+.rv-rate { position: relative; }
+.rv-rate input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.rv-rate span {
+  display: inline-block; padding: 6px 11px; border-radius: 999px; font-size: 12.5px;
+  border: 1px solid var(--line-strong); color: var(--soft); background: var(--navy-2);
+}
+.rv-rate input:checked + span { border-color: var(--orange); color: #1a0f00; background: var(--orange); font-weight: 800; }
+.rv-rate input:focus-visible + span { outline: 2px solid var(--orange-2); outline-offset: 2px; }
+.rv-hint { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.55; }
+.rv-actions { display: flex; flex-wrap: wrap; gap: 9px; margin: 0; }
+.rv-submit, .rv-retract {
+  border-radius: 10px; padding: 9px 16px; font: inherit; font-size: 13.5px; font-weight: 800; cursor: pointer;
+  border: 1px solid transparent;
+}
+.rv-submit { background: var(--orange); color: #1a0f00; }
+.rv-submit:hover { background: var(--orange-2); }
+.rv-submit:disabled { opacity: 0.6; cursor: progress; }
+.rv-retract { background: transparent; border-color: var(--line-strong); color: var(--muted); font-weight: 600; }
+.rv-retract:hover { color: var(--red); border-color: var(--red); }
+.rv-msg { margin: 0; font-size: 13px; min-height: 1.2em; color: var(--muted); }
+.rv-msg-bad { color: var(--red); }
+@media (min-width: 720px) {
+  .rv-summary { grid-template-columns: minmax(0, 220px) minmax(0, 1fr); align-items: center; gap: 18px; }
+  .rv-histogram { grid-column: 2; }
+  .rv-score { grid-column: 1; }
+}

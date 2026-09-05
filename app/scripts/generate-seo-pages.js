@@ -480,7 +480,7 @@ ${page.body}
 ${footerHtml()}
 
   <script src="/lib/keywords.js"></script>
-${page.search ? '  <script src="/assets/js/catalogue-search.js" defer></script>\n' : ""}  <script src="/assets/js/valmontai.js" defer></script>
+${page.search ? '  <script src="/assets/js/catalogue-search.js" defer></script>\n' : ""}${page.reviews ? '  <script src="/assets/js/reviews.js" defer></script>\n' : ""}  <script src="/assets/js/valmontai.js" defer></script>
 </body>
 </html>
 `;
@@ -533,6 +533,27 @@ ${rows}
 
 /** Visible FAQ. <details> keeps the answers in the DOM without JavaScript, so
     the crawler reads exactly what FAQPage JSON-LD declares. */
+/**
+ * Verified-purchase reviews block. The generator emits only the mount point and
+ * the policy sentence — every number and every review in it is fetched live by
+ * assets/js/reviews.js from /api/reviews, and the AggregateRating schema is
+ * injected by that same script from the same response, only when at least one
+ * published review exists. Baking a count or a star average into a static file
+ * would go stale the moment somebody reviews (or retracts), and a stale rating
+ * in schema is a fabricated one.
+ */
+function reviewsSection(item) {
+  const label = item.network_name + " " + item.size_label;
+  return `    <section class="seo-block" id="reviews">
+      <h2 class="seo-h2">Reviews from verified buyers</h2>
+      <p>Reviews of ${esc(label)} come from verified purchases only: the form opens for an account once its order for this bundle shows as delivered, and each review is published against that order with a "Verified buyer" mark. We do not seed ratings, we do not buy reviews, and if nobody has reviewed this bundle yet then this section says so instead of showing stars.</p>
+      <div class="reviews-mount" data-network="${esc(item.network)}" data-size-mb="${item.size_mb}" data-label="${esc(label)}" aria-live="polite">
+        <noscript><p>Reviews load with JavaScript. Each one is written by a customer whose order for this bundle was delivered.</p></noscript>
+      </div>
+    </section>
+`;
+}
+
 function faqSection(qas, id) {
   const items = qas
     .map(
@@ -1068,6 +1089,7 @@ ${next ? '<a href="' + next.url + '">' + esc(next.size_label) + " · " + money(n
       </div>
     </section>
 
+${reviewsSection(item)}
 ${linkGrid("Keep browsing", [
       { href: "/bundles/" + item.network + ".html", label: "All " + item.network_name + " bundles", note: net.items.length + " sizes from " + money(net.stats.minPrice) },
       { href: "/bundles/", label: "All data bundles", note: D.all.count + " bundles, three networks" },
@@ -1132,6 +1154,7 @@ ${faqSection([
     ogType: "product",
     keywords: K.metaKeywords([item.network, item.validity_days ? "rollover" : "non-expiry"], item.keywords.slice(0, 8)),
     crumbs,
+    reviews: true,
     body,
     jsonld: [
       breadcrumbLd(crumbs),
