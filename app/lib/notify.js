@@ -1,12 +1,14 @@
 /* ============================================================================
-   Notifications — delivery receipts + admin alerts + SMS to customers.
+   Notifications — delivery receipts + admin alerts + customer channels.
 
    Channels (all fire in parallel, none blocks the order pipeline):
    1. Webhook — POST { type, ts, ...data } to NOTIFY_WEBHOOK_URL
-   2. SMS     — send transactional SMS to the customer (if SMS_PROVIDER set)
-   3. Console — always logs regardless of other channels
+   2. SMS     — transactional delivery/refund notices
+   3. WhatsApp — confirmation back to the originating WhatsApp sender
+   4. Console — always logs regardless of other channels
 
-   SMS is opt-in via SMS_DELIVERY=true (or SMS_PROVIDER != mock).
+   A failed provider result is retained as a failed result; deployed endpoints
+   never substitute a mock "sent" result for SMS or WhatsApp.
    ============================================================================ */
 
 async function send(type, data) {
@@ -35,15 +37,12 @@ async function send(type, data) {
   if (shouldSendSMS(type, data)) {
     const sms = require("./sms");
     const smsMsg = formatSMS(type, data);
-    if (smsMsg && data.phone) {
-      promises.push(sms.sendSMS(data.phone, smsMsg));
-    }
+    if (smsMsg && data.phone) promises.push(sms.sendSMS(data.phone, smsMsg));
   }
 
-  // 3. WhatsApp channel — if order came from WhatsApp, confirm in-chat
-  if (data?.whatsapp_from) {
-    promises.push(sendWhatsAppConfirmation(type, data));
-  }
+  // 3. WhatsApp channel — only the original WhatsApp sender receives an
+  // in-chat receipt. `notify.receipt()` must preserve this field from orders.
+  if (data?.whatsapp_from) promises.push(sendWhatsAppConfirmation(type, data));
 
   const results = await Promise.allSettled(promises);
   const webhookResult = results.find((r) => r.value?.webhook !== undefined);
@@ -51,27 +50,34 @@ async function send(type, data) {
     delivered: webhookResult ? webhookResult.value.webhook : !!(url),
     mode: url ? "webhook" : "log",
     sms: results.find((r) => r.value?.provider)?.value || null,
-    whatsapp: results.find((r) => r.value?.sent && r.value?.to)?.value || null,
+    // The live Cloud API returns { sent, message_id }; the local dev client also
+    // includes `to`. Accept either, rather than reporting a successfully sent
+    // live receipt as absent just because Meta does not echo the recipient.
+    whatsapp: results.find((r) => r.value?.sent && (r.value?.to || r.value?.message_id))?.value || null,
   };
 }
 
 function shouldSendSMS(type, data) {
-  // Only send SMS for customer-facing events with a phone number
   if (!data?.phone) return false;
-  const smsTypes = ["order.receipt", "order.refunded"];
-  return smsTypes.includes(type);
+  return ["order.receipt", "order.refund_pending", "order.refunded"].includes(type);
 }
 
 function formatSMS(type, data) {
   const sms = require("./sms");
   if (type === "order.receipt") return sms.templates.orderDelivered(data);
-  if (type === "order.refunded") return sms.templates.orderRefunded(data, data.reason);
+  if (type === "order.refund_pending") return sms.templates.orderRefundPending(data);
+  if (type === "order.refunded") return sms.templates.orderRefunded(data);
   return null;
 }
 
+function safeWhatsAppReviewUrl(value) {
+  const url = String(value || "");
+  return /^https:\/\/[^\s/]+\/rev\/(mtn|telecel|airteltigo)\/[0-9]+(?:-[0-9]+)?(?:mb|gb)$/.test(url) ? url : "";
+}
+
 /* ---- WhatsApp delivery confirmations ----
-   If the order was placed via WhatsApp (channel=whatsapp + whatsapp_from set),
-   send the confirmation back in the same WhatsApp conversation. */
+   WhatsApp Cloud's current button helper only supports quick replies, not URL
+   buttons, so the review invitation is a plain direct HTTPS link. */
 async function sendWhatsAppConfirmation(type, data) {
   if (!data?.whatsapp_from) return null;
   const whatsapp = require("./whatsapp");
@@ -81,11 +87,17 @@ async function sendWhatsAppConfirmation(type, data) {
     const sizeMb = data.size_mb || 0;
     const size = sizeMb >= 1024 ? `${sizeMb / 1024}GB` : `${sizeMb}MB`;
     const network = (data.network_code || "").toUpperCase();
-    const msg = `✅ *Delivered!*\n\n📦 ${size} ${network} → ${data.phone}\n📋 ${data.reference}\n\nThank you for using Valmont Data!\n\n_Want auto-reload? Reply "autoreload" to set it up for this line._`;
+    const reviewUrl = safeWhatsAppReviewUrl(data.whatsapp_review_url);
+    const review = reviewUrl ? `\n\nShare your verified review: ${reviewUrl}` : "";
+    const msg = `✅ *Delivered!*\n\n📦 ${size} ${network} → ${data.phone}\n📋 ${data.reference}\n\nThank you for using Valmont Data!${review}\n\n_Want auto-reload? Reply "autoreload" to set it up for this line._`;
+    return whatsapp.sendText(waId, msg);
+  }
+  if (type === "order.refund_pending") {
+    const msg = `↩️ *Refund being arranged for ${data.reference}*\n\n${data.reason || "Delivery could not be completed."}\n\nOur team is arranging a refund to the original payment method. We will confirm once it is completed.`;
     return whatsapp.sendText(waId, msg);
   }
   if (type === "order.refunded") {
-    const msg = `↩️ *Order ${data.reference} refunded*\n\n${data.reason || "Amount mismatch"}\n\nYour MoMo has been credited back.`;
+    const msg = `↩️ *Refund completed for ${data.reference}*\n\n${data.reason || "The refund has been completed."}\n\nPlease check the original payment method. Provider timing can vary.`;
     return whatsapp.sendText(waId, msg);
   }
   return null;
@@ -102,17 +114,30 @@ const notify = {
       status: "delivered",
       size_mb: order.size_mb,
       network_code: order.network_code,
+      // Preserve the originating sender and separate channel eligibility.
+      whatsapp_from: order.whatsapp_from || null,
+      review_url: order.sms_review_url || null,
+      whatsapp_review_url: order.whatsapp_review_url || null,
     }),
   lowFloat: (network, balance, threshold) =>
     send("low_float", { network, balance: Number(balance), threshold: Number(threshold) }),
   alert: (message, extra = {}) => send("alert", { message, ...extra }),
+  refundPending: (order, reason) =>
+    send("order.refund_pending", {
+      reference: order.reference,
+      phone: order.phone,
+      amount: Number(order.amount),
+      reason,
+      whatsapp_from: order.whatsapp_from || null,
+    }),
   refunded: (order, reason) =>
     send("order.refunded", {
       reference: order.reference,
       phone: order.phone,
       amount: Number(order.amount),
       reason,
+      whatsapp_from: order.whatsapp_from || null,
     }),
 };
 
-module.exports = { notify, send };
+module.exports = { notify, send, safeWhatsAppReviewUrl };

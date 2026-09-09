@@ -12,6 +12,8 @@ const { requireCustomer } = require("../lib/auth");
 const valmontpay = require("../lib/valmontpay");
 const phones = require("../lib/phones");
 const orders = require("../lib/orders");
+const { getSupplierRouter } = require("../lib/supplier");
+const { siteOrigin } = require("../lib/runtime");
 
 async function post(req, res) {
   let customer;
@@ -39,6 +41,22 @@ async function post(req, res) {
   const bundle = await orders.findBundleById(Number(bundle_id));
   if (!bundle) return json(res, 404, { error: "Bundle not found or unavailable" });
   const network = await orders.findNetworkById(bundle.network_id);
+  if (!network) return json(res, 503, { error: "This network is temporarily unavailable" });
+
+  // Do this before creating an order/checkout. A deployed endpoint may never
+  // fall through to local mock payment or supplier behavior.
+  let siteUrl;
+  try {
+    valmontpay.assertLiveReady();
+    getSupplierRouter().assertAvailable(network.code);
+    siteUrl = siteOrigin();
+  } catch (e) {
+    console.error("[orders] safe checkout preflight failed", e.message);
+    return json(res, e.status || 503, {
+      error: "Orders are temporarily unavailable while payment or delivery configuration is completed.",
+      code: e.code || "CHECKOUT_UNAVAILABLE",
+    });
+  }
 
   // FLOAT GUARD #1 — before we accept the order and take money.
   const float = await orders.currentFloat(bundle.network_id);
@@ -75,7 +93,6 @@ async function post(req, res) {
     await referrals.spendCredit(customer.id, creditApplied, order.id);
   }
 
-  const siteUrl = (process.env.SITE_URL || "").replace(/\/$/, "");
   let checkout;
   try {
     checkout = await valmontpay.createCheckout({
@@ -114,7 +131,10 @@ async function get(req, res) {
 
   const bundle = await orders.findBundleById(order.bundle_id);
   const network = await orders.findNetworkById(order.network_id);
-  const err = order.supplier_response?.error || (order.status === "refunded" ? order.supplier_response?.reason : null);
+  const err = order.supplier_response?.error
+    || ((order.status === "refund_pending" || order.status === "refunded")
+      ? (order.refund_note || order.supplier_response?.refund_reason || order.supplier_response?.reason)
+      : null);
 
   return json(res, 200, {
     order: {
@@ -131,6 +151,9 @@ async function get(req, res) {
       attempts: order.attempts,
       created_at: order.created_at,
       delivered_at: order.delivered_at,
+      refund_requested_at: order.refund_requested_at || null,
+      refund_completed_at: order.refund_completed_at || null,
+      refund_note: order.refund_note || null,
       supplier_error: err || null,
     },
   });

@@ -106,6 +106,11 @@ jobs:
       - name: Reviews suite — verified purchases, schema parity
         run: cd app && node scripts/test-reviews.js
 
+      # Isolated ports (:8800/:8801 plus a local gateway) ensure delivery,
+      # invitation, SSR and production-safety checks do not rely on CI state.
+      - name: Delivery safety suite — invitations, refunds and deployment guards
+        run: cd app && node scripts/test-delivery-safety.js
+
   # ---------------------------------------------------------------------------
   # Does the deployed site still agree with the live catalogue?
   # ---------------------------------------------------------------------------

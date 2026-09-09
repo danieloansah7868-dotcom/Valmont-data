@@ -625,7 +625,7 @@ const FACTS = {
   delivery:
     "Delivery starts the moment payment confirms. Most bundles arrive within minutes; it depends on the network at the time. Every order gets a tracking reference and an SMS confirmation.",
   refunds:
-    "If a delivery fails we retry it automatically (up to three attempts) and refund it automatically if it still won't complete. Wrong numbers are <b>not</b> refundable — check the line before you pay.",
+    "If a delivery fails we retry it automatically (up to three attempts). If it still cannot complete after payment, we mark the order <b>Refund being arranged</b>, arrange a return of the payment to its original method, and confirm when that refund is completed. Wrong numbers are <b>not</b> refundable — check the line before you pay.",
   account:
     "A free Valmont Data account is required to place an order. It takes a minute (name, phone, email and a 4-digit PIN) and it is what lets you save numbers, track orders, use auto top-up and earn referral credit.",
   anyone:
@@ -683,7 +683,7 @@ ${alsoSearchedAs(["catalogue", "cheap", "non-expiry", "rollover"])}
       <div class="hero-badges seo-badges">
         <span class="chip live">● Prices below are the real ones</span>
         <span class="chip">🔒 Checkout by Valmont-Pay</span>
-        <span class="chip">↩️ Failed delivery = automatic refund</span>
+        <span class="chip">↩️ Unfulfilled paid orders = refund arranged</span>
       </div>
 ${ctaRow({ href: "/#buy", label: "Buy data now" })}
     </div>
@@ -1408,7 +1408,7 @@ ${ctaRow({ href: "/autoreload.html", label: "Switch on auto top-up" })}
 
     <section class="seo-block">
       <h2 class="seo-h2">What it is for</h2>
-      <p>Running out of data at the wrong moment is the whole problem this solves. We track each bundle you have bought from us, watch how it is being used, and prompt you when a line is running low — then re-buy it if you have opted in. It is the same order pipeline as a manual purchase: the same payment gateway, the same float checks, the same automatic retry and refund if a delivery fails.</p>
+      <p>Running out of data at the wrong moment is the whole problem this solves. We track each bundle you have bought from us, watch how it is being used, and prompt you when a line is running low — then re-buy it if you have opted in. It is the same order pipeline as a manual purchase: the same payment gateway, the same float checks, the same automatic retry and refund-arrangement process if a delivery fails.</p>
       <p>You can also track and top up <b>other people's lines</b> from your own account. When a line you look after runs low you get the prompt, and opting in for somebody else always asks you to confirm explicitly that the data goes to them, not to you — so it can never quietly drain your wallet onto another line.</p>
       <p>${FACTS.payment}</p>
       <p>${FACTS.account}</p>

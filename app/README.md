@@ -40,7 +40,7 @@ The **webhook handler is the heart of the system** (`api/valmontpay/webhook.js`)
 | `status.html` | Public order tracking by reference (no login) |
 | `dashboard.html` | Signed-in dashboard — quick actions + **"My bundles & auto-reload"** summary card (live usage bars per line) |
 | `autoreload.html` | **The opt-in place** — per-line usage tracking, active rules (pause/resume/remove), and the consent form (line, bundle, threshold, pre-authorized MoMo) |
-| `admin.html` | Admin console — float, orders + retry, P&L, SMS leads export (1-click copy), webhook audit |
+| `admin.html` | Admin console — float, orders + retry + real-gateway refund completion recording, **Reviews** hide/unhide moderation, P&L, SMS leads export (1-click copy), webhook audit |
 | `api/valmontpay/webhook.js` | ⚠️ Payment webhook: signature verify → idempotent claim → float guard → delivery |
 | `api/whatsapp/webhook.js` | 📱 WhatsApp ordering bot: Meta Cloud API webhook → conversation engine → orders |
 | `api/orders.js` | Create order (compulsory customer token, float guard #1, Valmont-Pay checkout) + public status |
@@ -49,12 +49,13 @@ The **webhook handler is the heart of the system** (`api/valmontpay/webhook.js`)
 | `api/autoreload.js` | Auto-reload API (customer token): `GET` (lines + usage + rules + catalogue), `POST` (opt-in / update / pause-resume toggle), `DELETE` (opt-out) — explicit consent required |
 | `api/usage.js` | **Usage reports** — how the web "tracks" the bundle: `POST` `{action:"report", reference|phone, used_mb}` updates a delivered bundle's `used_mb`; returns `low` + `should_ask` flags; `GET ?phone=&reference=` reads state. Auth: admin token or `x-usage-key: USAGE_REPORT_KEY` (supplier/telco pipeline) |
 | `api/bundles.js` | Public catalogue with server-side availability (never cost_price) |
-| `lib/reviews.js` | **Verified-purchase review engine** — resolves `(network, size_mb)` to a bundle, confirms a *delivered* order for that bundle by that customer before any write, upserts one review per customer per bundle, scrubs phone numbers, computes the aggregate (count / average / histogram) from published rows only, hides on moderation instead of deleting |
+| `lib/reviews.js` | **Verified-purchase review engine** — resolves `(network, size_mb)` to a bundle, confirms a *delivered* order for that bundle by that customer before any write, upserts one review per customer per bundle, scrubs phone numbers, computes the aggregate (count / average / histogram) from published non-admin-hidden rows only, and preserves hide/unhide provenance instead of deleting |
 | `assets/js/reviews.js` | Reviews widget for the 24 product pages — renders the live list + summary, shows the write/edit/retract form only to a customer the API confirms can review (and says why not, to everyone else), and injects `aggregateRating`/`review[]` into the page's existing `Product` JSON-LD **only when real reviews exist**, from the same response it rendered |
 | `scripts/test-reviews.js` | Reviews suite (162 checks) — boots its own clean dev server on `:8799`, walks guest → signed-in → pending order → delivered order → review → edit → retract → moderate, then checks the static honesty contract on all 24 product pages and runs the widget in a DOM stub. `npm run test:reviews` |
+| `scripts/test-delivery-safety.js` | Delivery-safety suite (70 checks) — isolated app servers plus a local gateway stand-in validate persistent OTPs, invitation consent rules, moderation provenance, WhatsApp receipts, SSR storefront metadata, live `refund_pending` completion, deployment guards and the 11-function cap. `npm run test:delivery-safety` |
 | `api/sitemap.js` | **Dynamic sitemap** for reseller storefronts — served as `/sitemap-stores.xml` (rewrite in `vercel.json`). Stores are created by customers at runtime, so no build step can list them; publishes only slugs + `lastmod`, never names/owners/earnings. 11th function of Vercel Hobby's 12 |
-| `api/admin/*` | Login, float (+top-up), orders (+retry), P&L, SMS leads (`GET /sms-leads`), webhook log |
-| `api/cron.js` | Unified cron (one function): `GET /api/cron/retry` retries failed deliveries (max 3) + low-float alert; `GET /api/cron/autoreload` sweeps opted-in lines and re-buys low/expired bundles via the normal webhook pipeline. Daily Vercel crons (07:00 / 07:30 UTC). Dev/demo: `curl /api/cron/autoreload` |
+| `api/admin/*` | Login, float (+top-up), orders (+retry + manual gateway-refund completion recording), P&L, SMS leads (`GET /sms-leads`), webhook log |
+| `api/cron.js` | Unified cron (one function): `GET /api/cron/retry` retries failed deliveries (max 3) + low-float alert; `GET /api/cron/autoreload` sweeps opted-in lines and re-buys low/expired bundles via the normal webhook pipeline. Daily Vercel crons (07:00 / 07:30 UTC), protected in deployment by `Authorization: Bearer $CRON_SECRET`. Dev/demo: `curl /api/cron/autoreload` |
 | `lib/` | `supabase.js` (data layer + mock), `valmontpay.js` (client + HMAC-SHA512, incl. `initiateCharge` direct MoMo charge), `supplier.js` (adapter), `orders.js` (engine — creates `bundle_usage` on delivery), `autoreload.js` (engine — thresholds, cooldown, in-flight guard, dev webhook simulation), `whatsapp.js` (WhatsApp Cloud API client), `whatsapp-bot.js` (conversation engine), `referrals.js` (referral codes + credits), `sms.js` (SMS providers: Arkesel/mNotify/Hubtel), `phones.js`, `notify.js` (+ SMS on delivery), `auth.js` |
 | `supabase/schema.sql` | Tables (`customers`, `saved_numbers`, `sms_leads`, `orders`, `bundle_usage`, `auto_reload`, `float_ledger`, etc.), RLS, functions, seeds — run once in Supabase |
 | `supabase/seed-demo.sql` | **Demo seed** for DEMO/STAGING Supabase — customers, orders, bundle usage, auto-reload rules, float, webhook log (generated, self-skipping) |
@@ -74,7 +75,7 @@ The **webhook handler is the heart of the system** (`api/valmontpay/webhook.js`)
 
 1. **Idempotency** — `orders.provider_reference` has a `UNIQUE` constraint **and** the webhook claims it via `UPDATE ... WHERE provider_reference IS NULL`. Duplicate or concurrent webhooks can never deliver twice. (Test: `sim-webhook.js --duplicate`.)
 2. **Signature verification** — `x-valmontpay-signature` = HMAC-SHA512 of the raw body with the tenant secret; invalid → 401 + logged. Delivery never happens on a browser callback.
-3. **Float guard** — checked in `api/orders` *before* the checkout is created (bundle auto-disabled in UI when float is short) **and** re-checked in the webhook before delivery; the race case auto-refunds.
+3. **Float guard** — checked in `api/orders` *before* the checkout is created (bundle auto-disabled in UI when float is short) **and** re-checked in the webhook before delivery; the paid race case becomes `refund_pending` while a real gateway refund is arranged and is marked completed only after an authenticated admin records that completed action.
 4. **Server-side only** — only the verified webhook triggers `supplier.submit()`.
 5. **Customer accounts & saved numbers** — customer token required to place orders; passwords/PINs scrypt-hashed; server-side ownership enforcement; personalized time greetings attached to first name.
 6. **Audit trail** — every callback lands in `webhook_log` (signature_valid, payload, handled, error); every order stores `provider_reference`, `supplier_ref`, `supplier_response` (full supplier reply), `attempts`, timestamps.
@@ -165,7 +166,7 @@ confirms.)
 
 - **Cooldown** — after a reload fires, no new reload for `AUTORELOAD_COOLDOWN_MINUTES` (default 720 = 12h), so a stale usage report can never drain the customer's MoMo.
 - **No stacking** — if the line already has a pending/paid/delivering order, the sweep skips it.
-- **Float guard** — an order is only created if we can deliver it (the webhook re-checks float and auto-refunds the race case, same as manual orders).
+- **Float guard** — an order is only created if we can deliver it (the webhook re-checks float and moves a paid race failure to refund-pending reconciliation, same as manual orders).
 - **Full payment pipeline** — the reload is a *normal* order; Valmont-Pay's direct-charge endpoint (`initiateCharge`) charges the saved MoMo, and the signed `charge.success` webhook flows through the same idempotent claim → delivery path. In dev (no gateway configured) the engine simulates that webhook locally — same code path, so tests cover it exactly.
 - **Audited** — opt-ins emit `autoreload.optin` notify events; reload orders carry `auto_reload_id`; `reload_count` / `last_reload_at` are bumped only when the reload actually delivers.
 
@@ -206,7 +207,7 @@ Then click through the whole business:
 Also try the failure paths:
 ```bash
 node scripts/sim-webhook.js --ref VD-... --bad-signature   # 401, logged
-node scripts/sim-webhook.js --ref VD-... --wrong-amount    # auto-refund
+node scripts/sim-webhook.js --ref VD-... --wrong-amount    # simulated local refund; live becomes refund_pending
 node scripts/sim-webhook.js --ref VD-... --duplicate       # idempotency no-op
 MOCK_FAIL_FIRST=1 npm run dev                              # delivery fails → retry via admin/cron
 ```
@@ -269,11 +270,11 @@ never run it against production). Demo logins are printed in the file header.
 
 ## Deploy (Vercel + Supabase)
 
-1. **Supabase**: create project → SQL editor → paste `supabase/schema.sql` → run. (Tables + RLS + functions + seeds. Idempotent; adds `customers`, `saved_numbers`, `bundle_usage`, `auto_reload` and the rest.) An **existing** project only needs the newer files in `supabase/migrations/` — run them in date order; every one is idempotent. The most recent is `2026-09-04_product_reviews.sql` (verified-purchase reviews).
-2. **Vercel**: import this repo, set **Root Directory = `app`** → add env vars from `.env.example` → deploy. (`vercel.json` wires two **daily** crons — `0 7 * * *` retry and `30 7 * * *` auto-reload — Vercel Hobby allows only one run per day.) For a more responsive auto-reload sweep (e.g. every 15 min), upgrade to Pro, or add a GitHub Actions workflow that pings `$SITE_URL/api/cron/autoreload` on a schedule (set `SITE_URL` under Settings → Secrets and variables → Actions → Variables).
+1. **Supabase**: create project → SQL editor → paste `supabase/schema.sql` → run. (Tables + RLS + functions + seeds. Idempotent; adds `customers`, `saved_numbers`, `bundle_usage`, `auto_reload` and the rest.) An **existing** project only needs the newer files in `supabase/migrations/` — run them in date order; every one is idempotent. The most recent is `2026-09-09_delivery-safety.sql` (persistent OTPs, review moderation provenance and refund-pending state).
+2. **Vercel**: import this repo, set **Root Directory = `app`** → add env vars from `.env.example` → deploy. (`vercel.json` wires two **daily** crons — `0 7 * * *` retry and `30 7 * * *` auto-reload — Vercel Hobby allows only one run per day.) For a more responsive auto-reload sweep (e.g. every 15 min), upgrade to Pro. Keep the daily Hobby jobs protected with a strong `CRON_SECRET`; Vercel supplies it as a Bearer authorization header.
 3. **Valmont-Pay**: request tenant #3 onboarding → set `VALMONTPAY_API_URL/API_KEY/WEBHOOK_SECRET` → register webhook URL `https://<your-domain>/api/valmontpay/webhook` in the gateway dashboard. For auto-reload to charge saved MoMos live, ask the gateway team to enable the **direct charge** (`POST /transaction/charge`, method `momo`, type `direct`) permission for tenant #3.
 4. **Go live**: set `VALMONTPAY_MODE=live` (see `.env.example`). In live mode there is **no dev fallback**: missing gateway credentials fail loudly (503) on checkout and auto-reload charges — payments are never simulated in production. (Local dev uses `VALMONTPAY_MODE=dev` + `AUTORELOAD_SIMULATE=1`, set by `scripts/dev-server.js`.)
-4. **Supplier**: see `GET-STARTED.md` at repo root — create a RemaData account, set `SUPPLIER_DRIVER=remadata` and `REMADATA_API_KEY`. Wholesale costs can be synced directly via `/admin.html` → Prices & Sync.
+5. **Supplier**: see `GET-STARTED.md` at repo root — create a RemaData account, set `SUPPLIER_ORDER=remadata` together with `REMADATA_API_URL` and `REMADATA_API_KEY`. Wholesale costs can be synced directly via `/admin.html` → Prices & Sync. `mock` is local-only and is rejected on deployed order paths.
 
 ---
 
@@ -348,14 +349,20 @@ SMS_SENDER_ID=ValmontData  # max 11 chars
 ```
 
 **Automatic triggers:**
-- Order delivered → "✅ Your 5GB MTN bundle has been delivered to 0241234567. Ref: VD-..."
-- Order refunded → "↩️ Order VD-... refunded. Your MoMo has been credited back."
+- Order delivered → "Valmont Data: 5GB MTN delivered to 0241234567. Ref VD-..." (a verified-buyer `/rev/...` invitation is added only when it remains one GSM-7 segment)
+- Refund being arranged → a truthful notice that the team is arranging the original-method refund.
+- Refund completed → confirmation only after an administrator has completed the real gateway action; provider timing can vary.
 
 SMS is wired into the existing `notify.js` system — fires in parallel with webhooks, never blocks the order pipeline. In mock mode (default), messages log to console.
 
 ---
 
 ## Reviews — verified purchases only
+
+Delivered-order invitations have no reward or incentive. The authenticated History page offers a
+safe review CTA. SMS gets a direct `/rev/...` link only where the account buyer's phone is also
+the delivery recipient and the complete plain-text receipt remains one GSM-7 segment; WhatsApp
+gets it only when the originating WhatsApp sender matches the buyer's verified account phone.
 
 The 24 product pages (`/bundles/<network>/<size>.html`) carry a reviews block. It is deliberately
 the one part of those pages that needs JavaScript: a rating is a claim about the present, and a
@@ -372,16 +379,19 @@ Everything else follows from that:
 | Rating is a whole number 1–5; title ≤80 chars; body ≤600 | `check` constraints in SQL and the same limits in `lib/reviews.js` |
 | "Verified buyer" next to every review, first name only | `listForBundle` returns `author` (first name) and `verified: true`; no phone/email leaves the API |
 | A phone number typed into a review is not published | scrubbed at write time (`[number removed]`) — reviews are public and indexed |
-| Moderation hides, it never deletes | `status = 'removed'`; the row and the order behind it stay for audit |
-| Aggregates are computed, not stored | `summary` (count / average / histogram) is derived from the published rows in the same response as the list |
+| Moderation hides, it never deletes | `status = 'removed'` plus `hidden_by_admin`; the row, order evidence and hide/unhide provenance stay for audit |
+| Admin-hidden rows cannot be self-republished | author updates/retractions reject `hidden_by_admin=true` until an admin explicitly unhides it |
+| Aggregates are computed, not stored | `summary` (count / average / histogram) is derived from published, non-admin-hidden rows in the same response as the list |
 
 **API** — folded into `api/account.js` as `?section=reviews` (11 serverless functions of Vercel
 Hobby's 12; `vercel.json` rewrites the public paths):
 
 ```
-GET    /api/reviews?network=mtn&size_mb=10240   public list + summary (+ a `you` block with a customer token)
+GET    /api/reviews?network=mtn&size_mb=10240   public list + non-hidden aggregate (+ a `you` block with a customer token)
 POST   /api/reviews                             customer token — create or edit your review of a delivered bundle
-DELETE /api/reviews?id=123                       admin (any review) or the author (their own)
+DELETE /api/reviews?id=123                       customer token — retract only your own non-admin-hidden review
+GET    /api/reviews/admin                        admin token — moderation queue with linked-order provenance
+POST   /api/reviews/admin                        admin token — `{ id, status: "removed"|"published" }` hide/unhide transition
 ```
 
 **Ratings in structured data:** `assets/js/reviews.js` renders the list *and* adds `aggregateRating`
@@ -390,8 +400,9 @@ DELETE /api/reviews?id=123                       admin (any review) or the autho
 claim a star, a count or a review the reader cannot see, and a bundle nobody has reviewed shows no
 stars at all. `scripts/test-seo.js` fails the build if a rating is ever baked into static HTML.
 
-**Database:** run `supabase/migrations/2026-09-04_product_reviews.sql` in the Supabase SQL editor
-(idempotent). A brand-new project gets the table from `supabase/schema.sql` instead. Until the
+**Database:** run `supabase/migrations/2026-09-04_product_reviews.sql` and then
+`supabase/migrations/2026-09-09_delivery-safety.sql` in the Supabase SQL editor (both
+idempotent). A brand-new project gets the table from `supabase/schema.sql` instead. Until the
 migration has run, `GET /api/reviews` returns an error and the pages simply show no reviews — they
 never fall back to invented ones.
 
@@ -404,14 +415,14 @@ that bundle see the reason, which is the feature working.
 
 ```bash
 npm run test:reviews   # 162 checks — boots its own clean server on :8799 (REVIEWS_TEST_PORT to move it)
+npm run test:delivery-safety # 70 isolated checks — app servers :8800/:8801 + local gateway :8898
 ```
 
-**Moderation today is an API call, not a screen:** `admin.html` has no reviews tab yet, so hiding a
-review means `curl -X DELETE "$SITE/api/reviews?id=<id>" -H "Authorization: Bearer <admin token>"`
-(the id is in the `GET /api/reviews` response). The row is only ever marked `removed` — never
-deleted — so the review, its author and the order that verified it stay on file. A reviews tab in
-the admin console is the obvious next step; it needs one more read (`?section=reviews&sub=all`,
-admin-only) and nothing else.
+**Moderation:** the Admin **Reviews** tab uses the folded `/api/reviews/admin` route. It lists
+all reviews with their linked delivered-order verification, filters by network and status, and
+only offers **Hide** / **Unhide** transitions. Nothing deletes a review. Admin hiding sets a
+separate `hidden_by_admin` guard, so the author cannot edit or republish it until an administrator
+unhides it; the retained `moderation_history` records each transition.
 
 ## SEO — what a crawler can see
 
@@ -457,7 +468,7 @@ deterministically (otherwise the stamped date would differ every day and every d
 
 ## Tested
 
-`scripts/test.sh` runs the full 104-check pipeline against the dev server (mock DB):
+`scripts/test.sh` runs the full 158-check API pipeline against a fresh, unseeded dev server (mock DB):
 float guard (reject when 0 float, guest 401) → admin login/float top-up →
 customer signup (scrypt hash, 30-day token) → duplicate 409 → wrong credentials 401 →
 customer login → account gating 401 → authed 0-float 422 → order creation →
@@ -478,22 +489,19 @@ opt-out removes the rule → auth guards 401 →
 
 Run it with `npm test` (after starting `npm run dev`).
 
-`npm test` runs **all five** suites through `scripts/run-tests.js` and prints a summary:
-`test.sh` (end-to-end API pipeline), `test-supplier-router.js` (multi-supplier failover),
-`test-valmontai.js` (27 assistant checks), `test-seo.js` (96 SEO checks) and `test-reviews.js`
-(162 checks: the review API end to end against a clean server it boots itself on `:8799`, plus the
-static honesty contract — every product page has a mount for its own bundle, no page bakes a rating
-into its schema, and the widget only injects one when the API returns reviews). It used to chain them
-with `&&`, so the API suite's pre-existing float failures stopped the other three from ever running —
-the runner fixes that, and judges `test.sh` against a pass-count baseline (152) instead of zero
-failures. `npm run test:api` runs the API pipeline on its own.
+`npm test` runs **all six** suites through `scripts/run-tests.js` and prints a summary:
+`test.sh` (158-check end-to-end API pipeline), `test-supplier-router.js` (multi-supplier
+failover), `test-valmontai.js` (27 assistant checks), `test-seo.js` (96 SEO checks),
+`test-reviews.js` (162 checks: review API, moderation and static-schema honesty against its
+own clean server on `:8799`) and `test-delivery-safety.js` (70 isolated checks for persistent
+OTPs, review invitations, refund reconciliation, storefront SSR and production guards).
+The runner requires the API suite to finish successfully with at least the 158-pass baseline;
+`npm run test:api` runs that API pipeline on its own.
 
-`test.sh` needs **`SEED_DEMO=1`** (`npm run dev:demo`) — without the demo seed, orders/history/float
-state is missing and ~84 checks fail. Six checks still fail on a seeded database by design: five
-assume an *unseeded* float of GH₵200 (the seed starts around GH₵3,300) and one is
-`paused rule not swept`. All six fail identically on the pristine `eb0bc71` tree, so they are
-environmental, not regressions. `scripts/sim-webhook.js` defaults to `:8787`, so run the suite
-against a server on that port (and start it fresh — a second run inherits the first run's orders
-and float).
+Start `npm run dev` **without** `SEED_DEMO=1` and run the API suite once against its fresh
+in-memory database. It must report **158 passed, 0 failed**. `scripts/test.sh` is unchanged:
+its float and paused-rule assertions remain part of that result. The suite mutates the mock
+state, so restart the server before re-running it. `scripts/sim-webhook.js` defaults to `:8787`,
+therefore run the suite against a server on that port.
 
 © 2026 Valmont Group of Companies.

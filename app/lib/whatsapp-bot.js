@@ -25,6 +25,8 @@ const { db } = require("./supabase");
 const phones = require("./phones");
 const keywords = require("./keywords");
 const orders = require("./orders");
+const { getSupplierRouter } = require("./supplier");
+const valmontpay = require("./valmontpay");
 const whatsapp = require("./whatsapp");
 const { genReference } = require("./ids");
 
@@ -268,7 +270,7 @@ async function trackOrder(waId, reference) {
   }
   const bundle = await orders.findBundleById(order.bundle_id);
   const network = await orders.findNetworkById(order.network_id);
-  const statusEmoji = { pending: "⏳", paid: "💰", delivering: "🚀", delivered: "✅", failed: "❌", refunded: "↩️" };
+  const statusEmoji = { pending: "⏳", paid: "💰", delivering: "🚀", delivered: "✅", failed: "❌", refund_pending: "↩️", refunded: "↩️" };
   const emoji = statusEmoji[order.status] || "📋";
 
   let msg = `${emoji} *Order ${reference}*\n\n`;
@@ -278,7 +280,8 @@ async function trackOrder(waId, reference) {
   msg += `📊 Status: *${order.status}*\n`;
   if (order.delivered_at) msg += `🕐 Delivered: ${new Date(order.delivered_at).toLocaleString("en-GB", { timeZone: "Africa/Accra" })}\n`;
   if (order.status === "failed" && order.supplier_response?.error) msg += `\n⚠️ ${order.supplier_response.error}`;
-  if (order.status === "refunded") msg += `\n↩️ This order was refunded.`;
+  if (order.status === "refund_pending") msg += `\n↩️ A refund is being arranged to the original payment method. We will confirm once it is completed.`;
+  if (order.status === "refunded") msg += `\n↩️ Refund completed. Please check the original payment method; provider timing can vary.`;
 
   return whatsapp.sendText(waId, msg);
 }
@@ -571,6 +574,17 @@ async function handleConfirm(waId, reply, ctx, customer) {
     // We'll record the spend after order creation (need order.id)
   }
 
+  // Check live payment and supplier safety before creating a pending order.
+  // This mirrors /api/orders: deployed WhatsApp ordering must not fall back to
+  // local mock behavior or make a customer believe checkout is available.
+  try {
+    valmontpay.assertLiveReady();
+    getSupplierRouter().assertAvailable(ctx.network);
+  } catch (error) {
+    await resetSession(waId);
+    return whatsapp.sendText(waId, "⚠️ Orders are temporarily unavailable while payment or delivery configuration is completed. Please try again later.");
+  }
+
   // Create the order (tagged as WhatsApp channel for delivery confirmations)
   const order = await orders.createOrder(bundle, ctx.phone, ctx.network_id, customer?.id || null, {
     channel: "whatsapp",
@@ -586,8 +600,7 @@ async function handleConfirm(waId, reply, ctx, customer) {
 
   await resetSession(waId);
 
-  // In dev mode (no real Valmont-Pay), simulate the payment
-  const valmontpay = require("./valmontpay");
+  // In dev mode (no real Valmont-Pay), simulate the payment.
   let checkout;
   try {
     checkout = await valmontpay.createCheckout({
@@ -619,8 +632,8 @@ async function handleConfirm(waId, reply, ctx, customer) {
     `✅ *Order created!* ${order.reference}\n\n` +
     `📦 ${formatSize(ctx.size_mb)} ${ctx.network.toUpperCase()} → ${ctx.phone}\n` +
     `💰 ${formatPrice(ctx.sell_price)}\n\n` +
-    `👉 Pay now: ${checkout.checkout_url}\n\n` +
-    `Data delivers instantly after payment. Track: send "track ${order.reference}"`
+      `👉 Pay now: ${checkout.checkout_url}\n\n` +
+      `We will confirm delivery after payment. Track: send "track ${order.reference}"`
   );
 }
 

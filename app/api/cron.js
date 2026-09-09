@@ -14,6 +14,7 @@ const { db } = require("../lib/supabase");
 const orders = require("../lib/orders");
 const { notify } = require("../lib/notify");
 const autoreload = require("../lib/autoreload");
+const { isDeployment, sameSecret, secretIsStrong } = require("../lib/runtime");
 
 async function runRetry() {
   const retried = [];
@@ -50,8 +51,28 @@ async function runRetry() {
   return { retried, low_float: low, ts: new Date().toISOString() };
 }
 
+function cronAuthorization(req) {
+  const secret = String(process.env.CRON_SECRET || "");
+  // Local dev retains a convenient manual cron endpoint only when no secret is
+  // configured. Every deployed invocation needs Vercel's Bearer secret.
+  if (!isDeployment() && !secret) return { ok: true, local: true };
+  if (!secretIsStrong(secret, { minLength: 16, disallow: ["dev-cron-secret", "changeme"] })) {
+    return { ok: false, configuration: true };
+  }
+  const header = String(req.headers?.authorization || req.headers?.Authorization || "");
+  const supplied = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
+  return { ok: sameSecret(supplied, secret), configuration: false };
+}
+
 async function handler(req, res) {
   if (!["GET", "POST"].includes(req.method)) return json(res, 405, { error: "GET/POST only" });
+  const auth = cronAuthorization(req);
+  if (!auth.ok) {
+    if (auth.configuration) {
+      return json(res, 503, { error: "Scheduled jobs are unavailable until CRON_SECRET is securely configured" });
+    }
+    return json(res, 401, { error: "Missing or invalid cron authorization" });
+  }
 
   const url = new URL(req.url, "http://local");
   const job = (url.searchParams.get("job") || "").toLowerCase();
@@ -76,3 +97,4 @@ async function handler(req, res) {
 }
 
 module.exports = wrap(handler);
+module.exports.cronAuthorization = cronAuthorization;

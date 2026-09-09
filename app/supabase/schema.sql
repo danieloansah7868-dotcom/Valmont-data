@@ -48,6 +48,23 @@ create table if not exists public.customers (
 create index if not exists customers_phone_idx on public.customers(phone);
 create index if not exists customers_email_idx on public.customers(email);
 
+-- ---------- CUSTOMER OTPs (one short-lived, hashed code per phone) ----------
+-- OTP codes must survive a serverless instance restart. Only an HMAC hash is
+-- stored; the six-digit code itself is never persisted.
+create table if not exists public.customer_otps (
+  id            bigint generated always as identity primary key,
+  phone         text not null unique check (phone ~ '^0[0-9]{9}$'),
+  code_hash     text not null,
+  expires_at    timestamptz not null,
+  attempts      integer not null default 0 check (attempts between 0 and 3),
+  send_count    integer not null default 1 check (send_count between 1 and 5),
+  first_sent_at timestamptz not null default now(),
+  consumed_at   timestamptz,
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now()
+);
+create index if not exists customer_otps_expires_idx on public.customer_otps(expires_at);
+
 -- ---------- SAVED NUMBERS (data lines + momo numbers per customer) ----------
 create table if not exists public.saved_numbers (
   id          bigint generated always as identity primary key,
@@ -112,7 +129,7 @@ create table if not exists public.orders (
   amount              numeric(12,2) not null,           -- sell price at purchase time
   cost_price          numeric(12,2) not null,           -- cost at purchase time (margin history stays accurate)
   status              text not null default 'pending'
-                      check (status in ('pending','paid','delivering','delivered','failed','refunded')),
+                      check (status in ('pending','paid','delivering','delivered','failed','refund_pending','refunded')),
   provider_reference  text unique,                      -- Valmont-Pay payment ref — IDEMPOTENCY KEY
   supplier_ref        text,
   supplier_response   jsonb,                            -- full supplier reply for dispute settling
@@ -120,7 +137,11 @@ create table if not exists public.orders (
   customer_id         bigint references public.customers(id),
   auto_reload_id      bigint references public.auto_reload(id),  -- set when this order was created by the auto-reload engine
   created_at          timestamptz not null default now(),
-  delivered_at        timestamptz
+  delivered_at        timestamptz,
+  refund_requested_at timestamptz,                         -- money is being manually returned by the gateway operator
+  refund_completed_at timestamptz,
+  refund_completed_by text,
+  refund_note         text
 );
 create index if not exists orders_status_idx      on public.orders(status);
 create index if not exists orders_created_idx    on public.orders(created_at desc);
@@ -224,6 +245,7 @@ $$;
 alter table public.networks      enable row level security;
 alter table public.bundles       enable row level security;
 alter table public.customers     enable row level security;
+alter table public.customer_otps  enable row level security;
 alter table public.saved_numbers enable row level security;
 alter table public.sms_leads     enable row level security;
 alter table public.orders        enable row level security;
@@ -241,6 +263,7 @@ revoke all on public.bundles from anon;
 
 -- anon: no access to customer accounts or saved numbers
 revoke all on public.customers from anon;
+revoke all on public.customer_otps from anon, authenticated;
 revoke all on public.saved_numbers from anon;
 
 -- anon: no access to bundle usage or auto-reload opt-ins — both are managed
@@ -449,6 +472,12 @@ create table if not exists public.product_reviews (
   title           text check (title is null or length(btrim(title)) between 1 and 80),
   body            text check (body is null or length(btrim(body)) between 1 and 600),
   status          text not null default 'published' check (status in ('published','removed')),
+  hidden_by_admin boolean not null default false,             -- blocks author-side republishing until an admin unhides it
+  admin_hidden_at timestamptz,
+  admin_unhidden_at timestamptz,
+  moderated_at    timestamptz,
+  moderated_by    text,
+  moderation_history jsonb not null default '[]'::jsonb, -- append-only hide/unhide provenance retained with the row
   created_at      timestamptz not null default now(),
   updated_at      timestamptz not null default now(),
   unique (bundle_id, customer_id)                          -- one review per customer per bundle
@@ -456,6 +485,7 @@ create table if not exists public.product_reviews (
 create index if not exists product_reviews_bundle_idx   on public.product_reviews(bundle_id, created_at desc);
 create index if not exists product_reviews_status_idx   on public.product_reviews(status);
 create index if not exists product_reviews_customer_idx on public.product_reviews(customer_id);
+create index if not exists product_reviews_admin_hidden_idx on public.product_reviews(hidden_by_admin, status);
 
 -- Aggregate for one bundle: PUBLISHED rows only, so no number can be quoted
 -- that the page is not also showing.
@@ -466,7 +496,8 @@ language sql stable as $$
          coalesce(round(avg(rating)::numeric, 2), 0)
   from   public.product_reviews
   where  bundle_id = p_bundle_id
-    and  status = 'published';
+    and  status = 'published'
+    and  hidden_by_admin = false;
 $$;
 
 alter table public.product_reviews enable row level security;
@@ -475,7 +506,7 @@ alter table public.product_reviews enable row level security;
 drop policy if exists product_reviews_public_read on public.product_reviews;
 create policy product_reviews_public_read on public.product_reviews
   for select to anon, authenticated
-  using (status = 'published');
+  using (status = 'published' and hidden_by_admin = false);
 -- No write policies for anon/authenticated: every insert/update goes through the
 -- API with the service role key, which is what keeps "verified purchase" true.
 

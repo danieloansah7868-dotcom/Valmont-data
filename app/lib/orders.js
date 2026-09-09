@@ -7,6 +7,7 @@ const { db } = require("./supabase");
 const { getSupplierRouter } = require("./supplier");
 const { notify } = require("./notify");
 const valmontpay = require("./valmontpay");
+const reviews = require("./reviews");
 const { genReference } = require("./ids");
 
 const MAX_ATTEMPTS = 3;
@@ -47,6 +48,16 @@ async function addFloatEntry(networkId, direction, amount, orderId, note) {
 
 /* ---------- create ---------- */
 async function createOrder(bundle, phone, networkId, customerId = null, opts = {}) {
+  // Refuse to create a paid order unless its delivery route is explicitly
+  // configured. In production this excludes the local mock supplier.
+  const network = await findNetworkById(networkId);
+  if (!network) {
+    const err = new Error("Network not found");
+    err.status = 400;
+    throw err;
+  }
+  getSupplierRouter().assertAvailable(network.code);
+
   const reference = genReference();
   const row = {
     reference,
@@ -135,7 +146,47 @@ async function creditResellerEarning(order) {
 async function enrich(order) {
   const bundle = await findBundleById(order.bundle_id);
   const network = await findNetworkById(order.network_id);
+  if (!bundle || !network) throw new Error(`Order ${order.reference} has an unavailable bundle or network`);
   return { ...order, size_mb: bundle.size_mb, validity_days: bundle.validity_days, network_code: network.code };
+}
+
+function normalDigits(value) {
+  return String(value || "").replace(/\D/g, "");
+}
+
+function originatingWhatsAppMatchesBuyer(whatsappFrom, buyerPhone) {
+  const wa = normalDigits(whatsappFrom);
+  const phone = normalDigits(buyerPhone);
+  return /^233\d{9}$/.test(wa) && /^0\d{9}$/.test(phone) && wa === `233${phone.slice(1)}`;
+}
+
+/**
+ * Invitations deliberately follow two distinct consent-safe relationships:
+ * - SMS goes only to the purchaser's account phone when it is the delivery
+ *   recipient too. We never text an unrelated recipient an account link.
+ * - WhatsApp goes only to an account whose verified account phone is the same
+ *   WhatsApp sender. That buyer may legitimately send a bundle to someone else.
+ */
+async function reviewInvitationLinks(order) {
+  if (!order?.customer_id || !order?.network_code || !order?.size_mb) return {};
+  try {
+    const customers = await db.select({ from: "customers", where: { id: `eq.${order.customer_id}` }, limit: 1 });
+    const customer = customers[0];
+    if (!customer) return {};
+    const url = reviews.reviewUrl(order.network_code, order.size_mb);
+    if (!url) return {};
+    const buyerPhone = normalDigits(customer.phone);
+    const recipientPhone = normalDigits(order.phone);
+    return {
+      sms_review_url: buyerPhone && buyerPhone === recipientPhone ? url : null,
+      whatsapp_review_url: originatingWhatsAppMatchesBuyer(order.whatsapp_from, customer.phone) ? url : null,
+    };
+  } catch (error) {
+    // A receipt must remain deliverable if a review link cannot be generated;
+    // log the configuration/data issue rather than inventing a fallback URL.
+    console.error(`[orders] review invitation omitted for ${order.reference}: ${error.message}`);
+    return {};
+  }
 }
 
 async function deliverOrder(order) {
@@ -152,6 +203,11 @@ async function deliverOrder(order) {
   }
 
   const supplier = getSupplierRouter();
+  const availability = supplier.preflight(full.network_code);
+  if (!availability.ok) {
+    await refundOrder(order, `Delivery cannot start safely: ${availability.error}`);
+    return { ok: false, reason: "supplier_unavailable", attempts };
+  }
   const result = await supplier.submit({
     reference: order.reference,
     network: full.network_code,
@@ -189,8 +245,10 @@ async function deliverOrder(order) {
       delivered_at: nowIso,
     });
     await addFloatEntry(order.network_id, "debit", order.cost_price, order.id, "delivery cost");
+    const invitations = await reviewInvitationLinks(full);
     await notify.receipt({
       ...order, ...full,
+      ...invitations,
       supplier_ref: result.supplier_ref,
       whatsapp_from: order.whatsapp_from || null,
       channel: order.channel || "web",
@@ -248,26 +306,101 @@ async function deliverOrder(order) {
     attempts,
   });
   if (attempts >= MAX_ATTEMPTS) {
-    await notify.alert(`Order ${order.reference} FAILED permanently (${MAX_ATTEMPTS} attempts): ${result.error}`);
+    await notify.alert(`Order ${order.reference} failed delivery after ${MAX_ATTEMPTS} attempts: ${result.error}`);
+    // A real payment that cannot be fulfilled must be reconciled, not merely
+    // left as a failed order while the customer has been charged.
+    if (valmontpay.mode() === "live") {
+      const refund = await refundOrder(order, `Delivery could not be completed after ${MAX_ATTEMPTS} attempts: ${result.error}`);
+      return { ok: false, reason: result.error, attempts, refund_status: refund.status || null };
+    }
   } else {
     await notify.alert(`Order ${order.reference} delivery failed (attempt ${attempts}/${MAX_ATTEMPTS}): ${result.error} — auto-retry queued`);
   }
   return { ok: false, reason: result.error, attempts };
 }
 
-/* ---------- refund (race-condition / amount-mismatch path) ---------- */
+/* ---------- refunds ----------
+   Valmont-Pay does not expose a supported automated refund endpoint. In live
+   mode, a payment problem becomes refund_pending until an administrator has
+   completed the real gateway action and explicitly records it. Local dev keeps
+   its deterministic simulated-refund path for the existing no-gateway flow. */
 async function refundOrder(order, reason) {
-  await setStatus(order.id, "refunded", { supplier_response: { refunded: true, reason } });
-  if (order.provider_reference) {
-    await valmontpay.refund(order.provider_reference).catch((e) => console.error("refund call failed", e.message));
+  const fresh = await findOrderByReference(order.reference) || order;
+  if (["refunded", "refund_pending"].includes(fresh.status)) {
+    return { ok: true, status: fresh.status, already_handled: true };
   }
-  await notify.refunded(order, reason);
-  await notify.alert(`Order ${order.reference} auto-refunded: ${reason}`);
+
+  const now = new Date().toISOString();
+  const supplierResponse = {
+    ...(fresh.supplier_response || {}),
+    refund_reason: String(reason || "Delivery could not be completed").slice(0, 500),
+    refund_gateway: "manual",
+  };
+
+  if (valmontpay.mode() === "live") {
+    const pendingRows = await db.update("orders", {
+      status: "refund_pending",
+      refund_requested_at: now,
+      refund_note: String(reason || "Delivery could not be completed").slice(0, 500),
+      supplier_response: supplierResponse,
+    }, { id: `eq.${fresh.id}`, status: "in.(paid,delivering,failed)" });
+    const pending = pendingRows[0];
+    if (!pending) {
+      const current = await findOrderByReference(fresh.reference);
+      return { ok: false, status: current?.status || "unknown", reason: "refund state changed" };
+    }
+    await notify.refundPending(pending, pending.refund_note);
+    await notify.alert(`Order ${pending.reference} requires a manual gateway refund: ${pending.refund_note}`);
+    return { ok: true, status: "refund_pending", order: pending };
+  }
+
+  const refundedRows = await db.update("orders", {
+    status: "refunded",
+    refund_requested_at: now,
+    refund_completed_at: now,
+    refund_completed_by: "local-development",
+    refund_note: String(reason || "Simulated local refund").slice(0, 500),
+    supplier_response: { ...supplierResponse, simulated: true },
+  }, { id: `eq.${fresh.id}`, status: "in.(paid,delivering,failed)" });
+  const refunded = refundedRows[0];
+  if (!refunded) return { ok: false, reason: "refund state changed" };
+  await notify.refunded(refunded, refunded.refund_note);
+  await notify.alert(`Order ${refunded.reference} simulated local refund completed: ${refunded.refund_note}`);
+  return { ok: true, status: "refunded", order: refunded };
+}
+
+/** Records completion only after an administrator has performed the gateway refund. */
+async function completeRefund(orderId, actor, note) {
+  const rows = await db.select({ from: "orders", where: { id: `eq.${orderId}` }, limit: 1 });
+  const order = rows[0];
+  if (!order) return { ok: false, status: 404, error: "Order not found" };
+  if (order.status !== "refund_pending") {
+    return { ok: false, status: 409, error: "Only a refund pending order can be marked completed" };
+  }
+  const now = new Date().toISOString();
+  const finalNote = String(note || order.refund_note || "Refund completed by administrator").trim().slice(0, 500);
+  const updatedRows = await db.update("orders", {
+    status: "refunded",
+    refund_completed_at: now,
+    refund_completed_by: String(actor || "administrator").slice(0, 80),
+    refund_note: finalNote,
+    supplier_response: {
+      ...(order.supplier_response || {}),
+      refund_gateway: "manual",
+      refund_completed: true,
+      refund_completed_at: now,
+    },
+  }, { id: `eq.${order.id}`, status: "eq.refund_pending" });
+  const updated = updatedRows[0];
+  if (!updated) return { ok: false, status: 409, error: "Refund state changed; refresh and try again" };
+  await notify.refunded(updated, finalNote);
+  await notify.alert(`Order ${updated.reference} manual gateway refund marked completed by ${updated.refund_completed_by}`);
+  return { ok: true, order: updated };
 }
 
 /* ---------- retry (admin + cron) ---------- */
 async function retryOrder(order) {
-  if (["delivered", "refunded"].includes(order.status)) return { retried: false, reason: "final status" };
+  if (["delivered", "refunded", "refund_pending"].includes(order.status)) return { retried: false, reason: "final status" };
   if (Number(order.attempts || 0) >= MAX_ATTEMPTS) return { retried: false, reason: "max attempts reached" };
   const fresh = await findOrderByReference(order.reference);
   if (!fresh) return { retried: false, reason: "order not found" };
@@ -302,5 +435,7 @@ module.exports = {
   enrich,
   deliverOrder,
   refundOrder,
+  completeRefund,
+  reviewInvitationLinks,
   retryOrder,
 };

@@ -8,6 +8,9 @@
   const TOKEN_KEY = "vd_admin_token";
   const fmt = (n) => "GH₵" + Number(n).toFixed(2);
   const NET_NAMES = { mtn: "MTN", telecel: "Telecel", airteltigo: "AirtelTigo" };
+  const escapeHtml = (value) => String(value == null ? "" : value).replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[c]));
 
   let activePlDays = 7;
   let syncReviewData = null;
@@ -100,13 +103,14 @@
       $$(".admin-tab").forEach((x) => x.classList.remove("on"));
       t.classList.add("on");
       const activeTab = t.dataset.tab;
-      ["float", "prices", "orders", "pl", "smsleads", "webhooks", "overview"].forEach((k) => {
+      ["float", "prices", "orders", "reviews", "pl", "smsleads", "webhooks", "overview"].forEach((k) => {
         const panel = $("#tab-" + k);
         if (panel) panel.style.display = k === activeTab ? "block" : "none";
       });
       if (activeTab === "float") loadFloat();
       else if (activeTab === "prices") loadCatalog();
       else if (activeTab === "orders") loadOrders();
+      else if (activeTab === "reviews") loadReviews();
       else if (activeTab === "pl") loadPl(activePlDays);
       else if (activeTab === "smsleads") loadSmsLeads();
       else if (activeTab === "webhooks") loadWebhooks();
@@ -326,31 +330,37 @@
     }
   });
 
-  /* ---------- orders ---------- */
+  /* ---------- orders + manual refund completion ---------- */
   async function loadOrders() {
     try {
       const status = $("#fStatus")?.value || "all";
       const network = $("#fNetwork")?.value || "all";
       const isFiltered = status !== "all" || network !== "all";
-      const d = await api(`/api/admin/orders?status=${status}&network=${network}&limit=60`);
+      const d = await api(`/api/admin/orders?status=${encodeURIComponent(status)}&network=${encodeURIComponent(network)}&limit=60`);
       const body = $("#ordersBody");
       if (!body) return;
       body.innerHTML = d.orders && d.orders.length
         ? d.orders
-            .map(
-              (o) => `<tr>
-                <td><b style="color:#fff">${o.reference}</b></td>
-                <td>${o.phone}</td>
-                <td>${o.bundle} <span class="net-chip ${o.network}">${NET_NAMES[o.network] || ""}</span></td>
+            .map((o) => {
+              const actions = [];
+              if (o.retryable) actions.push(`<button class="btn btn-ghost btn-sm" data-retry="${escapeHtml(o.reference)}">Retry</button>`);
+              if (o.refund_completable) actions.push(`<button class="btn btn-orange btn-sm" data-complete-refund="${escapeHtml(o.reference)}">Mark gateway refund completed</button>`);
+              const refundInfo = o.status === "refund_pending"
+                ? `<small style="display:block;color:var(--orange);margin-top:4px">${escapeHtml(o.refund_note || "Awaiting manual gateway refund")}</small>`
+                : "";
+              return `<tr>
+                <td><b style="color:#fff">${escapeHtml(o.reference)}</b></td>
+                <td>${escapeHtml(o.phone)}</td>
+                <td>${escapeHtml(o.bundle || "—")} <span class="net-chip ${escapeHtml(o.network || "")}">${escapeHtml(NET_NAMES[o.network] || "")}</span></td>
                 <td>${fmt(o.amount)}</td>
                 <td style="color:var(--muted)">${fmt(o.cost)}</td>
                 <td>${fmt(o.margin)}</td>
-                <td><span class="pill ${o.status}">${o.status}</span></td>
-                <td>${o.attempts}</td>
-                <td>${o.supplier ? `<small style="display:block;color:var(--orange)">${o.supplier}</small>` : ""}${o.supplier_error ? `<span class="err">${o.supplier_error}</span>` : o.supplier_ref || "—"}</td>
-                <td>${o.retryable ? `<button class="btn btn-ghost btn-sm" data-retry="${o.reference}">Retry</button>` : ""}</td>
-              </tr>`
-            )
+                <td><span class="pill ${escapeHtml(o.status)}">${escapeHtml(o.status === "refund_pending" ? "refund pending" : o.status)}</span>${refundInfo}</td>
+                <td>${Number(o.attempts || 0)}</td>
+                <td>${o.supplier ? `<small style="display:block;color:var(--orange)">${escapeHtml(o.supplier)}</small>` : ""}${o.supplier_error ? `<span class="err">${escapeHtml(o.supplier_error)}</span>` : escapeHtml(o.supplier_ref || "—")}</td>
+                <td>${actions.join(" ")}</td>
+              </tr>`;
+            })
             .join("")
         : `<tr><td colspan="10" class="empty">${isFiltered ? "No orders match the selected filters." : "No orders yet — they'll appear here after your first sale."}</td></tr>`;
 
@@ -370,6 +380,29 @@
           }
         })
       );
+
+      $$("[data-complete-refund]").forEach((b) =>
+        b.addEventListener("click", async () => {
+          const reference = b.dataset.completeRefund;
+          const sure = window.confirm(
+            `Confirm that you completed the real Valmont-Pay gateway refund for ${reference}. This does not submit a refund; it records your completed action.`
+          );
+          if (!sure) return;
+          const note = window.prompt("Gateway reconciliation note (optional):", "") || "";
+          b.disabled = true;
+          try {
+            await api("/api/admin/orders/refund-complete", {
+              method: "POST",
+              body: JSON.stringify({ reference, gateway_refund_completed: true, note }),
+            });
+            alert(`${reference}: refund completion recorded.`);
+            loadOrders();
+          } catch (err) {
+            alert(err.message);
+            b.disabled = false;
+          }
+        })
+      );
     } catch {
       // Handled by api()
     }
@@ -378,6 +411,76 @@
   $("#orderFilters")?.addEventListener("submit", (e) => {
     e.preventDefault();
     loadOrders();
+  });
+
+  /* ---------- review moderation (folded /api/account endpoint) ---------- */
+  function reviewAudit(review) {
+    const history = Array.isArray(review.moderation_history) ? review.moderation_history : [];
+    if (!history.length) return "No moderation action yet";
+    return history.slice(-2).map((entry) => {
+      const when = entry.at ? new Date(entry.at).toLocaleString("en-GH") : "unknown time";
+      return `${escapeHtml(entry.action || "action")} · ${escapeHtml(entry.by || "administrator")} · ${escapeHtml(when)}`;
+    }).join("<br>");
+  }
+
+  async function loadReviews() {
+    const message = $("#reviewAdminMsg");
+    try {
+      const network = $("#reviewNetwork")?.value || "all";
+      const status = $("#reviewStatus")?.value || "all";
+      const d = await api(`/api/reviews/admin?network=${encodeURIComponent(network)}&status=${encodeURIComponent(status)}&limit=100`);
+      const body = $("#reviewsBody");
+      if (!body) return;
+      const rows = d.reviews || [];
+      if (message) message.textContent = `${rows.length} review${rows.length === 1 ? "" : "s"} shown.`;
+      body.innerHTML = rows.length
+        ? rows.map((r) => {
+            const verification = r.order_verification || {};
+            const verified = verification.valid
+              ? `<b style="color:var(--green)">✓ ${escapeHtml(verification.reason || "Delivered order verified")}</b>`
+              : `<b style="color:var(--red)">✗ ${escapeHtml(verification.reason || "Order link could not be verified")}</b>`;
+            const transition = r.status === "published" ? "removed" : "published";
+            const action = r.status === "published" ? "Hide" : "Unhide";
+            const stars = "★".repeat(Math.max(0, Math.min(5, Number(r.rating) || 0)));
+            const size = Number(r.size_mb) >= 1024 ? `${Number(r.size_mb) / 1024}GB` : `${Number(r.size_mb)}MB`;
+            return `<tr>
+              <td><span class="net-chip ${escapeHtml(r.network || "")}">${escapeHtml(NET_NAMES[r.network] || r.network || "—")}</span> <b>${escapeHtml(size)}</b></td>
+              <td><b style="color:var(--orange)">${stars}</b> ${Number(r.rating) || "—"}/5<br><b>${escapeHtml(r.title || "Untitled review")}</b><br><small style="color:var(--muted)">${escapeHtml(r.body || "No written comment")}</small></td>
+              <td>${verified}<br><code>${escapeHtml(r.order_reference || verification.reference || "—")}</code><br><small>${escapeHtml(verification.order_status || "unknown")}</small></td>
+              <td><span class="pill ${escapeHtml(r.status)}">${escapeHtml(r.status === "removed" ? "hidden" : r.status)}</span><br><small>${escapeHtml(r.author || "Valmont customer")}</small></td>
+              <td><small>${reviewAudit(r)}</small></td>
+              <td><button class="btn ${r.status === "published" ? "btn-ghost" : "btn-orange"} btn-sm" data-review-transition="${Number(r.id)}" data-review-status="${transition}">${action}</button></td>
+            </tr>`;
+          }).join("")
+        : '<tr><td colspan="6" class="empty">No reviews match the selected filters.</td></tr>';
+
+      $$("[data-review-transition]").forEach((button) => {
+        button.addEventListener("click", async () => {
+          const id = Number(button.dataset.reviewTransition);
+          const nextStatus = button.dataset.reviewStatus;
+          const action = nextStatus === "removed" ? "hide" : "unhide";
+          if (!window.confirm(`Are you sure you want to ${action} this review? The review will be retained with its audit history.`)) return;
+          button.disabled = true;
+          try {
+            await api("/api/reviews/admin", {
+              method: "POST",
+              body: JSON.stringify({ id, status: nextStatus }),
+            });
+            loadReviews();
+          } catch (err) {
+            alert(err.message);
+            button.disabled = false;
+          }
+        });
+      });
+    } catch (error) {
+      if (message) message.innerHTML = `<span class="err">${escapeHtml(error.message)}</span>`;
+    }
+  }
+
+  $("#reviewFilters")?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    loadReviews();
   });
 
   /* ---------- P&L ---------- */

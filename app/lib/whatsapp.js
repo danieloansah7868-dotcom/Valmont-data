@@ -13,14 +13,28 @@
    ============================================================================ */
 
 const { db } = require("./supabase");
+const { isDeployment, secretIsStrong } = require("./runtime");
 
 const API_BASE = "https://graph.facebook.com/v21.0";
 
 function token() { return process.env.WHATSAPP_TOKEN || ""; }
 function phoneId() { return process.env.WHATSAPP_PHONE_ID || ""; }
-function verifyToken() { return process.env.WHATSAPP_VERIFY_TOKEN || "valmont-data-verify"; }
-function mode() { return process.env.WHATSAPP_MODE === "live" ? "live" : "dev"; }
+function verifyToken() {
+  // Keep the local test default, but a deployed webhook must never accept it.
+  const value = process.env.WHATSAPP_VERIFY_TOKEN || "";
+  if (isDeployment() && !secretIsStrong(value, { minLength: 16, disallow: ["valmont-data-verify", "changeme"] })) return "";
+  return value || "valmont-data-verify";
+}
+function mode() { return isDeployment() ? "live" : (process.env.WHATSAPP_MODE === "live" ? "live" : "dev"); }
 function configured() { return !!(token() && phoneId()); }
+function hasUnsafeDeploymentMode() {
+  // Deployment must be explicitly live. Treat every local-only value (including
+  // mock and dev), rather than only `mock`, as unsafe even if credentials happen
+  // to be present alongside it.
+  const configuredMode = String(process.env.WHATSAPP_MODE || "").toLowerCase();
+  return isDeployment() && configuredMode !== "live";
+}
+function canSendLive() { return mode() === "live" && configured() && !hasUnsafeDeploymentMode(); }
 
 /* ---------------- send a text message ---------------- */
 async function sendText(to, text) {
@@ -32,10 +46,14 @@ async function sendText(to, text) {
     phone: String(to),
     message_type: "text",
     message_body: text.slice(0, 4096),
-    status: mode() === "live" ? "sending" : "dev",
+    status: canSendLive() ? "sending" : (isDeployment() ? "unconfigured" : "dev"),
   }).catch(() => {});
 
-  if (mode() !== "live" || !configured()) {
+  if (!canSendLive()) {
+    if (isDeployment()) {
+      console.error("[whatsapp] live WhatsApp is not safely configured; refusing mock success");
+      return { sent: false, error: "WhatsApp delivery is not configured" };
+    }
     console.log(`[whatsapp:dev] → ${to}: ${text.replace(/\n/g, " | ").slice(0, 200)}`);
     return { sent: true, dev: true, to, text };
   }
@@ -82,10 +100,14 @@ async function sendButtons(to, text, buttons) {
     phone: String(to),
     message_type: "interactive",
     message_body: text.slice(0, 4096),
-    status: mode() === "live" ? "sending" : "dev",
+    status: canSendLive() ? "sending" : (isDeployment() ? "unconfigured" : "dev"),
   }).catch(() => {});
 
-  if (mode() !== "live" || !configured()) {
+  if (!canSendLive()) {
+    if (isDeployment()) {
+      console.error("[whatsapp] live WhatsApp is not safely configured; refusing mock success");
+      return { sent: false, error: "WhatsApp delivery is not configured" };
+    }
     const btnLabel = buttons.map((b) => `[${b.id}] ${b.title}`).join(" | ");
     console.log(`[whatsapp:dev] → ${to}: ${text.replace(/\n/g, " | ").slice(0, 200)} — buttons: ${btnLabel}`);
     return { sent: true, dev: true, to, text, buttons };
@@ -129,10 +151,14 @@ function verifyWebhook(query) {
   const mode_ = query["hub.mode"];
   const token_ = query["hub.verify_token"];
   const challenge = query["hub.challenge"];
-  if (mode_ === "subscribe" && token_ === verifyToken()) {
+  // A deployed endpoint must not register a webhook while it is configured for
+  // mock/dev handling, even if somebody accidentally supplied a strong token.
+  if (hasUnsafeDeploymentMode()) return { valid: false };
+  const expected = verifyToken();
+  if (expected && mode_ === "subscribe" && token_ === expected) {
     return { valid: true, challenge };
   }
   return { valid: false };
 }
 
-module.exports = { sendText, sendButtons, verifyWebhook, configured, mode, verifyToken };
+module.exports = { sendText, sendButtons, verifyWebhook, configured, mode, verifyToken, canSendLive, hasUnsafeDeploymentMode };

@@ -174,6 +174,32 @@
     );
   }
 
+  function reviewReturnPath() {
+    // `location` always exists in browsers. The guard also keeps the widget
+    // harmless when a no-DOM test or pre-render tool evaluates this file.
+    const pathname = typeof location !== "undefined" && location ? location.pathname || "" : "";
+    const match = /^\/rev\/(mtn|telecel|airteltigo)\/([0-9]+(?:-[0-9]+)?(?:mb|gb))\/?$/i.exec(pathname);
+    if (!match) return "";
+    return `/rev/${match[1].toLowerCase()}/${match[2].toLowerCase()}`;
+  }
+
+  function reviewSignInHref() {
+    const destination = reviewReturnPath();
+    return destination ? `/signin.html?return=${encodeURIComponent(destination)}` : "/signin.html";
+  }
+
+  /** A direct review invitation should land on the review form after auth, not
+      merely show a generic product page at the top. */
+  function focusInvitation(mount) {
+    if (!reviewReturnPath()) return;
+    const focusable = $(".rv-form input[name=rv-rating]", mount) || $(".rv-link", mount);
+    if (!focusable) return;
+    window.setTimeout(() => {
+      mount.scrollIntoView({ behavior: "smooth", block: "center" });
+      focusable.focus({ preventScroll: true });
+    }, 0);
+  }
+
   /** The form, or the honest reason there is no form. */
   function panelHtml(data, label) {
     const you = data.you;
@@ -182,16 +208,19 @@
       return (
         '<div class="rv-panel rv-panel-note">' +
           "<p><b>Reviewed this bundle?</b> Sign in with the account you ordered with — reviews are open to verified buyers only.</p>" +
-          '<p><a class="rv-link" href="/signin.html">Sign in to review ' + esc(label) + "</a></p>" +
+          '<p><a class="rv-link" href="' + reviewSignInHref() + '">Sign in to review ' + esc(label) + "</a></p>" +
         "</div>"
       );
     }
 
     if (!you.can_review) {
+      const hidden = you.reason === "hidden-by-admin";
       return (
         '<div class="rv-panel rv-panel-note">' +
-          "<p>You can review " + esc(label) + " once an order for it shows as <b>delivered</b> on your account. We do not open reviews to accounts that have not received the bundle.</p>" +
-          '<p><a class="rv-link" href="/history.html">Check your order history</a></p>' +
+          (hidden
+            ? "<p>Your review is currently hidden by an administrator. It cannot be republished or changed from this page.</p>"
+            : "<p>You can review " + esc(label) + " once an order for it shows as <b>delivered</b> on your account. We do not open reviews to accounts that have not received the bundle.</p>") +
+          (hidden ? "" : '<p><a class="rv-link" href="/history.html">Check your order history</a></p>') +
         "</div>"
       );
     }
@@ -308,6 +337,7 @@
     ctx.reviewId = data.you && data.you.review ? data.you.review.id : null;
     render(mount, data, ctx.label);
     wire(mount, ctx);
+    focusInvitation(mount);
   }
 
   async function refresh(mount, ctx) {
@@ -338,5 +368,5 @@
   else init();
 
   // Exposed for the test suite and for debugging from the console.
-  window.ValmontReviews = { init, load, syncSchema };
+  window.ValmontReviews = { init, load, syncSchema, reviewReturnPath, reviewSignInHref };
 })();

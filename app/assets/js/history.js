@@ -61,6 +61,10 @@
   function netShort(code) {
     return { mtn: "MTN", telecel: "TELECEL", airteltigo: "AT" }[code] || (code || "?").toUpperCase();
   }
+  function safeReviewHref(value) {
+    const path = String(value || "");
+    return /^\/rev\/(mtn|telecel|airteltigo)\/[0-9]+(?:-[0-9]+)?(?:mb|gb)$/.test(path) ? path : "";
+  }
 
   function toast(msg, bad) {
     const t = document.createElement("div");
@@ -212,6 +216,7 @@
 
   function cardHtml(o) {
     const open = state.open.has(o.track);
+    const reviewHref = o.status === "delivered" ? safeReviewHref(o.review_url) : "";
     return `
     <div class="ord-card ${open ? "open" : ""}" data-track="${esc(o.track)}">
       <button class="ord-top" data-toggle>
@@ -263,6 +268,7 @@
         </div>
 
         <div class="ord-actions">
+          ${reviewHref ? `<a class="btn-review" href="${esc(reviewHref)}">☆ Write a verified review</a>` : ""}
           <button class="btn-copy-all" data-copy-all>${COPY_ICON} Copy All Details</button>
           <button class="btn-receipt" data-receipt>🧾 Receipt for Customer</button>
         </div>

@@ -11,10 +11,11 @@
 
 const crypto = require("crypto");
 const { json, readRawBody, wrap } = require("../../lib/http");
-const { sign } = require("../../lib/auth");
+const { sign, assertConfigured } = require("../../lib/auth");
 const { db } = require("../../lib/supabase");
 const phones = require("../../lib/phones");
 const sms = require("../../lib/sms");
+const { isDeployment } = require("../../lib/runtime");
 
 const CUSTOMER_TTL = 30 * 24 * 60 * 60 * 1000; // 30 days
 const OTP_TTL = 5 * 60 * 1000; // 5 minutes
@@ -22,8 +23,9 @@ const MAX_ATTEMPTS = 3;
 const RATE_LIMIT_WINDOW = 60 * 60 * 1000; // 1 hour
 const MAX_SENDS_PER_HOUR = 5;
 
-// In-memory OTP store (production would use Redis or a DB table)
-const otpStore = new Map();
+// OTP records live in customer_otps. The database retains only an HMAC, never
+// the six-digit code, so a Vercel instance restart cannot invalidate a code or
+// expose it through a database read.
 
 function hashSecret(secret) {
   const salt = crypto.randomBytes(16).toString("hex");
@@ -53,7 +55,29 @@ function extractFirstName(name, email, phone) {
 }
 
 function generateOTP() {
-  return String(Math.floor(100000 + Math.random() * 900000));
+  // crypto.randomInt avoids predictable Math.random() values for an auth code.
+  return String(crypto.randomInt(100000, 1000000));
+}
+
+function otpHash(phone, code) {
+  // assertConfigured() runs before this route handles a request. Binding the
+  // hash to the normalized phone prevents a valid code being moved to another
+  // phone record.
+  return crypto
+    .createHmac("sha256", process.env.AUTH_SECRET)
+    .update(`valmont-data:otp:v1:${phone}:${code}`)
+    .digest("hex");
+}
+
+function sameHash(a, b) {
+  const left = Buffer.from(String(a || ""), "utf8");
+  const right = Buffer.from(String(b || ""), "utf8");
+  return left.length > 0 && left.length === right.length && crypto.timingSafeEqual(left, right);
+}
+
+function asMs(value) {
+  const n = new Date(value || 0).getTime();
+  return Number.isFinite(n) ? n : 0;
 }
 
 function parseOtpAction(req) {
@@ -68,51 +92,68 @@ function parseOtpAction(req) {
   return null;
 }
 
+async function findOtp(phone) {
+  const rows = await db.select({ from: "customer_otps", where: { phone: `eq.${phone}` }, limit: 1 });
+  return rows[0] || null;
+}
+
 async function handleOtpSend(req, res, body) {
   const phoneRaw = body.phone || "";
   const check = phones.validate(phoneRaw);
   if (!check.valid) return json(res, 400, { error: check.reason });
   const phone = check.normalized;
+  const now = Date.now();
+  const nowIso = new Date(now).toISOString();
+  const existing = await findOtp(phone);
 
-  // Rate limit
-  const key = `otp:${phone}`;
-  const existing = otpStore.get(key);
-  if (existing && existing.sends >= MAX_SENDS_PER_HOUR) {
-    const elapsed = Date.now() - existing.firstSend;
-    if (elapsed < RATE_LIMIT_WINDOW) {
-      return json(res, 429, { error: "Too many codes sent. Please wait before trying again." });
-    }
+  // A resend replaces the old hash and gets a fresh five-minute expiry, but the
+  // per-phone five-successful-send window survives serverless restarts.
+  const withinWindow = existing && asMs(existing.first_sent_at) > now - RATE_LIMIT_WINDOW;
+  const previousSends = withinWindow ? Number(existing.send_count || 0) : 0;
+  if (previousSends >= MAX_SENDS_PER_HOUR) {
+    return json(res, 429, { error: "Too many codes sent. Please wait before trying again." });
   }
 
-  // Generate OTP
   const code = generateOTP();
-  const record = {
-    code,
-    phone,
-    expires: Date.now() + OTP_TTL,
+  const fields = {
+    code_hash: otpHash(phone, code),
+    expires_at: new Date(now + OTP_TTL).toISOString(),
     attempts: 0,
-    sends: (existing?.sends || 0) + 1,
-    firstSend: existing?.firstSend || Date.now(),
+    send_count: previousSends + 1,
+    first_sent_at: withinWindow ? existing.first_sent_at : nowIso,
+    consumed_at: null,
+    updated_at: nowIso,
   };
-  otpStore.set(key, record);
 
-  // Clean up old entries (simple GC)
-  if (otpStore.size > 10000) {
-    const now = Date.now();
-    for (const [k, v] of otpStore) {
-      if (v.expires < now) otpStore.delete(k);
-    }
+  if (existing) {
+    await db.update("customer_otps", fields, { id: `eq.${existing.id}` });
+  } else {
+    await db.insert("customer_otps", { phone, ...fields, created_at: nowIso });
   }
 
-  // Send SMS
-  const result = await sms.sendSMS(phone, `Your Valmont Data code is ${code}. It expires in 5 minutes. Don't share it.`);
+  let result;
+  try {
+    result = await sms.sendSMS(phone, `Your Valmont Data code is ${code}. It expires in 5 minutes. Don't share it.`);
+  } catch (err) {
+    result = { sent: false, error: err.message };
+  }
+  if (!result || !result.sent) {
+    // Do not leave an undispatched code usable. Preserve the row for rate-limit
+    // accounting and audit, but expire this code immediately.
+    const current = await findOtp(phone);
+    if (current) {
+      await db.update("customer_otps", { expires_at: nowIso, updated_at: nowIso }, { id: `eq.${current.id}` }).catch(() => {});
+    }
+    return json(res, 503, { error: "We could not send a code right now. Please try again shortly." });
+  }
 
+  const dev = Boolean(result.dev) && !isDeployment();
   return json(res, 200, {
     ok: true,
     sent: true,
-    dev: !!result.dev,
-    dev_code: result.dev ? code : undefined, // Only in dev mode
-    message: result.dev
+    dev,
+    dev_code: dev ? code : undefined, // only local mock delivery ever exposes this
+    message: dev
       ? `DEV MODE — OTP code: ${code}`
       : `Code sent to ${phone.slice(0, 4)}***${phone.slice(-2)}`,
   });
@@ -126,37 +167,53 @@ async function handleOtpVerify(req, res, body) {
   if (!check.valid) return json(res, 400, { error: check.reason });
   const phone = check.normalized;
 
-  if (!code || code.length !== 6) {
+  if (!/^\d{6}$/.test(code)) {
     return json(res, 400, { error: "Please enter the 6-digit code" });
   }
 
-  const key = `otp:${phone}`;
-  const record = otpStore.get(key);
+  const record = await findOtp(phone);
+  const now = Date.now();
+  const nowIso = new Date(now).toISOString();
 
-  if (!record) return json(res, 400, { error: "No code sent for this number. Request a new one." });
-  if (record.expires < Date.now()) {
-    otpStore.delete(key);
+  if (!record || record.consumed_at) {
+    return json(res, 400, { error: "No active code for this number. Request a new one." });
+  }
+  if (asMs(record.expires_at) <= now) {
     return json(res, 400, { error: "Code expired. Request a new one." });
   }
-  if (record.attempts >= MAX_ATTEMPTS) {
-    otpStore.delete(key);
+  if (Number(record.attempts || 0) >= MAX_ATTEMPTS) {
     return json(res, 400, { error: "Too many wrong attempts. Request a new code." });
   }
 
-  record.attempts += 1;
-
-  if (record.code !== code) {
+  if (!sameHash(record.code_hash, otpHash(phone, code))) {
+    const attempts = Number(record.attempts || 0) + 1;
+    await db.update(
+      "customer_otps",
+      { attempts, updated_at: nowIso },
+      { id: `eq.${record.id}`, consumed_at: "is.null" }
+    );
+    if (attempts >= MAX_ATTEMPTS) {
+      return json(res, 400, { error: "Too many wrong attempts. Request a new code." });
+    }
     return json(res, 401, { error: "Wrong code. Try again." });
   }
 
-  // Code is valid — clean up
-  otpStore.delete(key);
+  // Conditional consume makes the code single-use even if two verification
+  // requests race on different serverless instances.
+  const consumed = await db.update(
+    "customer_otps",
+    { consumed_at: nowIso, updated_at: nowIso },
+    { id: `eq.${record.id}`, consumed_at: "is.null" }
+  );
+  if (!consumed.length) {
+    return json(res, 400, { error: "This code has already been used. Request a new one." });
+  }
 
   // Find or create customer
   let customer = null;
-  const rows = await db.select({ from: "customers", where: { phone: `eq.${phone}` } });
-  if (rows.length) {
-    customer = rows[0];
+  const customerRows = await db.select({ from: "customers", where: { phone: `eq.${phone}` } });
+  if (customerRows.length) {
+    customer = customerRows[0];
   } else {
     // Auto-create account with a random PIN (they'll use OTP going forward)
     const randomPin = crypto.randomBytes(16).toString("hex");
@@ -164,8 +221,16 @@ async function handleOtpVerify(req, res, body) {
     const hash = crypto.scryptSync(randomPin, salt, 64).toString("hex");
     const pin_hash = `${salt}:${hash}`;
 
-    const inserted = await db.insert("customers", { phone, pin_hash });
-    customer = inserted[0];
+    try {
+      const inserted = await db.insert("customers", { phone, pin_hash });
+      customer = inserted[0];
+    } catch (err) {
+      // A concurrent OTP verification can create the customer first. The code
+      // itself is still single-use; safely use the account that won that race.
+      if (err.status !== 409) throw err;
+      const rows = await db.select({ from: "customers", where: { phone: `eq.${phone}` }, limit: 1 });
+      customer = rows[0] || null;
+    }
 
     // Auto-create "My line"
     if (customer?.id) {
@@ -199,12 +264,16 @@ async function handleOtpVerify(req, res, body) {
       name: customer.name,
       first_name: firstName,
     },
-    new_account: !rows.length,
+    new_account: !customerRows.length,
   });
 }
 
 async function handler(req, res) {
   if (req.method !== "POST") return json(res, 405, { error: "POST only" });
+
+  // Refuse a deployment with a missing/default token secret before creating an
+  // account, issuing an OTP or accepting a password.
+  assertConfigured();
 
   const otpAction = parseOtpAction(req);
   if (otpAction) {

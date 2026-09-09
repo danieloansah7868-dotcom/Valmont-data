@@ -58,6 +58,7 @@
             <button class="admin-tab on" data-tab="float">Float</button>
             <button class="admin-tab" data-tab="prices">Prices &amp; Sync</button>
             <button class="admin-tab" data-tab="orders">Orders</button>
+            <button class="admin-tab" data-tab="reviews">Reviews</button>
             <button class="admin-tab" data-tab="pl">P&amp;L</button>
             <button class="admin-tab" data-tab="smsleads">SMS Leads</button>
             <button class="admin-tab" data-tab="webhooks">Webhook log</button>
@@ -160,7 +161,7 @@
                 <select class="inp" id="fStatus">
                   <option value="all">All</option>
                   <option>pending</option><option>paid</option><option>delivering</option>
-                  <option>delivered</option><option>failed</option><option>refunded</option>
+                  <option>delivered</option><option>failed</option><option>refund_pending</option><option>refunded</option>
                 </select>
               </div>
               <div class="field"><label>Network</label>
@@ -174,6 +175,31 @@
             <div class="table-wrap"><table>
               <thead><tr><th>Reference</th><th>Phone</th><th>Bundle</th><th>Amount</th><th>Cost</th><th>Margin</th><th>Status</th><th>Attempts</th><th>Supplier</th><th></th></tr></thead>
               <tbody id="ordersBody"></tbody>
+            </table></div>
+          </div>
+
+          <!-- REVIEWS -->
+          <div id="tab-reviews" style="display:none">
+            <div class="card" style="background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:14px">
+              <h3 style="color:#fff;font-size:16px;margin:0 0 6px">Verified buyer review moderation</h3>
+              <p style="font-size:12.5px;color:var(--muted);margin:0">Each row is matched against its delivered order. Hiding or unhiding preserves the review and its moderation audit; reviews are never deleted.</p>
+            </div>
+            <form id="reviewFilters" class="filters">
+              <div class="field"><label>Network</label>
+                <select class="inp" id="reviewNetwork">
+                  <option value="all">All networks</option>
+                  <option value="mtn">MTN</option><option value="telecel">Telecel</option><option value="airteltigo">AirtelTigo</option>
+                </select>
+              </div>
+              <div class="field"><label>Review status</label>
+                <select class="inp" id="reviewStatus"><option value="all">All</option><option value="published">Published</option><option value="removed">Hidden</option></select>
+              </div>
+              <button class="btn btn-ghost btn-sm" type="submit">Filter</button>
+            </form>
+            <div id="reviewAdminMsg" style="font-size:13px;margin:0 0 10px"></div>
+            <div class="table-wrap"><table>
+              <thead><tr><th>Bundle</th><th>Rating &amp; review</th><th>Verified order</th><th>State</th><th>Moderation audit</th><th></th></tr></thead>
+              <tbody id="reviewsBody"></tbody>
             </table></div>
           </div>
 

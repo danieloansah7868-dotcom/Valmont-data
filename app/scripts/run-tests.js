@@ -6,14 +6,12 @@
  * short-circuited the chain and the supplier, assistant and SEO suites never ran
  * at all. Nobody notices a broken suite that never executes.
  *
- * So: run all five, print a summary, exit non-zero if anything regressed.
+ * So: run every suite, print a summary, exit non-zero if anything regressed.
  *
- * scripts/test.sh is judged against a baseline rather than against zero
- * failures. On a fresh `SEED_DEMO=1` server the pristine tree at eb0bc71 scores
- * 152 passed / 6 failed — five float checks that assume an *unseeded* float of
- * GH₵200, plus `paused rule not swept`. Those six are environmental, not
- * regressions, so this runner fails only when the pass count drops below the
- * baseline (or a suite cannot run at all).
+ * scripts/test.sh has 158 checks and, on a fresh unseeded `npm run dev`
+ * server, currently finishes 158 passed / 0 failed. Keep that hard floor here
+ * so a deleted/failed API assertion cannot be hidden by the aggregate runner.
+ * This runner also requires the API suite itself to exit successfully.
  *
  * Output is captured rather than inherited so the pass count can be read without
  * running the API suite twice — a second run would hit a database already dirtied
@@ -27,7 +25,7 @@ const { spawnSync } = require("child_process");
 const path = require("path");
 
 const ROOT = path.join(__dirname, "..");
-const API_BASELINE_PASSED = 152;   // eb0bc71 + SEED_DEMO=1, server on :8787
+const API_BASELINE_PASSED = 158;   // current scripts/test.sh count, fresh unseeded server on :8787
 
 const suites = [
   { name: "api pipeline", cmd: "bash", args: ["scripts/test.sh"], baseline: API_BASELINE_PASSED },
@@ -37,6 +35,9 @@ const suites = [
   // Boots its own clean server on :8799, so it needs no SEED_DEMO state — but it
   // does need that port free (REVIEWS_TEST_PORT to move it).
   { name: "reviews", cmd: "node", args: ["scripts/test-reviews.js"] },
+  // Own :8800/:8801 app servers plus a local gateway stand-in. It validates the
+  // live-mode refund state without contacting a real payment service.
+  { name: "delivery safety", cmd: "node", args: ["scripts/test-delivery-safety.js"] },
 ];
 
 const results = [];
@@ -69,7 +70,10 @@ for (const r of results) {
   const label = r.suite.name.padEnd(17);
   if (r.error) { console.log(`  ✘ ${label} could not run — ${r.error.message}`); regressed++; continue; }
   if (r.suite.baseline) {
-    const okRun = r.passed === null ? r.status === 0 : r.passed >= r.suite.baseline;
+    // Now that no API failures are intentionally tolerated, a non-zero exit or
+    // any reported failure is a regression even if the pass count still happens
+    // to meet the historical floor.
+    const okRun = r.status === 0 && r.passed !== null && r.passed >= r.suite.baseline && r.failed === 0;
     console.log(`  ${okRun ? "✔" : "✘"} ${label} ${r.passed === null ? `exit ${r.status}` : `${r.passed} passed, ${r.failed} failed (baseline: ${r.suite.baseline} passed)`}`);
     if (!okRun) regressed++;
   } else {

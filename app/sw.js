@@ -16,7 +16,7 @@
    activate() deletes every older cache (cache versioning).
    ============================================================================ */
 
-const CACHE_NAME = 'valmontdata-v4';
+const CACHE_NAME = 'valmontdata-v5';
 const OFFLINE_URL = '/offline.html';
 
 /* The static app shell — precached on install so first open after install is

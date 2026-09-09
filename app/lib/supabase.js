@@ -7,6 +7,7 @@
    (used by scripts/dev-server.js and CI).
    ============================================================================ */
 
+const { isDeployment, configurationError } = require("./runtime");
 const MOCK = process.env.SUPABASE_MOCK === "1";
 const { buildDemo, BUNDLES } = require("./demo-data");
 
@@ -14,6 +15,9 @@ const { buildDemo, BUNDLES } = require("./demo-data");
 async function rest(path, { method = "GET", body, headers = {} } = {}) {
   const url = (process.env.SUPABASE_URL || "").replace(/\/$/, "");
   if (!url || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    if (isDeployment()) {
+      throw configurationError("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required on deployed endpoints");
+    }
     const err = new Error("SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY not configured");
     err.status = 500;
     throw err;
@@ -47,6 +51,7 @@ const mockState = {
   ],
   bundles: [],
   customers: [],
+  customer_otps: [],
   saved_numbers: [],
   sms_leads: [],
   orders: [],
@@ -61,7 +66,7 @@ const mockState = {
   resellers: [],
   reseller_earnings: [],
   product_reviews: [],
-  _seq: { bundles: 0, customers: 0, saved_numbers: 0, sms_leads: 0, orders: 0, bundle_usage: 0, auto_reload: 0, float_ledger: 0, webhook_log: 0, whatsapp_sessions: 0, whatsapp_log: 0, referrals: 0, referral_credits: 0, resellers: 0, reseller_earnings: 0, product_reviews: 0 },
+  _seq: { bundles: 0, customers: 0, customer_otps: 0, saved_numbers: 0, sms_leads: 0, orders: 0, bundle_usage: 0, auto_reload: 0, float_ledger: 0, webhook_log: 0, whatsapp_sessions: 0, whatsapp_log: 0, referrals: 0, referral_credits: 0, resellers: 0, reseller_earnings: 0, product_reviews: 0 },
 };
 
 // Seed bundles mirroring supabase/schema.sql — single source of truth lives
@@ -128,6 +133,14 @@ function mockInsert(from, row) {
     }
     if (row.email && mockState.customers.some((c) => c.email && c.email.toLowerCase() === row.email.toLowerCase())) {
       const err = new Error("duplicate key value violates unique constraint on email");
+      err.status = 409;
+      throw err;
+    }
+  }
+  if (from === "customer_otps") {
+    // Mirrors customer_otps_phone_key: one current code record per phone.
+    if (row.phone && mockState.customer_otps.some((o) => o.phone === row.phone)) {
+      const err = new Error("duplicate key value violates unique constraint on customer_otps phone");
       err.status = 409;
       throw err;
     }
@@ -292,8 +305,8 @@ function mockRpc(name, args = {}) {
    numbers, orders, float ledger, webhook log). Mock-mode only; callers:
    scripts/dev-server.js (SEED_DEMO=1) and scripts/seed-demo.js. */
 function seedDemo(now = new Date()) {
-  if (!MOCK) {
-    const err = new Error("seedDemo() only works with SUPABASE_MOCK=1 (in-memory DB)");
+  if (!MOCK || isDeployment()) {
+    const err = new Error("seedDemo() only works with SUPABASE_MOCK=1 outside deployed endpoints");
     err.status = 500;
     throw err;
   }
@@ -437,10 +450,23 @@ function isConfigured() {
   return Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
 }
 
+function mockFallbackActive() {
+  return MOCK || !isConfigured();
+}
+
+function requirePersistentStore() {
+  if (isDeployment() && mockFallbackActive()) {
+    throw configurationError(
+      "Supabase is not configured for this deployment; in-memory mock storage is disabled on deployed endpoints"
+    );
+  }
+}
+
 /* ---------------- exported db API ---------------- */
 const db = {
   async select(opts) {
-    if (MOCK || !isConfigured()) return mockSelect(opts);
+    requirePersistentStore();
+    if (mockFallbackActive()) return mockSelect(opts);
     const qs = new URLSearchParams();
     if (opts.select) qs.set("select", opts.select);
     for (const [k, v] of Object.entries(opts.where || {})) qs.append(k, v);
@@ -449,7 +475,8 @@ const db = {
     return rest(`/rest/v1/${opts.from}?${qs}`);
   },
   async insert(from, row, { returning = true } = {}) {
-    if (MOCK || !isConfigured()) return mockInsert(from, row);
+    requirePersistentStore();
+    if (mockFallbackActive()) return mockInsert(from, row);
     return rest(`/rest/v1/${from}`, {
       method: "POST",
       body: row,
@@ -457,7 +484,8 @@ const db = {
     });
   },
   async update(from, fields, where) {
-    if (MOCK || !isConfigured()) return mockUpdate(from, fields, where);
+    requirePersistentStore();
+    if (mockFallbackActive()) return mockUpdate(from, fields, where);
     const qs = new URLSearchParams(where);
     return rest(`/rest/v1/${from}?${qs}`, {
       method: "PATCH",
@@ -466,7 +494,8 @@ const db = {
     });
   },
   async delete(from, where) {
-    if (MOCK || !isConfigured()) return mockDelete(from, where);
+    requirePersistentStore();
+    if (mockFallbackActive()) return mockDelete(from, where);
     const qs = new URLSearchParams(where);
     return rest(`/rest/v1/${from}?${qs}`, {
       method: "DELETE",
@@ -474,9 +503,10 @@ const db = {
     });
   },
   async rpc(name, args = {}) {
-    if (MOCK || !isConfigured()) return mockRpc(name, args);
+    requirePersistentStore();
+    if (mockFallbackActive()) return mockRpc(name, args);
     return rest(`/rest/v1/rpc/${name}`, { method: "POST", body: args });
   },
 };
 
-module.exports = { db, MOCK, isConfigured, seedDemo };
+module.exports = { db, MOCK, isConfigured, seedDemo, mockFallbackActive };
