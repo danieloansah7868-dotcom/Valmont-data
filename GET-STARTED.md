@@ -12,7 +12,7 @@ unless stated otherwise.
 
 ## 0 · Prerequisites
 
-- [ ] Node 20+ installed locally (the app runs on Node 18+, zero npm dependencies).
+- [ ] Node 22 installed locally (the app uses zero npm dependencies and no build step).
 - [ ] GitHub repo access (this repo).
 - [ ] A [Supabase](https://supabase.com) account (free tier is fine).
 - [ ] A [Vercel](https://vercel.com) account connected to GitHub.
@@ -27,14 +27,20 @@ unless stated otherwise.
 ```bash
 cd app
 cp .env.example .env.local      # defaults are fine for local testing
-npm run dev                     # → http://localhost:8787 (in-memory DB, SUPABASE_MOCK=1)
+npm run dev                     # fresh, unseeded in-memory DB → http://localhost:8787
 ```
 
-In a second terminal (with the dev server still running):
+In a second terminal (with that same fresh dev server still running):
 
 ```bash
-npm test                        # 104-check end-to-end suite — must be 104/104
+npm test                        # six suites; API pipeline must report 158 passed / 0 failed
+npm run test:reviews             # verified-review and moderation suite (also included in npm test)
+npm run test:delivery-safety     # invitation, refund, SSR and deployment safety suite (also included in npm test)
 ```
+
+> **Important:** `npm run dev:demo` is for manual demonstrations, not `npm test`.
+> The API script intentionally expects zero float before it tops up its own test
+> float; a seeded or previously used server will fail the 158/0 baseline.
 
 Then click through the business manually:
 
@@ -70,11 +76,12 @@ Exercise the failure paths — each is a non-negotiable guarantee:
 ```bash
 node scripts/sim-webhook.js --ref VD-... --duplicate       # idempotency no-op
 node scripts/sim-webhook.js --ref VD-... --bad-signature   # 401, logged
-node scripts/sim-webhook.js --ref VD-... --wrong-amount    # auto-refund
+node scripts/sim-webhook.js --ref VD-... --wrong-amount    # local simulated refund; live requires refund completion reconciliation
 MOCK_FAIL_FIRST=1 npm run dev                              # delivery fails → retry via admin/cron
 ```
 
-**Do not proceed until `npm test` is green (104/104) and you have seen all failure
+**Do not proceed until all six suites are green — including the 158/0 API
+pipeline, review suite and delivery-safety suite — and you have seen the failure
 paths behave as documented.**
 
 ---
@@ -86,12 +93,14 @@ paths behave as documented.**
 2. Open **SQL Editor** → paste the whole of
    [`app/supabase/schema.sql`](app/supabase/schema.sql) → **Run**.
    It is idempotent: tables (`networks`, `bundles`, `customers`, `saved_numbers`,
-   `orders`, `bundle_usage`, `auto_reload`, `float_ledger`, `webhook_log`), the
+   `customer_otps`, `product_reviews`, `orders`, `bundle_usage`, `auto_reload`,
+   `float_ledger`, `webhook_log`), the
    advisory-locked `add_float_entry()` function, `current_float()`, `daily_pnl()`,
    the public `v_bundles` view, RLS policies and seed bundles (cost + sell prices)
    are all created in one go. If upgrading an existing database, running the script
-   safely adds the new tables (including `customers`, `saved_numbers`,
-   `bundle_usage` and `auto_reload`).
+   safely adds the new tables and the refund/review/OTP compatibility fields.
+   Existing databases must also run every file in `app/supabase/migrations/` in
+   date order, including `2026-09-09_delivery-safety.sql`.
 3. Sanity-check RLS: the **anon** role may only read `networks` + `v_bundles`,
    insert a `pending` order and read its own order by reference. There is **no
    anon path to `cost_price`, float, customer data or webhooks**. The app talks to PostgREST
@@ -127,8 +136,10 @@ purchase time so historical P&L stays accurate.
    | Signature | `x-valmontpay-signature` = hex HMAC-SHA512 of the **raw** body with `VALMONTPAY_WEBHOOK_SECRET` |
    | Refunds | Manual refund (automated refund endpoint not exposed on live gateway) |
 
-   If the live gateway differs, adjust `createCheckout()` / `initiateCharge()` /
-   `refund()` there — nothing else in the app knows gateway paths.
+   If the live gateway differs, reconcile it with the payment team before changing
+   the integration. This app intentionally has no automated `refund()` endpoint:
+   payment failures enter `refund_pending` until a real gateway refund is completed
+   and recorded by an authenticated administrator.
 5. **Go live**: set `VALMONTPAY_MODE=live` in Vercel together with
    `VALMONTPAY_API_URL`, `VALMONTPAY_API_KEY` and `VALMONTPAY_WEBHOOK_SECRET`.
    There is **no silent dev fallback** — without the credentials the site
@@ -148,8 +159,8 @@ purchase time so historical P&L stays accurate.
 2. **Root Directory = `app`** ← the one setting everyone gets wrong.
 3. No framework preset / build command needed — static files + `/api` functions.
    - `app/vercel.json` sets the cron schedule to daily `0 7 * * *` (07:00 UTC = 07:00 Ghana) for compatibility with Vercel Hobby accounts.
-   - The optional GitHub Actions workflow (`.github/workflows/cron-retry.yml`) restores the 15-minute retry cadence for free: ping `$SITE_URL/api/cron/retry` automatically once `SITE_URL` is configured under GitHub **Settings → Secrets and variables → Actions → Variables**.
-   - Pro Vercel accounts can instead change `0 7 * * *` back to `*/15 * * * *` in `vercel.json` if preferred.
+   - Vercel calls each scheduled URL with `Authorization: Bearer $CRON_SECRET`; configure a unique random `CRON_SECRET` before deployment.
+   - Pro Vercel accounts can use a more frequent supported schedule if operationally required; do not add a repository workflow just to ping privileged cron URLs.
 4. Add **all** environment variables from [`app/.env.example`](app/.env.example):
 
    | Var | Value |
@@ -158,9 +169,11 @@ purchase time so historical P&L stays accurate.
    | `VALMONTPAY_API_URL` / `VALMONTPAY_API_KEY` / `VALMONTPAY_WEBHOOK_SECRET` | from step 3 |
    | `SITE_URL` | `https://<your-domain>` |
    | `ADMIN_PASSWORD` | strong password for `/admin.html` |
-   | `AUTH_SECRET` | long random string (session & customer auth tokens) |
-   | `SUPPLIER_DRIVER` | `mock` until step 5, then `remadata` |
-   | `REMADATA_API_KEY` | from step 5 |
+   | `AUTH_SECRET` | unique random 16+ character session/customer token secret |
+   | `CRON_SECRET` | unique random 16+ character Vercel cron Bearer secret |
+   | `USAGE_REPORT_KEY` | unique random 16+ character supplier/telco usage-feed key |
+   | `SUPPLIER_ORDER` | live non-mock provider order, e.g. `remadata` |
+   | `REMADATA_API_URL` / `REMADATA_API_KEY` | live RemaData endpoint and key from step 5 |
    | `LOW_FLOAT_THRESHOLD` | e.g. `50` |
    | `NOTIFY_WEBHOOK_URL` | optional — WhatsApp/SMS alerts worker |
 
@@ -180,7 +193,7 @@ purchase time so historical P&L stays accurate.
 3. Fund your RemaData wallet — this **is your float**. Each successful delivery
    debits it at `cost_price`; the app tracks the same float in `float_ledger`
    so the storefront can refuse sales it cannot fulfil.
-4. Set `SUPPLIER_DRIVER=remadata` (from `mock`) in Vercel and redeploy.
+4. Set `SUPPLIER_ORDER=remadata` together with `REMADATA_API_URL` and `REMADATA_API_KEY` in Vercel, then redeploy. `mock` is local-only and is rejected on deployed order paths.
 5. **Record the same top-up in the admin console** (`/admin.html` → Float →
    Top-up, per network). The admin float must mirror the supplier wallet, or
    the float guard cannot protect you.
@@ -221,8 +234,23 @@ Do this with a small bundle (1 GB) and your own number, before announcing:
    difference (only orders since the last top-up).
 
 One more drill: temporarily disconnect (or exhaust) supplier float and place
-an order — the race-condition path must **auto-refund** and mark the webhook
-`insufficient_float → refunded` in the audit log. Then restore float.
+an order — the paid race-condition path must become **Refund being arranged**
+(`refund_pending`) and create a manual gateway-refund alert; use the admin completion
+control only after the actual gateway refund is complete. Then restore float.
+
+---
+
+## 6a · Refund and review verification drill
+
+- A live payment amount mismatch or a delivery that cannot be fulfilled must show
+  `refund_pending`, never “refunded” before the gateway action. In **Orders**, an
+  authenticated admin confirms the real gateway refund and records completion.
+- For an account order delivered to the buyer's own phone, confirm the History card
+  offers “Write a verified review.” Its direct `/rev/...` link preserves a safe
+  sign-in return. Review invitations never offer a reward.
+- If ordering through WhatsApp, only a sender whose WhatsApp number matches their
+  verified account phone gets that direct review link; the ordinary delivery receipt
+  still goes back to the originating WhatsApp sender.
 
 ---
 
@@ -257,7 +285,7 @@ Works automatically — every customer gets a referral code on first access to `
 | Order stuck `pending` | No webhook arrived — check gateway dashboard + `webhook_log` in admin |
 | Order `pending` + webhook shows 401 | Wrong `VALMONTPAY_WEBHOOK_SECRET` — signature mismatch |
 | Order delivered but no supplier credit | Wrong API key or supplier wallet empty — see order's `supplier_response` |
-| `delivery failed`, then delivered after admin retry | Supplier hiccup; cron would have retried within 15 min anyway (max 3 attempts) |
+| `delivery failed`, then delivered after admin retry | Supplier hiccup; the daily Hobby cron retries eligible orders (max 3 attempts). Use a supported Pro cadence if you need faster scheduled retries. |
 | Webhook logged "unknown order" | `reference` mismatch between checkout and order — log a reconciliation ticket with the supplier payload |
 | P&L empty | `daily_pnl()` reads **completed** deliveries only — finish the smoke test first |
 
@@ -265,15 +293,15 @@ Works automatically — every customer gets a referral code on first access to `
 
 ## 9 · Go-live checklist
 
-- [ ] `npm test` green locally (104/104)
+- [ ] `npm test` is green: API pipeline reports 158 passed / 0 failed and the other five suites pass
 - [ ] `schema.sql` run in Supabase; RLS sanity-checked (customers & saved_numbers tables added)
 - [ ] All env vars set in Vercel; `SUPABASE_MOCK` **not** set
 - [ ] Valmont-Pay webhook registered + signature verified end-to-end
-- [ ] `SUPPLIER_DRIVER=remadata` + `REMADATA_API_KEY` set
+- [ ] `SUPPLIER_ORDER=remadata` + `REMADATA_API_URL` + `REMADATA_API_KEY` set (never `mock`)
 - [ ] Supplier float funded **and** mirrored in admin (per network)
 - [ ] `LOW_FLOAT_THRESHOLD` + `NOTIFY_WEBHOOK_URL` set
 - [ ] Live smoke test order delivered; P&L row present; data arrived
-- [ ] `ADMIN_PASSWORD` + `AUTH_SECRET` are strong and unique
+- [ ] `ADMIN_PASSWORD`, `AUTH_SECRET`, `CRON_SECRET`, `USAGE_REPORT_KEY`, and WhatsApp verify token are strong and unique
 - [ ] No secrets anywhere in git history
 - [ ] `valmontdata.com` verified in Google Search Console; `sitemap.xml` submitted
 

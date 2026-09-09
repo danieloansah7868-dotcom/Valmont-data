@@ -8,6 +8,10 @@ process.env.SUPPLIER_ORDER = "typhonic,remadata";
 process.env.TYPHONIC_API_URL = "https://example.invalid";
 process.env.TYPHONIC_API_KEY = "test-key";
 process.env.TYPHONIC_PURCHASE_PATH = "/purchase";
+// Both drivers are deliberately configured before submit() is stubbed below.
+// The router must not route through an unconfigured live supplier.
+process.env.REMADATA_API_URL = "https://example.invalid";
+process.env.REMADATA_API_KEY = "test-key";
 process.env.SUPPLIER_CIRCUIT_FAILURES = "99";
 
 const { getSupplierRouter, typhonic, remadata } = require("../lib/supplier");

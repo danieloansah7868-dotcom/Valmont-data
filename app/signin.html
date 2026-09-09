@@ -134,15 +134,40 @@
     </form>
 
     <div style="text-align:center;margin:18px 0 0">
-      <a href="/otp.html" style="color:var(--muted);font-size:13.5px;text-decoration:none;border-bottom:1px solid var(--line-strong);padding-bottom:2px">Sign in with SMS code instead →</a>
+      <a id="signinOtpLink" href="/otp.html" style="color:var(--muted);font-size:13.5px;text-decoration:none;border-bottom:1px solid var(--line-strong);padding-bottom:2px">Sign in with SMS code instead →</a>
     </div>
 
     <div class="bottom-links">
-      Don't have an account? <a href="/signup.html">Create one</a>
+      Don't have an account? <a id="signinSignupLink" href="/signup.html">Create one</a>
     </div>
   </div>
 
   <script>
+    // Review invitations may return here after an account expires. Accept only
+    // our exact /rev/<network>/<size> route; never turn this login page into an
+    // open redirect to a URL supplied in a query string.
+    function safeReviewReturn(raw) {
+      if (!raw) return "";
+      try {
+        const target = new URL(raw, window.location.origin);
+        if (target.origin !== window.location.origin) return "";
+        const match = /^\/rev\/(mtn|telecel|airteltigo)\/([0-9]+(?:-[0-9]+)?(?:mb|gb))\/?$/i.exec(target.pathname);
+        return match ? `/rev/${match[1].toLowerCase()}/${match[2].toLowerCase()}` : "";
+      } catch {
+        return "";
+      }
+    }
+
+    const signinParams = new URLSearchParams(window.location.search);
+    const signinReturn = safeReviewReturn(signinParams.get("return"));
+    if (signinReturn) {
+      const encoded = encodeURIComponent(signinReturn);
+      document.getElementById("signinSignupLink").href = "/signup.html?return=" + encoded;
+      // OTP currently has its own post-login landing flow, so do not offer a
+      // route that would silently lose the review invitation return destination.
+      document.getElementById("signinOtpLink").hidden = true;
+    }
+
     document.getElementById("signinForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       const btn = document.getElementById("siSubmit");
@@ -178,8 +203,8 @@
           localStorage.setItem("vd_customer", JSON.stringify(data.customer));
         }
         
-        // Redirect to homepage
-        window.location.href = "dashboard.html";
+        // Return only to the validated review route, otherwise the account dashboard.
+        window.location.href = signinReturn || "/dashboard.html";
         
       } catch (err) {
         errBox.innerHTML = `<div class="notice err" style="margin-bottom:12px;">Network error. Please try again.</div>`;

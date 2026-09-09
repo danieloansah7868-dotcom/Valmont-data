@@ -33,19 +33,26 @@
                                      block when a customer token is present.
      POST   /api/reviews            → create/edit your review of a bundle you
                                      have had delivered (customer-authenticated)
-     DELETE /api/reviews?id=123     → hide a review: admin (any review) or the
-                                     author (their own). Status change only —
-                                     the row and the order that verified it stay.
+     DELETE /api/reviews?id=123     → author retracts their own review; legacy
+                                     admin hide remains status-only.
+     GET    /api/reviews/admin      → authenticated admin moderation queue
+     POST   /api/reviews/admin      → admin-only publish/remove transition.
+
+   Reseller storefront HTML (same function; no new Vercel entrypoint)
+     GET    /s/:slug                → server-rendered active-store metadata + shell
    ============================================================================ */
 
 const { json, readRawBody, wrap } = require("../lib/http");
-const { requireCustomer, getCustomer, getAdmin } = require("../lib/auth");
+const { requireCustomer, requireAdmin, getCustomer, getAdmin } = require("../lib/auth");
 const { db } = require("../lib/supabase");
 const phones = require("../lib/phones");
 const orders = require("../lib/orders");
 const referrals = require("../lib/referrals");
 const resellers = require("../lib/resellers");
 const reviews = require("../lib/reviews");
+const { siteOrigin } = require("../lib/runtime");
+const fs = require("fs");
+const pathUtil = require("path");
 
 function getTimeGreeting(name, email) {
   const hour = new Date().getUTCHours(); // Ghana is UTC+0
@@ -249,7 +256,7 @@ async function optin(req, res) {
 /* ---------- Purchase history ----------------------------------------------
    GET /api/account/history
      ?q=          search phone / reference / provider reference / track no.
-     ?status=     all | processing | delivered | failed | refunded
+     ?status=     all | processing | delivered | failed | refund_pending | refunded
      ?network=    all | mtn | telecel | airteltigo
      ?page=       1-based
      ?per_page=   default 10, max 50
@@ -271,7 +278,7 @@ function trackNumber(order) {
 function statusGroup(status) {
   if (PROCESSING_STATUSES.includes(status)) return "processing";
   if (status === "delivered") return "delivered";
-  if (status === "refunded") return "refunded";
+  if (status === "refund_pending" || status === "refunded") return "refunded";
   return "failed";
 }
 
@@ -281,7 +288,8 @@ const STATUS_LABEL = {
   delivering: "Processing",
   delivered: "Delivered",
   failed: "Failed",
-  refunded: "Refunded",
+  refund_pending: "Refund being arranged",
+  refunded: "Refund completed",
 };
 
 function explainOrder(order) {
@@ -310,17 +318,23 @@ function explainOrder(order) {
         title: "✅ Delivered",
         body: "The bundle landed on this number. If the balance looks wrong, dial your network's balance code again — it can lag a few minutes.",
       };
+    case "refund_pending":
+      return {
+        tone: "info",
+        title: "↩️ Refund being arranged",
+        body: order.refund_note || order.supplier_response?.refund_reason || order.supplier_response?.refund?.reason || order.supplier_response?.reason || "Delivery could not be completed. Our team is arranging a refund to the original payment method.",
+      };
     case "refunded":
       return {
         tone: "info",
-        title: "↩️ Refunded",
-        body: order.supplier_response?.reason || "This order was refunded. Wallet refunds are instant; MoMo refunds land within 24 hours.",
+        title: "↩️ Refund completed",
+        body: order.refund_note || order.supplier_response?.refund_reason || order.supplier_response?.refund?.reason || order.supplier_response?.reason || "The refund has been completed to the original payment method. Provider timing can vary.",
       };
     default:
       return {
         tone: "bad",
         title: "⚠️ Delivery failed",
-        body: order.supplier_response?.error || "We could not deliver this bundle. Failed orders retry automatically, and anything still unfixed is refunded in full.",
+        body: order.supplier_response?.error || "We could not deliver this bundle. Failed orders retry automatically. If delivery cannot be completed, our team arranges a refund to the original payment method.",
       };
   }
 }
@@ -435,13 +449,24 @@ async function handleHistory(req, res) {
         size_mb: sizeMb,
         size_label: sizeMb ? (sizeMb >= 1024 ? `${sizeMb / 1024}GB` : `${sizeMb}MB`) : null,
         validity_days: bundle ? bundle.validity_days : null,
+        // History is already authenticated and scoped to this buyer. Unlike an
+        // SMS invitation, it remains available for every delivered order.
+        review_url: o.status === "delivered" && network && sizeMb
+          ? reviews.reviewPath(network.code, sizeMb)
+          : null,
         explain: explainOrder(o),
       };
     })
   );
 
   let filtered = enriched;
-  if (statusFilter !== "all") filtered = filtered.filter((o) => o.status_group === statusFilter);
+  if (statusFilter !== "all") {
+    // "processing" is a presentation group; refund states remain distinct so
+    // a customer never sees a pending manual refund labelled as completed.
+    filtered = filtered.filter((o) =>
+      statusFilter === "processing" ? o.status_group === "processing" : o.status === statusFilter
+    );
+  }
   if (networkFilter !== "all") filtered = filtered.filter((o) => o.network === networkFilter);
   if (q) {
     filtered = filtered.filter((o) =>
@@ -484,7 +509,8 @@ async function handleHistory(req, res) {
       processing: enriched.filter((o) => o.status_group === "processing").length,
       delivered: enriched.filter((o) => o.status_group === "delivered").length,
       failed: enriched.filter((o) => o.status_group === "failed").length,
-      refunded: enriched.filter((o) => o.status_group === "refunded").length,
+      refunded: enriched.filter((o) => o.status === "refunded").length,
+      refund_pending: enriched.filter((o) => o.status === "refund_pending").length,
       spent: Math.round(spent * 100) / 100,
     },
     page,
@@ -632,6 +658,39 @@ async function handleStore(req, res, hint) {
   return json(res, 404, { error: "Not found" });
 }
 
+/* ---------- Admin review moderation (folded into this existing function) -- */
+async function handleAdminReviews(req, res, hint) {
+  // Authenticate before reading any review/order provenance. No customer token
+  // is enough for this queue.
+  const admin = requireAdmin(req);
+  const { url } = hint;
+
+  if (req.method === "GET") {
+    const result = await reviews.listForAdmin({
+      network: url.searchParams.get("network") || "all",
+      status: url.searchParams.get("status") || "all",
+      limit: url.searchParams.get("limit") || 100,
+    });
+    if (!result.ok) return json(res, result.status || 400, { error: result.error });
+    res.setHeader("Cache-Control", "no-store");
+    return json(res, 200, result);
+  }
+
+  if (req.method === "POST") {
+    const body = await readRawBody(req).then((b) => {
+      try { return JSON.parse(b); } catch { return null; }
+    });
+    if (!body) return json(res, 400, { error: "Invalid JSON" });
+    const actor = String(admin.actor || "administrator").slice(0, 80);
+    const result = await reviews.moderateReview(Number(body.id || 0), body.status, actor);
+    if (!result.ok) return json(res, result.status || 400, { error: result.error });
+    res.setHeader("Cache-Control", "no-store");
+    return json(res, 200, result);
+  }
+
+  return json(res, 405, { error: "GET/POST only" });
+}
+
 /* ---------------------------------------------------------------------------
    Product reviews — verified purchases only.
 
@@ -643,7 +702,10 @@ async function handleStore(req, res, hint) {
    (checked in lib/reviews.js). Admins can hide a review; nobody deletes rows.
    --------------------------------------------------------------------------- */
 async function handleReviews(req, res, hint) {
-  const { url } = hint;
+  const { url, path, sub } = hint;
+  if (sub === "admin" || /\/reviews\/admin$/.test(path)) {
+    return handleAdminReviews(req, res, hint);
+  }
 
   if (req.method === "GET") {
     const network = url.searchParams.get("network") || "";
@@ -679,7 +741,9 @@ async function handleReviews(req, res, hint) {
       return json(res, 200, out);
     }
 
-    res.setHeader("Cache-Control", "public, s-maxage=300, stale-while-revalidate=86400");
+    // Moderation must disappear immediately rather than remain as stale CDN
+    // content after an admin hides a row.
+    res.setHeader("Cache-Control", "public, max-age=0, s-maxage=0, must-revalidate");
     return json(res, 200, out);
   }
 
@@ -713,7 +777,9 @@ async function handleReviews(req, res, hint) {
       if (body && body.id) id = Number(body.id);
     }
     if (!id) return json(res, 400, { error: "id is required" });
-    const result = admin ? await reviews.removeReview(id) : await reviews.removeOwnReview(author.id, id);
+    const result = admin
+      ? await reviews.moderateReview(id, "removed", String(admin.actor || "administrator").slice(0, 80))
+      : await reviews.removeOwnReview(author.id, id);
     if (!result.ok) return json(res, result.status || 400, { error: result.error });
     return json(res, 200, { ok: true, removed: result.id });
   }
@@ -721,9 +787,80 @@ async function handleReviews(req, res, hint) {
   return json(res, 405, { error: "Method not allowed" });
 }
 
+/* ---------- Server-rendered reseller storefront (/s/:slug) ---------------- */
+const STOREFRONT_TEMPLATE = pathUtil.join(__dirname, "..", "storefront.html");
+const STORE_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+function escapeHtml(value) {
+  return String(value == null ? "" : value).replace(/[&<>"']/g, (char) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char])
+  );
+}
+
+function storefrontNotFound(res) {
+  res.statusCode = 404;
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.setHeader("Cache-Control", "no-store");
+  res.end(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Store not found | Valmont Data</title><style>body{margin:0;background:#0b1a38;color:#f8fafc;font-family:system-ui,sans-serif;display:grid;place-items:center;min-height:100vh}.card{max-width:34rem;padding:2rem;text-align:center}.btn{display:inline-block;margin-top:1rem;padding:.75rem 1rem;border-radius:.5rem;background:#ff8c00;color:#fff;text-decoration:none;font-weight:700}</style></head><body><main class="card"><h1>Store not found</h1><p>This reseller store is unavailable or no longer active.</p><a class="btn" href="/">Visit Valmont Data</a></main></body></html>`);
+}
+
+function replaceStoreToken(html, token, value) {
+  const pattern = new RegExp(
+    "<!--" + token + "_START-->[\\s\\S]*?<!--" + token + "_END-->",
+    "g"
+  );
+  return html.replace(pattern, () => escapeHtml(value));
+}
+
+async function handleStorefront(req, res, hint) {
+  if (req.method !== "GET") return json(res, 405, { error: "GET only" });
+  const rawSlug = String(hint.url.searchParams.get("slug") || "").trim().toLowerCase();
+  if (!STORE_SLUG.test(rawSlug) || rawSlug.length < 3 || rawSlug.length > 40) {
+    return storefrontNotFound(res);
+  }
+
+  const store = await resellers.getStoreBySlug(rawSlug); // active stores only
+  if (!store) return storefrontNotFound(res);
+
+  let template;
+  try {
+    template = fs.readFileSync(STOREFRONT_TEMPLATE, "utf8");
+  } catch (err) {
+    // includeFiles in vercel.json makes this a deployment configuration error,
+    // not a silent fallback to a generic, indexable storefront.
+    throw err;
+  }
+
+  const storeName = String(store.store_name || "Valmont Data reseller store").trim().slice(0, 120);
+  const tagline = String(store.tagline || "").trim().slice(0, 240);
+  const ownerName = String(store.owner_name || "Valmont customer").trim().slice(0, 120);
+  const title = `${storeName} — data bundles | Valmont Data store`;
+  const description = `${storeName} is a Valmont Data reseller store${tagline ? `: ${tagline}` : ""}. Buy MTN, Telecel and AirtelTigo data bundles with Mobile Money or card.`.slice(0, 300);
+  const canonical = `${siteOrigin(req.headers?.host)}/s/${rawSlug}`;
+
+  let html = template;
+  html = replaceStoreToken(html, "STOREFRONT_TITLE", title);
+  html = replaceStoreToken(html, "STOREFRONT_DESCRIPTION", description);
+  html = replaceStoreToken(html, "STOREFRONT_CANONICAL", canonical);
+  html = replaceStoreToken(html, "STOREFRONT_NAME", storeName);
+  html = replaceStoreToken(html, "STOREFRONT_TAGLINE", tagline);
+  html = replaceStoreToken(html, "STOREFRONT_OWNER", ownerName);
+  html = html.replace('content="noindex"', 'content="index,follow"');
+  html = html.replace("window.__VALMONT_STOREFRONT_SSR__ = false", "window.__VALMONT_STOREFRONT_SSR__ = true");
+
+  res.statusCode = 200;
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.setHeader("Cache-Control", "no-store");
+  return res.end(html);
+}
+
 module.exports = wrap(async (req, res) => {
   const hint = routeHint(req);
   const { path, section, haystack } = hint;
+
+  // Server-rendered active reseller storefront. This is intentionally before
+  // the generic /store API matcher below; /s/:slug rewrites here on Vercel.
+  if (section === "storefront" || path.startsWith("/s/")) return handleStorefront(req, res, hint);
 
   // Public SMS opt-in — no customer token required
   if (path.includes("/optin") || haystack.includes("/optin")) return optin(req, res);

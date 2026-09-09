@@ -21,15 +21,17 @@
    - Never stack: if an order for that line is already pending/paid/delivering,
      the engine skips until it resolves.
    - Float guard: no order is created if we can't deliver it (the webhook
-     re-checks float anyway and auto-refunds the race case).
+     re-checks float and moves a paid race failure into refund-pending reconciliation).
    - Opt-out is instant: paused/deleted rules are never triggered.
    ============================================================================ */
 
 const crypto = require("crypto");
 const { db } = require("./supabase");
 const orders = require("./orders");
+const { getSupplierRouter } = require("./supplier");
 const valmontpay = require("./valmontpay");
 const { notify } = require("./notify");
+const { isDeployment } = require("./runtime");
 
 const COOLDOWN_MINUTES = () => Number(process.env.AUTORELOAD_COOLDOWN_MINUTES || 720); // 12h default
 const LOW_PERCENT_FOR_ASK = 80; // lines above this without a rule get the "turn on auto-reload?" prompt
@@ -37,7 +39,7 @@ const LOW_PERCENT_FOR_ASK = 80; // lines above this without a rule get the "turn
 /* Dev-only webhook simulation. NEVER on in live mode: scripts/dev-server.js
    sets AUTORELOAD_SIMULATE=1 locally; production deployments leave it unset,
    so a missing gateway fails loudly instead of faking a payment. */
-const SIMULATE = () => process.env.AUTORELOAD_SIMULATE === "1";
+const SIMULATE = () => !isDeployment() && process.env.AUTORELOAD_SIMULATE === "1";
 
 /* ---------- labels ---------- */
 function mbLabel(sizeMb) {
@@ -187,13 +189,15 @@ async function triggerReload(rule) {
   const network = await orders.findNetworkById(rule.network_id);
   if (!bundle || !network) return { triggered: false, reason: "bundle/network unavailable" };
 
-  // LIVE GATEWAY GUARD — in live mode a reload must charge a real MoMo. If the
-  // gateway is not configured, skip loudly (no simulated success).
-  if (valmontpay.mode() === "live" && !valmontpay.configured()) {
-    await notify.alert(
-      `Auto-reload for ${rule.phone} skipped — Valmont-Pay live mode requires VALMONTPAY_API_KEY and VALMONTPAY_WEBHOOK_SECRET`
-    );
-    return { triggered: false, reason: "live gateway not configured" };
+  // Preflight before creating a reload order. A deployed cron must not leave a
+  // pending order behind when a local/mock/non-live payment configuration was
+  // mistakenly deployed; there is no simulated charge path in deployment.
+  try {
+    valmontpay.assertLiveReady();
+    getSupplierRouter().assertAvailable(network.code);
+  } catch (error) {
+    await notify.alert(`Auto-reload for ${rule.phone} skipped — ${error.message}`);
+    return { triggered: false, reason: "payment or supplier configuration unavailable" };
   }
 
   // FLOAT GUARD — never create an order we cannot deliver.

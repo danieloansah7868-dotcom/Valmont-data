@@ -1,6 +1,8 @@
 # SEO audit & fix — Valmont Data
 
-**Date:** 2026-09-04 · **Branch:** `arena/01a06c9c-valmont-data` · **Base:** `eb0bc71`
+**Original audit:** 2026-09-04 · **Branch:** `arena/01a06c9c-valmont-data` · **Base:** `eb0bc71`
+
+**Last validation update:** 2026-09-09 · **Branch:** `arena/01a084d4-valmont-data` · **Base:** `24953471ac95a461681ff49b753131cf8130c7ee`
 **Scope:** `app/` (the deployed static site + its API). `prototype/` is design reference only and is **not** deployed — nothing from it was copied into production pages.
 
 Short version: the site had **nine** indexable URLs and **zero** pages for the things people actually search for ("data", "bundle", "mtn", "10gb", "non expiry"). The catalogue existed only as client-side JavaScript state behind query-string filters, so a crawler saw an empty homepage and no way in. There is now a generated, self-canonical landing page for every network, every bundle, every useful slice of the catalogue, plus a shared keyword vocabulary that also powers on-site search, the ValmontAI assistant and the WhatsApp bot.
@@ -9,7 +11,7 @@ Short version: the site had **nine** indexable URLs and **zero** pages for the t
 - JSON-LD: **0 → 123 blocks across 39 files** (21 distinct `@type` values: Organization, WebSite, WebPage, CollectionPage, ItemList, Product, Offer, Service, FAQPage, Question, Answer, BreadcrumbList, ListItem, AboutPage, ContactPage, Brand, Thing, Country, PostalAddress, ContactPoint, OpeningHoursSpecification)
 - Open Graph tags: **0 → 40 files** · keywords meta: **0 → 39 files** · pages with >1 `<h1>`: **2 on the homepage → 0 anywhere**
 - `robots.txt` contradictions (noindexed *and* Disallowed): **5 → 0**
-- Tests: `npm run test:seo` → **96 file checks + 21 live routes, all green**; `npm run test:reviews` → **162 checks, all green**; `npm test` (all five suites) → API pipeline **152 passed / 6 failed, byte-identical to the baseline** (the 6 are pre-existing float-state assumptions in `scripts/test.sh`, listed in §5)
+- Tests: `npm run test:seo -- --base=http://127.0.0.1:8787` → **95 static checks + one live-route assertion covering 21 routes (96 total), all green**; `npm run test:reviews` → **162 checks, all green**; `npm run test:delivery-safety` → **70 isolated delivery-safety checks, all green**; `npm test` (**all six suites**) → API pipeline **158 passed / 0 failed** on a fresh unseeded dev server. The original float and paused-rule checks remain in `scripts/test.sh`; see §5.5.
 
 ---
 
@@ -154,13 +156,17 @@ Nav, footer, homepage tiles, breadcrumbs and cross-link grids now point at canon
 
 ```bash
 cd app
-npm run dev                                     # or: SEED_DEMO=1 node scripts/dev-server.js
+npm run dev                                     # fresh, unseeded server required for npm test
 npm run seo:generate && npm run seo:check
 npm run test:seo -- --base=http://localhost:8787
 npm test
 ```
 
-**`npm run test:seo` → 96 file checks + 21 live routes, all passing.** It verifies: pages are current vs the catalogue; sitemap↔canonical byte parity; title/description/canonical/H1/word-count/synonym-row on all 41 indexable pages; every JSON-LD block parses and only describes visible content; no ratings/reviews/availability claims in static schema; internal links resolve and no filter URLs survive; all 382 vocabulary terms expand and all 17 categories point at a page (and anchor) that exists; search never dead-ends; honesty guards; all 24 prices present in raw HTML; robots.txt does not contradict the pages. With `--base` it fetches 21 routes and asserts 200 + their own title/description/canonical, including clean URLs and both sitemaps.
+`SEED_DEMO=1 node scripts/dev-server.js` is useful for manual SEO/demo inspection,
+but not for `npm test`: the API script starts from zero float and therefore expects
+**158 passed / 0 failed** only on a fresh unseeded server.
+
+**`npm run test:seo` runs 95 static checks; with `--base`, its 96th assertion covers 21 live routes, all passing.** It verifies: pages are current vs the catalogue; sitemap↔canonical byte parity; title/description/canonical/H1/word-count/synonym-row on all 41 indexable pages; every JSON-LD block parses and only describes visible content; no ratings/reviews/availability claims in static schema; internal links resolve and no filter URLs survive; all 382 vocabulary terms expand and all 17 categories point at a page (and anchor) that exists; search never dead-ends; honesty guards; all 24 prices present in raw HTML; robots.txt does not contradict the pages. With `--base` it fetches 21 routes and asserts 200 + their own title/description/canonical, including clean URLs and both sitemaps.
 
 Live route sample (dev server, `SEED_DEMO=1`):
 
@@ -178,7 +184,7 @@ Live route sample (dev server, `SEED_DEMO=1`):
 
 **Seed ↔ live parity.** `node scripts/generate-seo-pages.js --api=http://localhost:8787` produces pages **byte-identical** to the seed run except the source-stamp comment — the published catalogue and `lib/demo-data.js` agree on all 24 rows and prices.
 
-**No regressions.** Ran `scripts/test.sh` against a pristine `eb0bc71` checkout and against this branch, both on a fresh `SEED_DEMO=1` server on :8787: **152 passed / 6 failed in both**, same six test names. `test-supplier-router.js` and `test-valmontai.js` (27/27) pass.
+**Current test baseline.** On a fresh, unseeded `npm run dev` server on `:8787`, the unchanged `scripts/test.sh` completes **158 passed / 0 failed**. The multi-supplier router suite still proves that a definitive rejection can fail over while an ambiguous timeout never calls the backup; `test-valmontai.js` remains 27/27. `npm test` runs those suites plus SEO, reviews and the 70-check delivery-safety suite.
 
 **Synonym map** (printed by the suite; page hint + top bundle):
 
@@ -207,7 +213,9 @@ status/tracking → /status.html  support → /contact.html  prefix → /network
 | Store/dashboard/status footers linked every product to `/#buy` or `/` | 3 files | rewired to the canonical network pages |
 | "telecel 1gb" produced a nonsense assistant reply | `valmontai.js` | honest "that network has no such size, here is where we do" branch |
 
-Pre-existing `scripts/test.sh` failures, unchanged by this work (all six also fail on `eb0bc71`): `bundle unavailable with 0 float`, `mtn float top-up 200`, `authed order rejected when float is 0 (422)`, `float debited (200-38.5=161.5)`, `float NOT debited twice` — these five assume an **unseeded** float of GH₵200 while `SEED_DEMO=1` starts with ~GH₵3,300; and `paused rule not swept`. Note `test.sh` needs `SEED_DEMO=1` (unseeded: 74/84) and its `sim-webhook.js` helper defaults to `:8787`, so run it against a server on that port.
+### 5.5 Current API-test baseline
+
+`test.sh` was **not** deleted, loosened or reseeded. Its named float checks — `bundle unavailable with 0 float`, `mtn float top-up 200`, `authed order rejected when float is 0 (422)`, `float debited (200-38.5=161.5)` and `float NOT debited twice` — and `paused rule not swept` are still present and now pass as part of the **158 passed / 0 failed** result on a fresh, unseeded dev server. The script mutates the in-memory state and `sim-webhook.js` targets `:8787`, so restart the local server before each full API-pipeline run.
 
 ---
 
@@ -239,14 +247,14 @@ Pre-existing `scripts/test.sh` failures, unchanged by this work (all six also fa
    `supabase/migrations/` changes and opens a PR with the regenerated pages, or (b) teaching the
    generator to read Supabase directly (`SUPABASE_URL` + service key) at build time. Say the word and
    I will build either.
-3. **`about.html` contradicts the footer.** About says Valmont Data does not advertise on social media, while the homepage footer links Facebook and TikTok. The copy was left as written and those profiles were **excluded** from `Organization.sameAs`; decide which is true and align both.
-4. **Reseller storefronts (`/s/<slug>`)** — the sitemap half is **done**: `api/sitemap.js` serves
-   `/sitemap-stores.xml` from the live `resellers` table (slugs and `lastmod` only), `robots.txt`
-   advertises it as a second `Sitemap:` line, and `vercel.json` rewrites the pretty URL. What is still
-   open: their canonical/title/description are set by JavaScript, because Vercel serves the static
-   `storefront.html` shell for every `/s/<slug>`. Google renders JS and honours it, but if store
-   traffic ever matters, server-render that shell (an edge function or an API route returning the HTML
-   with the slug baked in) and the storefronts become first-class pages.
+3. ~~**`about.html` / social-footer contradiction**~~ **Resolved.** The unverified Facebook and TikTok
+   links were removed rather than treated as official accounts. They remain excluded from
+   `Organization.sameAs`; the site keeps only the configured WhatsApp contact/channel links.
+4. ~~**Reseller storefront SSR**~~ **Resolved.** `api/account.js` serves active `/s/<slug>` stores through
+   the existing function (no new Vercel function), with HTML-escaped title, description, canonical and
+   Open Graph metadata from the real store record. Missing/inactive/invalid stores return a noindex 404
+   shell. `vercel.json` includes `storefront.html` for that function and mirrors the rewrite locally;
+   the 70-check delivery-safety suite exercises active and inactive paths.
 5. **Product images.** `Product` schema has no `image` because the catalogue has none. Adding one real screenshot/illustration per bundle would unlock richer results; do not use stock art of phones.
 6. ~~**Ratings/reviews**~~ **Done — the review flow is real, so the ratings are too.**
    `product_reviews` (migration `supabase/migrations/2026-09-04_product_reviews.sql`) stores one
@@ -259,8 +267,11 @@ Pre-existing `scripts/test.sh` failures, unchanged by this work (all six also fa
    generated HTML: a bundle with no reviews shows no stars and emits no rating schema, and
    `test-seo.js` still fails the build if a static page ever claims one. Phone numbers typed into a
    review are scrubbed at write time (these pages are public and indexed), authors appear as a first
-   name only, and moderation sets `status='removed'` rather than deleting the row.
+   name only, and moderation sets `status='removed'` rather than deleting the row. The 2026-09-09
+   follow-up adds `hidden_by_admin`, retained hide/unhide provenance, author non-republish protection,
+   and matching public-read/RLS/aggregate filters.
    Verified by `npm run test:reviews` (162 checks — the API contract against a clean server it boots
    itself, the static contract across all 24 pages, and the widget executed in a DOM stub to prove
-   the injected schema matches the rendered list).
+   the injected schema matches the rendered list) and `npm run test:delivery-safety` (70 checks,
+   including hide/unhide provenance and public exclusion).
 7. **Ranking note, not a bug:** for a query naming a network *and* a size that network does not sell ("tigo 2gb"), site search ranks the exact size on another network above the named network's nearest sizes; the assistant answers the question explicitly instead. Deliberate — nearest-size boosts are capped so they can never outrank an exact match.

@@ -21,18 +21,35 @@ const { getAdmin } = require("../lib/auth");
 const phones = require("../lib/phones");
 const orders = require("../lib/orders");
 const autoreload = require("../lib/autoreload");
+const { isDeployment, sameSecret, secretIsStrong } = require("../lib/runtime");
 
-const REPORT_KEY = () => process.env.USAGE_REPORT_KEY || "dev-usage-key";
+const REPORT_KEY = () => process.env.USAGE_REPORT_KEY || (isDeployment() ? "" : "dev-usage-key");
+
+function usageKeyConfigured() {
+  return !isDeployment() || secretIsStrong(REPORT_KEY(), {
+    minLength: 16,
+    disallow: ["dev-usage-key", "changeme"],
+  });
+}
 
 function authorized(req) {
   // Either an admin token…
   if (getAdmin(req)) return true;
   // …or the shared usage-report key used by the supplier/telco pipeline.
   const key = req.headers?.["x-usage-key"] || req.headers?.["X-Usage-Key"] || "";
-  return key === REPORT_KEY();
+  return usageKeyConfigured() && sameSecret(key, REPORT_KEY());
+}
+
+function requireUsageConfiguration(res) {
+  if (!usageKeyConfigured()) {
+    json(res, 503, { error: "Usage reporting is unavailable until USAGE_REPORT_KEY is securely configured" });
+    return false;
+  }
+  return true;
 }
 
 async function get(req, res) {
+  if (!requireUsageConfiguration(res)) return;
   if (!authorized(req)) return json(res, 401, { error: "Missing or invalid usage report key" });
   const url = new URL(req.url, "http://local");
   const phone = (url.searchParams.get("phone") || "").trim();
@@ -69,6 +86,7 @@ async function get(req, res) {
 }
 
 async function post(req, res) {
+  if (!requireUsageConfiguration(res)) return;
   if (!authorized(req)) return json(res, 401, { error: "Missing or invalid usage report key" });
 
   const body = await readRawBody(req).then((b) => {

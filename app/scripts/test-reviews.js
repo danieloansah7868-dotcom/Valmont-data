@@ -409,7 +409,11 @@ function staticChecks() {
     ok(/status in \('published','removed'\)/.test(src), name + " allows hiding a review instead of deleting it");
     ok(/enable row level security/.test(src), name + " turns on RLS");
   }
-  ok(/product_reviews_public_read/.test(schema) && /using \(status = 'published'\)/.test(schema), "RLS exposes published rows only");
+  ok(
+    /product_reviews_public_read/.test(schema)
+      && /using \(status = 'published' and hidden_by_admin = false\)/.test(schema),
+    "RLS exposes only published rows that are not admin-hidden"
+  );
   ok(/product_reviews: \[\]/.test(mock) && /product_reviews: 0/.test(mock), "the mock database has the table and its id sequence");
   ok(/duplicate key value violates unique constraint on product_reviews/.test(mock), "the mock enforces the same uniqueness as Postgres");
   const routes = read("scripts/dev-server.js");

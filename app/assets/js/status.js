@@ -10,8 +10,13 @@
     delivering: "Delivering…",
     delivered: "Delivered ✓",
     failed: "Delivery failed",
-    refunded: "Refunded",
+    refund_pending: "Refund being arranged",
+    refunded: "Refund completed",
   };
+  const escapeHtml = (value) => String(value == null ? "" : value).replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[char]));
+  const safeStatus = (value) => Object.prototype.hasOwnProperty.call(STATUS_LABEL, value) ? value : "failed";
 
   async function lookup(ref, poll = false) {
     const result = $("#result");
@@ -19,30 +24,37 @@
       const res = await fetch("/api/orders?reference=" + encodeURIComponent(ref), { cache: "no-store" });
       const data = await res.json();
       if (!res.ok) {
-        result.innerHTML = `<div class="notice">${data.error || "Order not found"}</div>`;
+        result.innerHTML = `<div class="notice">${escapeHtml(data.error || "Order not found")}</div>`;
         return;
       }
-      const o = data.order;
-      const gb = o.bundle.size_mb >= 1024 ? o.bundle.size_mb / 1024 + "GB" : o.bundle.size_mb + "MB";
-      const validity = o.bundle.validity_days ? o.bundle.validity_days + "-day rollover" : "No Expiry";
-      const netCode = o.bundle.network || (o.bundle.network_name ? o.bundle.network_name.toLowerCase().replace(/[^a-z]/g, "") : "");
+      const o = data.order || {};
+      const bundle = o.bundle || {};
+      const status = safeStatus(o.status);
+      const sizeMb = Number(bundle.size_mb) || 0;
+      const gb = sizeMb >= 1024 ? sizeMb / 1024 + "GB" : sizeMb + "MB";
+      const validity = bundle.validity_days ? Number(bundle.validity_days) + "-day rollover" : "No Expiry";
+      const netCode = String(bundle.network || (bundle.network_name ? bundle.network_name.toLowerCase().replace(/[^a-z]/g, "") : "")).replace(/[^a-z]/g, "");
+      const networkName = escapeHtml(bundle.network_name || "Network");
+      const refundNote = escapeHtml(o.refund_note || "Our team is arranging a refund to the original payment method.");
+      const amount = Number(o.amount || 0).toFixed(2);
       result.innerHTML = `
         <div class="track-card">
-          <div class="oid">${o.reference} <span class="pill ${o.status}">${STATUS_LABEL[o.status] || o.status}</span>
-            <small>${gb} <span class="net-chip ${netCode}">${o.bundle.network_name}</span> → ${o.phone} · ${"GH₵" + o.amount.toFixed(2)}</small>
+          <div class="oid">${escapeHtml(o.reference)} <span class="pill ${status}">${STATUS_LABEL[status]}</span>
+            <small>${gb} <span class="net-chip ${netCode}">${networkName}</span> → ${escapeHtml(o.phone)} · ${"GH₵" + amount}</small>
           </div>
           <div class="details">
-            <div class="drow"><span>Network</span><b class="net-chip ${netCode}">${o.bundle.network_name}</b></div>
+            <div class="drow"><span>Network</span><b class="net-chip ${netCode}">${networkName}</b></div>
             <div class="drow"><span>Validity</span><b>${validity}</b></div>
-            <div class="drow"><span>Placed</span><b>${new Date(o.created_at).toLocaleString("en-GH")}</b></div>
-            ${o.delivered_at ? `<div class="drow"><span>Delivered</span><b>${new Date(o.delivered_at).toLocaleString("en-GH")}</b></div>` : ""}
-            ${o.attempts > 1 ? `<div class="drow"><span>Delivery attempts</span><b>${o.attempts}</b></div>` : ""}
-            ${o.supplier_error ? `<div class="drow"><span>Status detail</span><b style="color:#ff9d92">${o.supplier_error}</b></div>` : ""}
+            <div class="drow"><span>Placed</span><b>${escapeHtml(new Date(o.created_at).toLocaleString("en-GH"))}</b></div>
+            ${o.delivered_at ? `<div class="drow"><span>Delivered</span><b>${escapeHtml(new Date(o.delivered_at).toLocaleString("en-GH"))}</b></div>` : ""}
+            ${Number(o.attempts || 0) > 1 ? `<div class="drow"><span>Delivery attempts</span><b>${Number(o.attempts)}</b></div>` : ""}
+            ${o.supplier_error ? `<div class="drow"><span>Status detail</span><b style="color:#ff9d92">${escapeHtml(o.supplier_error)}</b></div>` : ""}
           </div>
-          ${o.status === "refunded" ? `<div class="notice ok" style="margin-top:14px"><b>Refunded.</b> If this was a wallet payment the money is already back; MoMo refunds land within 24h.</div>` : ""}
-          ${o.status === "failed" ? `<div class="notice"><b>We're on it.</b> Failed deliveries retry automatically (up to 3 attempts). If it stays failed, you get an automatic refund.</div>` : ""}
+          ${status === "refund_pending" ? `<div class="notice" style="margin-top:14px"><b>Refund being arranged.</b> ${refundNote} We will confirm after it is completed.</div>` : ""}
+          ${status === "refunded" ? `<div class="notice ok" style="margin-top:14px"><b>Refund completed.</b> ${refundNote} Provider timing can vary before it appears.</div>` : ""}
+          ${status === "failed" ? `<div class="notice"><b>We're on it.</b> Failed deliveries may retry automatically (up to 3 attempts). If delivery cannot be completed, our team arranges a refund to the original payment method.</div>` : ""}
         </div>`;
-      if (poll && ["pending", "paid", "delivering"].includes(o.status)) {
+      if (poll && ["pending", "paid", "delivering"].includes(status)) {
         setTimeout(() => lookup(ref, true), 4000);
       }
     } catch {

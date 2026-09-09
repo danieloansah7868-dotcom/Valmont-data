@@ -39,11 +39,15 @@ async function handler(req, res) {
     if (!process.env.ADMIN_PASSWORD || password !== process.env.ADMIN_PASSWORD) {
       return json(res, 401, { error: "Wrong password" });
     }
-    return json(res, 200, { token: sign({ role: "admin" }) });
+    return json(res, 200, {
+      // A deployment can set ADMIN_ACTOR to a non-secret operator label. It is
+      // carried in the signed token and recorded on privileged audit actions.
+      token: sign({ role: "admin", actor: String(process.env.ADMIN_ACTOR || "administrator").slice(0, 80) }),
+    });
   }
 
   // All other admin endpoints require admin token
-  requireAdmin(req);
+  const admin = requireAdmin(req);
 
   // 2. /api/admin/float
   if (pathname.includes("/float/topup")) {
@@ -104,6 +108,32 @@ async function handler(req, res) {
   }
 
   // 3. /api/admin/orders
+  // This only records a completion after an operator has made the actual
+  // gateway refund. It intentionally does not call a pretend refund API.
+  if (pathname.includes("/orders/refund-complete")) {
+    if (req.method !== "POST") return json(res, 405, { error: "POST only" });
+    const body = await readRawBody(req).then((b) => {
+      try { return JSON.parse(b); } catch { return null; }
+    });
+    if (!body) return json(res, 400, { error: "Invalid JSON" });
+    if (body.gateway_refund_completed !== true) {
+      return json(res, 400, { error: "Confirm the real gateway refund is complete before recording it" });
+    }
+    const reference = String(body.reference || "");
+    const order = await orders.findOrderByReference(reference);
+    if (!order) return json(res, 404, { error: "Order not found" });
+    if (!order.provider_reference) {
+      return json(res, 409, { error: "This order has no payment provider reference to reconcile" });
+    }
+    const result = await orders.completeRefund(
+      order.id,
+      String(admin.actor || "administrator"),
+      String(body.note || "").trim()
+    );
+    if (!result.ok) return json(res, result.status || 400, { error: result.error || result.reason });
+    return json(res, 200, { ok: true, reference, status: result.order.status, order: result.order });
+  }
+
   if (pathname.includes("/orders/retry")) {
     if (req.method !== "POST") return json(res, 405, { error: "POST only" });
     const body = await readRawBody(req).then((b) => {
@@ -151,7 +181,12 @@ async function handler(req, res) {
         supplier_response: o.supplier_response,
         created_at: o.created_at,
         delivered_at: o.delivered_at,
+        refund_requested_at: o.refund_requested_at || null,
+        refund_completed_at: o.refund_completed_at || null,
+        refund_completed_by: o.refund_completed_by || null,
+        refund_note: o.refund_note || null,
         retryable: ["failed", "delivering"].includes(o.status) && Number(o.attempts || 0) < orders.MAX_ATTEMPTS,
+        refund_completable: o.status === "refund_pending" && Boolean(o.provider_reference),
       };
     });
     return json(res, 200, { orders: out });

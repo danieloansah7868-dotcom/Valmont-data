@@ -10,7 +10,7 @@
                          Invalid → 401, logged, ignored.
    3. FLOAT GUARD      — float is checked before checkout (api/orders) AND
                          re-checked here before delivery; the race case ends in
-                         an auto-refund, never a negative float.
+                         manual refund-pending reconciliation, never a negative float.
    4. SERVER-SIDE ONLY — delivery happens exclusively from this handler.
                          The browser never triggers delivery.
    5. AUDIT TRAIL      — every callback is logged to webhook_log, and the full
@@ -89,9 +89,10 @@ async function handler(req, res) {
 
   /* ---- amount check: never deliver for the wrong price ---- */
   if (Number(amount) !== Number(claimed.amount)) {
-    await orders.refundOrder(claimed, `Amount mismatch: webhook ${amount} vs order ${claimed.amount}`);
-    if (logId) await db.update("webhook_log", { handled: true, error: "amount mismatch → refunded" }, { id: `eq.${logId}` });
-    return json(res, 200, { received: true, handled: true, outcome: "refunded" });
+    const refund = await orders.refundOrder(claimed, `Amount mismatch: webhook ${amount} vs order ${claimed.amount}`);
+    const outcome = refund.status || "refund_pending";
+    if (logId) await db.update("webhook_log", { handled: true, error: `amount mismatch → ${outcome}` }, { id: `eq.${logId}` });
+    return json(res, 200, { received: true, handled: true, outcome });
   }
 
   /* ---- FLOAT GUARD (race-condition path) + DELIVERY ---- */

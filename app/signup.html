@@ -245,11 +245,32 @@
     </form>
 
     <div class="bottom-links">
-      Already have an account? <a href="/signin.html">Sign In</a>
+      Already have an account? <a id="signupSigninLink" href="/signin.html">Sign In</a>
     </div>
   </div>
 
   <script>
+    // A signup reached from a review invitation may return only to a local,
+    // validated review route. This keeps the existing `return` convenience
+    // without allowing an external redirect after account creation.
+    function safeReviewReturn(raw) {
+      if (!raw) return "";
+      try {
+        const target = new URL(raw, window.location.origin);
+        if (target.origin !== window.location.origin) return "";
+        const match = /^\/rev\/(mtn|telecel|airteltigo)\/([0-9]+(?:-[0-9]+)?(?:mb|gb))\/?$/i.exec(target.pathname);
+        return match ? `/rev/${match[1].toLowerCase()}/${match[2].toLowerCase()}` : "";
+      } catch {
+        return "";
+      }
+    }
+
+    const signupParams = new URLSearchParams(window.location.search);
+    const signupReturn = safeReviewReturn(signupParams.get("return"));
+    if (signupReturn) {
+      document.getElementById("signupSigninLink").href = "/signin.html?return=" + encodeURIComponent(signupReturn);
+    }
+
     document.getElementById("signupForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       const btn = document.getElementById("suSubmit");
@@ -267,8 +288,7 @@
       };
 
       // Pass referral code from URL or localStorage
-      const params = new URLSearchParams(window.location.search);
-      const refCode = params.get('ref') || params.get('r') || localStorage.getItem('vd_referral');
+      const refCode = signupParams.get('ref') || signupParams.get('r') || localStorage.getItem('vd_referral');
       if (refCode) payload.referral_code = refCode;
       
       try {
@@ -292,9 +312,8 @@
           localStorage.setItem("vd_customer", JSON.stringify(data.customer));
         }
         
-        // Redirect: return URL if present, otherwise dashboard
-        const returnUrl = params.get('return') || "dashboard.html";
-        window.location.href = returnUrl;
+        // Return only to the validated review route, otherwise the account dashboard.
+        window.location.href = signupReturn || "/dashboard.html";
         
       } catch (err) {
         errBox.innerHTML = `<div class="notice err" style="margin-bottom:12px;">Network error. Please try again.</div>`;

@@ -3,37 +3,24 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Buy Data | Valmont Data</title>
-  <meta name="description" content="Buy MTN, Telecel and AirtelTigo data bundles instantly. Cheap, fast, reliable.">
+  <!-- Bare /storefront.html is a noindex hydration shell. /s/<slug> is
+       rendered by api/account.js, which replaces the marked values after it
+       has verified that the reseller store is active. -->
+  <title><!--STOREFRONT_TITLE_START-->Buy Data | Valmont Data<!--STOREFRONT_TITLE_END--></title>
+  <meta name="description" content="<!--STOREFRONT_DESCRIPTION_START-->Buy MTN, Telecel and AirtelTigo data bundles instantly.<!--STOREFRONT_DESCRIPTION_END-->">
+  <meta name="robots" content="noindex">
+  <link rel="canonical" href="<!--STOREFRONT_CANONICAL_START-->https://valmontdata.com/storefront.html<!--STOREFRONT_CANONICAL_END-->">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Valmont Data">
   <meta property="og:locale" content="en_GH">
-  <meta property="og:title" content="Buy data | Valmont Data reseller store">
-  <meta property="og:description" content="A Valmont Data reseller store — MTN, Telecel and AirtelTigo data bundles, paid with Mobile Money or card.">
+  <meta property="og:title" content="<!--STOREFRONT_TITLE_START-->Buy data | Valmont Data reseller store<!--STOREFRONT_TITLE_END-->">
+  <meta property="og:description" content="<!--STOREFRONT_DESCRIPTION_START-->A Valmont Data reseller store — MTN, Telecel and AirtelTigo data bundles, paid with Mobile Money or card.<!--STOREFRONT_DESCRIPTION_END-->">
+  <meta property="og:url" content="<!--STOREFRONT_CANONICAL_START-->https://valmontdata.com/storefront.html<!--STOREFRONT_CANONICAL_END-->">
   <meta property="og:image" content="https://valmontdata.com/assets/img/valmont-data-logo.png">
   <meta name="twitter:card" content="summary_large_image">
   <link rel="icon" type="image/png" sizes="512x512" href="/assets/img/valmont-data-favicon.png">
   <link rel="apple-touch-icon" href="/assets/img/valmont-data-favicon.png">
-  <script>
-    // SEO: bare /storefront.html (no slug) is an error shell → noindex.
-    // Reseller storefronts (/s/<slug>) are real pages → keep indexable,
-    // with a canonical to the /s/<slug> URL (the form resellers share).
-    (function () {
-      var m = location.pathname.match(/^\/s\/([a-z0-9-]+)/i);
-      var slug = m ? m[1] : new URLSearchParams(location.search).get('slug');
-      if (!slug) {
-        var meta = document.createElement('meta');
-        meta.name = 'robots';
-        meta.content = 'noindex';
-        document.head.appendChild(meta);
-      } else {
-        var link = document.createElement('link');
-        link.rel = 'canonical';
-        link.href = 'https://valmontdata.com/s/' + slug;
-        document.head.appendChild(link);
-      }
-    })();
-  </script>
+  <script>window.__VALMONT_STOREFRONT_SSR__ = false;</script>
   <style>
     :root { --navy: #0b1a38; --orange: #ff8c00; --white: #f8fafc; --gray: #64748b; --green: #22c55e; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -78,9 +65,9 @@
 <body>
   <div class="container">
     <div class="store-header">
-      <h1 id="storeName">Loading...</h1>
-      <div class="tagline" id="storeTagline"></div>
-      <div class="owner" id="storeOwner"></div>
+      <h1 id="storeName"><!--STOREFRONT_NAME_START-->Loading...<!--STOREFRONT_NAME_END--></h1>
+      <div class="tagline" id="storeTagline"><!--STOREFRONT_TAGLINE_START--><!--STOREFRONT_TAGLINE_END--></div>
+      <div class="owner" id="storeOwner"><!--STOREFRONT_OWNER_START--><!--STOREFRONT_OWNER_END--></div>
     </div>
 
     <div id="msg" class="msg"></div>
@@ -146,23 +133,26 @@
         const data = await res.json();
         storeData = data.store;
         document.getElementById('storeName').textContent = storeData.store_name;
-        // SEO: /s/<slug> is indexable and canonicalises to itself, so give each
-        // store its own title and description instead of the generic shell's.
-        // Both come from the store's own record — nothing is invented here.
-        var seoTitle = storeData.store_name + ' — data bundles | Valmont Data store';
-        document.title = seoTitle;
-        var descTag = document.querySelector('meta[name="description"]');
-        if (descTag) {
-          descTag.setAttribute('content',
-            storeData.store_name + ' is a Valmont Data reseller store' +
-            (storeData.tagline ? ': ' + storeData.tagline : '') +
-            '. Buy MTN, Telecel and AirtelTigo data bundles with Mobile Money or card.');
+        // Search metadata for /s/<slug> is already rendered on the server after
+        // active-store validation. Keep this fallback only for the deliberately
+        // noindex /storefront.html shell used in local/manual debugging.
+        if (!window.__VALMONT_STOREFRONT_SSR__) {
+          var seoTitle = storeData.store_name + ' — data bundles | Valmont Data store';
+          document.title = seoTitle;
+          var descTag = document.querySelector('meta[name="description"]');
+          if (descTag) {
+            descTag.setAttribute('content',
+              storeData.store_name + ' is a Valmont Data reseller store' +
+              (storeData.tagline ? ': ' + storeData.tagline : '') +
+              '. Buy MTN, Telecel and AirtelTigo data bundles with Mobile Money or card.');
+          }
+          var ogTitle = document.querySelector('meta[property="og:title"]');
+          if (ogTitle) ogTitle.setAttribute('content', seoTitle);
+          var ogDescription = document.querySelector('meta[property="og:description"]');
+          if (ogDescription && descTag) ogDescription.setAttribute('content', descTag.getAttribute('content'));
         }
-        var ogTitle = document.querySelector('meta[property="og:title"]');
-        if (ogTitle) ogTitle.setAttribute('content', seoTitle);
         document.getElementById('storeTagline').textContent = storeData.tagline || '';
         document.getElementById('storeOwner').textContent = 'By ' + storeData.owner_name;
-        document.title = storeData.store_name + ' | Buy Data';
         loadBundles();
       } catch {
         showMsg('Could not load store', 'error');

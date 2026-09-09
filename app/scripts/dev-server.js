@@ -79,6 +79,8 @@ const routes = {
   "GET /api/store/public": accountRouter,
   "GET /api/reviews": accountRouter,
   "POST /api/reviews": accountRouter,
+  "GET /api/reviews/admin": accountRouter,
+  "POST /api/reviews/admin": accountRouter,
   "DELETE /api/reviews": accountRouter,
   "POST /api/admin/login": adminRouter,
   "GET /api/admin/float": adminRouter,
@@ -86,6 +88,7 @@ const routes = {
   "POST /api/admin/float/seed": adminRouter,
   "GET /api/admin/orders": adminRouter,
   "POST /api/admin/orders/retry": adminRouter,
+  "POST /api/admin/orders/refund-complete": adminRouter,
   "GET /api/admin/pl": adminRouter,
   "GET /api/admin/webhooks": adminRouter,
   "GET /api/admin/overview": adminRouter,
@@ -121,7 +124,7 @@ const MIME = {
 };
 
 const server = http.createServer(async (req, res) => {
-  const url = new URL(req.url, "http://localhost:" + PORT);
+  let url = new URL(req.url, "http://localhost:" + PORT);
   const key = `${req.method} ${url.pathname}`;
 
   // 1) API routes
@@ -146,6 +149,24 @@ const server = http.createServer(async (req, res) => {
   //       /sitemap-stores.xml → /api/sitemap   (dynamic reseller-storefront sitemap)
   if (req.method === "GET" && url.pathname === "/sitemap-stores.xml") {
     return require("../api/sitemap.js")(req, res);
+  }
+
+  // /s/<slug> is server-rendered by the existing account function in production.
+  // Mirror that rewrite locally instead of serving the noindex static shell.
+  if (req.method === "GET" && (url.pathname === "/s" || url.pathname.startsWith("/s/"))) {
+    const slug = url.pathname.startsWith("/s/") ? url.pathname.slice(3) : "";
+    req.url = "/api/account?section=storefront&slug=" + encodeURIComponent(slug);
+    return accountRouter(req, res);
+  }
+
+  // Review invitation links intentionally retain /rev/ in the address bar but
+  // serve the verified bundle's existing static landing page (no new function).
+  const reviewMatch = /^\/rev\/(mtn|telecel|airteltigo)\/([0-9]+(?:-[0-9]+)?(?:mb|gb))\/?$/i.exec(url.pathname);
+  if (req.method === "GET" && reviewMatch) {
+    url = new URL(
+      `/bundles/${reviewMatch[1].toLowerCase()}/${reviewMatch[2].toLowerCase()}.html${url.search}`,
+      "http://localhost:" + PORT
+    );
   }
 
   // 2) Static files — resolution mirrors what Vercel does in production, so a
@@ -192,7 +213,7 @@ const server = http.createServer(async (req, res) => {
   tryNext(0);
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, "0.0.0.0", () => {
   console.log(`\n  Valmont Data dev server → http://localhost:${PORT}`);
   console.log(`  Storefront : http://localhost:${PORT}/`);
   console.log(`  Status     : http://localhost:${PORT}/status.html`);

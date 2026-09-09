@@ -457,7 +457,10 @@ section { padding: 48px 0; }
 .pill.delivering { background: rgba(217, 119, 42, 0.15); color: var(--orange-2); animation: pulse 1.6s infinite; }
 .pill.delivered { background: rgba(47,230,143,0.15); color: var(--green); }
 .pill.failed { background: rgba(255,92,77,0.15); color: #ff9d92; }
+.pill.refund_pending { background: rgba(217,119,42,0.15); color: var(--orange-2); }
 .pill.refunded { background: rgba(77,159,255,0.15); color: #8fbcff; }
+.pill.published { background: rgba(47,230,143,0.15); color: var(--green); }
+.pill.removed { background: rgba(255,92,77,0.15); color: #ff9d92; }
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
 
 /* ---------- admin ---------- */
@@ -742,6 +745,8 @@ td .err { color: #ff9d92; font-size: 12px; }
 .btn-copy-all svg { width: 17px; height: 17px; }
 .btn-receipt { width: 100%; padding: 14px; border-radius: var(--r-sm); border: 1px solid rgba(77,159,255,0.3); background: rgba(77,159,255,0.08); color: #8fbcff; font-family: inherit; font-size: 15px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 9px; transition: var(--transition); }
 .btn-receipt:hover { background: rgba(77,159,255,0.16); }
+.btn-review { width: 100%; padding: 14px; border-radius: var(--r-sm); border: 1px solid rgba(217,119,42,0.45); background: rgba(217,119,42,0.12); color: var(--orange-2); font-family: inherit; font-size: 15px; font-weight: 800; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 9px; transition: var(--transition); }
+.btn-review:hover { background: rgba(217,119,42,0.22); color: #fff; }
 
 .hist-empty { margin-top: 22px; text-align: center; padding: 40px 20px; border: 1px dashed var(--line-strong); border-radius: var(--r); color: var(--muted); }
 .hist-empty b { display: block; color: var(--white); font-size: 17px; margin-bottom: 6px; }

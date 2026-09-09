@@ -26,9 +26,15 @@ Customer → bundle + number → Valmont-Pay checkout (MoMo/card)
 ```bash
 cd app
 cp .env.example .env.local      # defaults are fine for local
-npm run dev                     # → http://localhost:8787 (in-memory DB)
-npm test                        # 104-check end-to-end suite (start dev server first)
+npm run dev                     # fresh, unseeded in-memory DB → http://localhost:8787
+npm test                        # six-suite validation runner; API pipeline must finish 158 passed / 0 failed
 ```
+
+> **Test-server rule:** Run `npm test` only against a newly started, **unseeded**
+> `npm run dev` server. Do not use `npm run dev:demo` or a server that an earlier
+> test already used: `scripts/test.sh` deliberately begins at zero float and funds
+> itself. A seeded server produces 152 passed / 6 failed and the runner correctly
+> treats that as a failed API run.
 
 Storefront at `/`, order tracking at `/status.html`, admin console at
 `/admin.html` (dev password `admin123`), **Auto-reload opt-in at
@@ -60,8 +66,10 @@ blocked, credit capped at GH₵50.
 
 **SMS notifications** — transactional SMS (delivery confirmations, refunds)
 sent automatically via Ghana-based providers (Arkesel, mNotify, or Hubtel).
-Fires in parallel with webhooks, never blocks the pipeline. Dev mode logs
-to console.
+Fires in parallel with webhooks, never blocks the pipeline. A completed-delivery
+SMS may include a direct review link only for the verified buyer/recipient relationship
+and only when the entire plain-text message fits one GSM-7 segment; there are no review
+incentives. Deployed endpoints refuse to report mock/unconfigured SMS as sent.
 
 **Payments are live-first**: set `VALMONTPAY_MODE=live` plus the
 Valmont-Pay keys (`VALMONTPAY_API_URL/API_KEY/WEBHOOK_SECRET`) and every
@@ -81,8 +89,9 @@ drain your MoMo onto their line.
 Want a pre-populated storefront instead of an empty one?
 `cd app && SEED_DEMO=1 npm run dev` — loads ~50 realistic demo orders, 5 demo
 customer accounts (PINs in `app/README.md`), a consistent float ledger and the
-webhook audit log. `node scripts/seed-demo.js --sql` regenerates the demo seed
-for a DEMO/staging Supabase (`app/supabase/seed-demo.sql`).
+webhook audit log. It is for manual click-through only; stop it and restart plain
+`npm run dev` before running `npm test`. `node scripts/seed-demo.js --sql`
+regenerates the demo seed for a DEMO/staging Supabase (`app/supabase/seed-demo.sql`).
 
 ## The five non-negotiables
 
@@ -93,7 +102,8 @@ for a DEMO/staging Supabase (`app/supabase/seed-demo.sql`).
    raw body with the tenant secret) must verify before anything happens.
    Never trust a browser-side "payment succeeded".
 3. **Float guard** — checked before checkout (UI auto-disables bundles) and
-   again before delivery; the race case auto-refunds. Never oversell float.
+   again before delivery; a paid race/failure case enters **Refund being arranged**
+until an admin completes and records the real gateway refund. Never oversell float.
 4. **Server-side delivery only** — only the verified webhook calls
    `supplier.submit()`.
 5. **Audit trail** — every callback lands in `webhook_log`; every order keeps
@@ -102,6 +112,20 @@ for a DEMO/staging Supabase (`app/supabase/seed-demo.sql`).
 
 Also: secrets never touch client code (`.env.example` only), and **no fake
 discounts** (no fake "was" prices).
+
+## Payment, refund and deployment safety
+
+A live Valmont-Pay delivery failure or amount mismatch is **not** called refunded
+until a real gateway refund has happened. It becomes `refund_pending` (shown to the
+customer as “Refund being arranged”), then an authenticated administrator uses the
+Orders completion control after reconciling the actual gateway action. Providers can
+take additional time to show the completed credit.
+
+Vercel deployments reject local mock/no-database behavior: configure real Supabase,
+a live non-mock supplier, Valmont-Pay credentials, `SITE_URL`, a strong `AUTH_SECRET`,
+`USAGE_REPORT_KEY`, and `CRON_SECRET`. Vercel invokes scheduled jobs with
+`Authorization: Bearer $CRON_SECRET`; local development may run the cron without a
+secret only when no local secret is configured.
 
 ## Stack & conventions
 

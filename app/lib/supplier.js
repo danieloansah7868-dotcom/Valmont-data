@@ -14,6 +14,8 @@
                 networkType, ref, phone)
    ============================================================================ */
 
+const { isDeployment, configurationError } = require("./runtime");
+
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const REMA_BASE = () => (process.env.REMADATA_API_URL || "https://remadata.com/api").replace(/\/$/, "");
@@ -83,6 +85,11 @@ const mock = {
 
 const remadata = {
   name: "remadata",
+  isConfigured() {
+    // Local tooling can use the documented default base URL. A deployed money
+    // path must explicitly opt into both its live endpoint and its key.
+    return Boolean(REMA_KEY() && (!isDeployment() || process.env.REMADATA_API_URL));
+  },
   async submit(order) {
     const key = REMA_KEY();
     if (!key) return { ok: false, error: "REMADATA_API_KEY not set" };
@@ -108,7 +115,7 @@ const remadata = {
         // is deliberately ambiguous: immediate failover could deliver twice.
         const explicitRejection = data.status === "error" || data.success === false;
         const safeToFailover = explicitRejection || (res.status >= 400 && res.status < 500);
-        const errorMsg = data.message || data.error || (explicitRejection ? "Supplier order rejected (wallet auto-refunded)" : `HTTP ${res.status}`);
+        const errorMsg = data.message || data.error || (explicitRejection ? "Supplier order rejected" : `HTTP ${res.status}`);
         return { ok: false, error: errorMsg, raw: data, safeToFailover, ambiguous: !safeToFailover, httpStatus: res.status };
       }
 
@@ -132,7 +139,10 @@ const remadata = {
 
   async fetchBundles(customKey) {
     const key = customKey || REMA_KEY();
-    if (!key) return mockBundlesList();
+    if (!key) {
+      if (isDeployment()) throw configurationError("REMADATA_API_KEY is required for deployed supplier price requests");
+      return mockBundlesList();
+    }
 
     try {
       const res = await fetch(`${REMA_BASE()}/bundles`, {
@@ -150,14 +160,17 @@ const remadata = {
       }
       throw new Error(data.message || `Failed to fetch bundles: HTTP ${res.status}`);
     } catch (err) {
-      if (!key) return mockBundlesList();
+      if (!key && !isDeployment()) return mockBundlesList();
       throw err;
     }
   },
 
   async fetchWalletBalance(customKey) {
     const key = customKey || REMA_KEY();
-    if (!key) return { balance: 500.00, currency: "GHS", mock: true };
+    if (!key) {
+      if (isDeployment()) throw configurationError("REMADATA_API_KEY is required for deployed supplier wallet requests");
+      return { balance: 500.00, currency: "GHS", mock: true };
+    }
 
     try {
       const res = await fetch(`${REMA_BASE()}/wallet-balance`, {
@@ -172,7 +185,7 @@ const remadata = {
       }
       throw new Error(data.message || `Failed to fetch wallet balance: HTTP ${res.status}`);
     } catch (err) {
-      if (!key) return { balance: 500.00, currency: "GHS", mock: true };
+      if (!key && !isDeployment()) return { balance: 500.00, currency: "GHS", mock: true };
       throw err;
     }
   },
@@ -323,15 +336,36 @@ function configuredNames(network) {
   if (explicit) return explicit.split(",").map((x) => x.trim().toLowerCase()).filter((x) => drivers[x] && !disabled.has(x));
   return [String(process.env.SUPPLIER_DRIVER || "mock").toLowerCase()].filter((x) => drivers[x] && !disabled.has(x));
 }
+function unavailableSupplier(name) {
+  const error = `No safe supplier is configured${name ? ` for ${name}` : ""}`;
+  return {
+    name: "unavailable",
+    isConfigured: () => false,
+    async submit() { return { ok: false, safeToFailover: false, error }; },
+    async fetchBundles() { throw configurationError(error); },
+    async fetchWalletBalance() { throw configurationError(error); },
+  };
+}
+
+function getSuppliers(network) {
+  return configuredNames(network)
+    .map((name) => drivers[name])
+    .filter(Boolean)
+    // Mock delivery is a local-development/test driver only. Never quietly
+    // route a paid Vercel order through it.
+    .filter((supplier) => !isDeployment() || supplier.name !== "mock");
+}
+
 function getSupplier(name) {
-  const chosen = name
-    ? drivers[String(name).toLowerCase()]
-    : getSuppliers().find((s) => typeof s.isConfigured !== "function" || s.isConfigured());
+  const requested = name ? drivers[String(name).toLowerCase()] : null;
+  const chosen = requested && (!isDeployment() || requested.name !== "mock")
+    ? requested
+    : (!name ? getSuppliers().find((s) => typeof s.isConfigured !== "function" || s.isConfigured()) : null);
   if (chosen) return chosen;
+  if (isDeployment()) return unavailableSupplier(name || process.env.SUPPLIER_DRIVER);
   console.warn(`Supplier "${name || process.env.SUPPLIER_DRIVER}" not registered/configured — using mock`);
   return mock;
 }
-function getSuppliers(network) { return configuredNames(network).map((name) => drivers[name]); }
 
 const router = {
   name: "router",
@@ -342,6 +376,28 @@ const router = {
       configured: typeof s.isConfigured === "function" ? s.isConfigured() : true,
       circuit_open: !circuitAvailable(s.name), ...circuit(s.name),
     }));
+  },
+  preflight(network) {
+    const configured = getSuppliers(network).filter((supplier) =>
+      typeof supplier.isConfigured !== "function" || supplier.isConfigured()
+    );
+    if (!configured.length) {
+      return {
+        ok: false,
+        error: `No configured non-mock supplier is available for ${network || "this network"}`,
+      };
+    }
+    return { ok: true, suppliers: configured.map((supplier) => supplier.name) };
+  },
+  assertAvailable(network) {
+    const ready = this.preflight(network);
+    if (!ready.ok) {
+      const err = isDeployment()
+        ? configurationError(ready.error)
+        : Object.assign(new Error(ready.error), { status: 503 });
+      throw err;
+    }
+    return ready;
   },
   async submit(order) {
     const attempts = [];
