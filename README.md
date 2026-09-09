@@ -26,9 +26,15 @@ Customer → bundle + number → Valmont-Pay checkout (MoMo/card)
 ```bash
 cd app
 cp .env.example .env.local      # defaults are fine for local
-npm run dev                     # → http://localhost:8787 (in-memory DB)
-npm test                        # six-suite validation runner (API pipeline: 158 checks; start dev server first)
+npm run dev                     # fresh, unseeded in-memory DB → http://localhost:8787
+npm test                        # six-suite validation runner; API pipeline must finish 158 passed / 0 failed
 ```
+
+> **Test-server rule:** Run `npm test` only against a newly started, **unseeded**
+> `npm run dev` server. Do not use `npm run dev:demo` or a server that an earlier
+> test already used: `scripts/test.sh` deliberately begins at zero float and funds
+> itself. A seeded server produces 152 passed / 6 failed and the runner correctly
+> treats that as a failed API run.
 
 Storefront at `/`, order tracking at `/status.html`, admin console at
 `/admin.html` (dev password `admin123`), **Auto-reload opt-in at
@@ -83,8 +89,9 @@ drain your MoMo onto their line.
 Want a pre-populated storefront instead of an empty one?
 `cd app && SEED_DEMO=1 npm run dev` — loads ~50 realistic demo orders, 5 demo
 customer accounts (PINs in `app/README.md`), a consistent float ledger and the
-webhook audit log. `node scripts/seed-demo.js --sql` regenerates the demo seed
-for a DEMO/staging Supabase (`app/supabase/seed-demo.sql`).
+webhook audit log. It is for manual click-through only; stop it and restart plain
+`npm run dev` before running `npm test`. `node scripts/seed-demo.js --sql`
+regenerates the demo seed for a DEMO/staging Supabase (`app/supabase/seed-demo.sql`).
 
 ## The five non-negotiables
 

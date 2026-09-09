@@ -11,7 +11,7 @@ Short version: the site had **nine** indexable URLs and **zero** pages for the t
 - JSON-LD: **0 → 123 blocks across 39 files** (21 distinct `@type` values: Organization, WebSite, WebPage, CollectionPage, ItemList, Product, Offer, Service, FAQPage, Question, Answer, BreadcrumbList, ListItem, AboutPage, ContactPage, Brand, Thing, Country, PostalAddress, ContactPoint, OpeningHoursSpecification)
 - Open Graph tags: **0 → 40 files** · keywords meta: **0 → 39 files** · pages with >1 `<h1>`: **2 on the homepage → 0 anywhere**
 - `robots.txt` contradictions (noindexed *and* Disallowed): **5 → 0**
-- Tests: `npm run test:seo` → **96 file checks + 21 live routes, all green**; `npm run test:reviews` → **162 checks, all green**; `npm run test:delivery-safety` → **70 isolated delivery-safety checks, all green**; `npm test` (**all six suites**) → API pipeline **158 passed / 0 failed** on a fresh unseeded dev server. The original float and paused-rule checks remain in `scripts/test.sh`; see §5.5.
+- Tests: `npm run test:seo -- --base=http://127.0.0.1:8787` → **95 static checks + one live-route assertion covering 21 routes (96 total), all green**; `npm run test:reviews` → **162 checks, all green**; `npm run test:delivery-safety` → **70 isolated delivery-safety checks, all green**; `npm test` (**all six suites**) → API pipeline **158 passed / 0 failed** on a fresh unseeded dev server. The original float and paused-rule checks remain in `scripts/test.sh`; see §5.5.
 
 ---
 
@@ -156,13 +156,17 @@ Nav, footer, homepage tiles, breadcrumbs and cross-link grids now point at canon
 
 ```bash
 cd app
-npm run dev                                     # or: SEED_DEMO=1 node scripts/dev-server.js
+npm run dev                                     # fresh, unseeded server required for npm test
 npm run seo:generate && npm run seo:check
 npm run test:seo -- --base=http://localhost:8787
 npm test
 ```
 
-**`npm run test:seo` → 96 file checks + 21 live routes, all passing.** It verifies: pages are current vs the catalogue; sitemap↔canonical byte parity; title/description/canonical/H1/word-count/synonym-row on all 41 indexable pages; every JSON-LD block parses and only describes visible content; no ratings/reviews/availability claims in static schema; internal links resolve and no filter URLs survive; all 382 vocabulary terms expand and all 17 categories point at a page (and anchor) that exists; search never dead-ends; honesty guards; all 24 prices present in raw HTML; robots.txt does not contradict the pages. With `--base` it fetches 21 routes and asserts 200 + their own title/description/canonical, including clean URLs and both sitemaps.
+`SEED_DEMO=1 node scripts/dev-server.js` is useful for manual SEO/demo inspection,
+but not for `npm test`: the API script starts from zero float and therefore expects
+**158 passed / 0 failed** only on a fresh unseeded server.
+
+**`npm run test:seo` runs 95 static checks; with `--base`, its 96th assertion covers 21 live routes, all passing.** It verifies: pages are current vs the catalogue; sitemap↔canonical byte parity; title/description/canonical/H1/word-count/synonym-row on all 41 indexable pages; every JSON-LD block parses and only describes visible content; no ratings/reviews/availability claims in static schema; internal links resolve and no filter URLs survive; all 382 vocabulary terms expand and all 17 categories point at a page (and anchor) that exists; search never dead-ends; honesty guards; all 24 prices present in raw HTML; robots.txt does not contradict the pages. With `--base` it fetches 21 routes and asserts 200 + their own title/description/canonical, including clean URLs and both sitemaps.
 
 Live route sample (dev server, `SEED_DEMO=1`):
 

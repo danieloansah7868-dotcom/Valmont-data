@@ -27,16 +27,20 @@ unless stated otherwise.
 ```bash
 cd app
 cp .env.example .env.local      # defaults are fine for local testing
-npm run dev                     # → http://localhost:8787 (in-memory DB, SUPABASE_MOCK=1)
+npm run dev                     # fresh, unseeded in-memory DB → http://localhost:8787
 ```
 
-In a second terminal (with the dev server still running):
+In a second terminal (with that same fresh dev server still running):
 
 ```bash
-npm test                        # six suites; API pipeline must report 158 passed / 0 failed on a fresh dev server
+npm test                        # six suites; API pipeline must report 158 passed / 0 failed
 npm run test:reviews             # verified-review and moderation suite (also included in npm test)
 npm run test:delivery-safety     # invitation, refund, SSR and deployment safety suite (also included in npm test)
 ```
+
+> **Important:** `npm run dev:demo` is for manual demonstrations, not `npm test`.
+> The API script intentionally expects zero float before it tops up its own test
+> float; a seeded or previously used server will fail the 158/0 baseline.
 
 Then click through the business manually:
 

@@ -59,7 +59,7 @@ function safeReviewUrl(value) {
 
 /* Send an SMS to a Ghana phone number.
    phone: Ghana format (0XXXXXXXXX) or international (+233XXXXXXXXX)
-   message: plain text, max 160 chars per segment */
+   message: plain text; one segment is 160 GSM-7 septets or 70 UCS-2 code units */
 async function sendSMS(phone, message) {
   if (!phone || !message) return { sent: false, error: "missing phone/message" };
 

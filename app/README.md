@@ -36,7 +36,7 @@ The **webhook handler is the heart of the system** (`api/valmontpay/webhook.js`)
 | `assets/js/catalogue-search.js` | On-site catalogue search — synonym expansion as a **graded score boost** (exact matches still win), never a hard filter; unmatched queries fall back to the full catalogue plus page hints instead of an empty state |
 | `assets/css/seo.css` | Styles for the generated pages' SEO blocks (`.seo-aka` synonym rows, `.seo-faq`, `.seo-links`, `.seo-table`, `.seo-picked` deep-link highlight) and the reviews block (`.rv-*`: summary, histogram, review cards, verified-buyer mark, review form) |
 | `scripts/generate-seo-pages.js` | **Static SEO generator** (zero dependencies): builds the 34 pages from `lib/demo-data.js` or `GET /api/bundles`, injects the homepage price list + `<head>`, generates `faq.html`/`store.html` FAQPage schema from their visible Q&A, rebuilds `sitemap.xml`. `--api[=url]`, `--check`, `--list`, `--quiet` |
-| `scripts/test-seo.js` | SEO verification suite (96 file checks + optional live HTTP checks): sitemap↔canonical parity, one H1, title/description lengths, JSON-LD parses and matches visible copy, no fabricated ratings/stock, links resolve, every vocabulary term has a destination, prices present in raw HTML, robots.txt consistency |
+| `scripts/test-seo.js` | SEO verification suite (95 static checks, plus one live-route assertion when `--base` is supplied — 96 total): sitemap↔canonical parity, one H1, title/description lengths, JSON-LD parses and matches visible copy, no fabricated ratings/stock, links resolve, every vocabulary term has a destination, prices present in raw HTML, robots.txt consistency |
 | `status.html` | Public order tracking by reference (no login) |
 | `dashboard.html` | Signed-in dashboard — quick actions + **"My bundles & auto-reload"** summary card (live usage bars per line) |
 | `autoreload.html` | **The opt-in place** — per-line usage tracking, active rules (pause/resume/remove), and the consent form (line, bundle, threshold, pre-authorized MoMo) |
@@ -411,7 +411,9 @@ which is meant to be runnable against a real project; seeding it with fake revie
 reviews in production. To see the widget populated locally: `npm run dev:demo`, sign in as a demo
 customer (the seed prints their phones and PINs), and open a product page for a bundle that customer
 has had delivered — `/api/account/history` shows which those are. Customers who have not received
-that bundle see the reason, which is the feature working.
+that bundle see the reason, which is the feature working. The demo server is **not** the API-test
+fixture: stop it and restart plain `npm run dev` before `npm test`, because `scripts/test.sh`
+intentionally starts with zero float and must report 158 passed / 0 failed.
 
 ```bash
 npm run test:reviews   # 162 checks — boots its own clean server on :8799 (REVIEWS_TEST_PORT to move it)
@@ -448,7 +450,7 @@ URLs, no page for "mtn data", "10gb" or "non expiry", no structured data, no Ope
 npm run seo:generate        # rebuild pages + sitemap from lib/demo-data.js
 npm run seo:generate:live   # …or from GET /api/bundles (add --api=http://host:port)
 npm run seo:check           # fail if a published price/page no longer matches the catalogue
-npm run test:seo            # 96 checks; add -- --base=http://localhost:8787 for live HTTP checks
+npm run test:seo            # 95 static checks; add -- --base=http://localhost:8787 for the 96th live-route check
 ```
 
 **Why a script and not a build step:** the project's zero-build rule stands. The generator has no
@@ -487,12 +489,12 @@ opt-out removes the rule → auth guards 401 →
 **Referrals**: code generation → verification → signup with referral code → self-referral blocked → credit balance → auth guards →
 **SMS**: mock mode → template rendering → provider config.
 
-Run it with `npm test` (after starting `npm run dev`).
+Run it with `npm test` against a freshly started, unseeded `npm run dev` server.
 
 `npm test` runs **all six** suites through `scripts/run-tests.js` and prints a summary:
 `test.sh` (158-check end-to-end API pipeline), `test-supplier-router.js` (multi-supplier
-failover), `test-valmontai.js` (27 assistant checks), `test-seo.js` (96 SEO checks),
-`test-reviews.js` (162 checks: review API, moderation and static-schema honesty against its
+failover), `test-valmontai.js` (27 assistant checks), `test-seo.js` (95 static SEO checks;
+96 with `--base` live-route checking), `test-reviews.js` (162 checks: review API, moderation and static-schema honesty against its
 own clean server on `:8799`) and `test-delivery-safety.js` (70 isolated checks for persistent
 OTPs, review invitations, refund reconciliation, storefront SSR and production guards).
 The runner requires the API suite to finish successfully with at least the 158-pass baseline;

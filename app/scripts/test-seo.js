@@ -79,7 +79,9 @@ const localLinks = (h) =>
   [...h.matchAll(/href="([^"#]+)(#[^"]*)?"/g)]
     .map((m) => m[1])
     .filter((u) => u.startsWith('/') && !u.startsWith('//'))
-    .filter((u) => !/^(\/api\/|\/r\/)/.test(u));
+    // /rev/ is a private invitation alias rewound by Vercel to the
+    // canonical product file; it is deliberately not a committed HTML path.
+    .filter((u) => !/^(\/api\/|\/r\/|\/rev\/)/.test(u));
 const urlToFile = (u) => {
   const p = u.split('?')[0];
   if (p.endsWith('/')) return p + 'index.html';
@@ -232,7 +234,8 @@ for (const rel of [...generated, ...handPages, ...noindexPages.filter(exists)]) 
     }
   }
 }
-ok(deadLinks === 0, 'no broken internal links on any page');
+const privateReviewAliasIgnored = localLinks('<a href="/rev/mtn/10gb">review invitation</a>').length === 0;
+ok(deadLinks === 0 && privateReviewAliasIgnored, 'no broken internal links on any page; private /rev/ aliases are intentionally excluded');
 ok(filterLinks === 0, 'navigation and cross-links point at canonical pages, not ?net= filters');
 ok(/href="\/bundles\/mtn\.html"/.test(read('index.html')), 'homepage nav links to the MTN landing page');
 ok(/href="\/bundles\/"/.test(read('faq.html')), 'FAQ cross-links to the catalogue hub');
@@ -353,7 +356,7 @@ for (const p of noindexPages) {
   }
 }
 ok(contradictions === 0, 'no noindexed page is also Disallowed in robots.txt');
-ok(robots.includes('/api/'), 'robots.txt still blocks /api/');
+ok(robots.includes('/api/') && robots.includes('/rev/'), 'robots.txt blocks API and private review-invitation aliases');
 ok(robots.includes('Sitemap: ' + SITE + '/sitemap.xml'), 'robots.txt advertises the static sitemap');
 ok(robots.includes('Sitemap: ' + SITE + '/sitemap-stores.xml'), 'robots.txt advertises the reseller-store sitemap');
 

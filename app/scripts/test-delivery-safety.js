@@ -384,9 +384,29 @@ function policyAndNotificationChecks() {
     const sms = require('./lib/sms');
     const order = { size_mb: 10240, network_code: 'mtn', phone: '0249990101', reference: 'VD-260909-0001', review_url: 'https://reviews.test/rev/mtn/10gb' };
     const text = sms.templates.orderDelivered(order);
-    console.log(JSON.stringify({ text, info: sms.messageInfo(text), one: sms.isOneGsmSegment(text) }));
+    // GSM-7 permits 160 septets in one segment; a non-GSM emoji switches the
+    // entire SMS to UCS-2, where only 70 code units fit. Keep this in one
+    // assertion so the suite remains the required 70 checks.
+    const gsm160 = sms.messageInfo('a'.repeat(160));
+    const gsm161 = sms.messageInfo('a'.repeat(161));
+    const unicode70 = sms.messageInfo('✅' + 'a'.repeat(69));
+    const unicode71 = sms.messageInfo('✅' + 'a'.repeat(70));
+    const longReviewUrl = 'https://' + 'a'.repeat(60) + '.test/rev/mtn/10gb';
+    const plainReceipt = sms.templates.orderDelivered({ ...order, review_url: '' });
+    const overflowCandidate = plainReceipt + ' Review: ' + longReviewUrl;
+    const overflowReceipt = sms.templates.orderDelivered({ ...order, review_url: longReviewUrl });
+    console.log(JSON.stringify({ text, info: sms.messageInfo(text), one: sms.isOneGsmSegment(text), gsm160, gsm161, unicode70, unicode71, overflowInfo: sms.messageInfo(overflowCandidate), overflowReceipt }));
   `, "SMS template");
-  ok(Boolean(smsProbe?.one) && smsProbe?.info?.encoding === "gsm7" && smsProbe?.info?.segments === 1, "eligible SMS review invitation remains one GSM-7 segment");
+  ok(
+    Boolean(smsProbe?.one) && smsProbe?.info?.encoding === "gsm7" && smsProbe?.info?.segments === 1
+      && smsProbe?.gsm160?.encoding === "gsm7" && smsProbe?.gsm160?.units === 160 && smsProbe?.gsm160?.segments === 1
+      && smsProbe?.gsm161?.encoding === "gsm7" && smsProbe?.gsm161?.units === 161 && smsProbe?.gsm161?.segments === 2
+      && smsProbe?.unicode70?.encoding === "ucs2" && smsProbe?.unicode70?.units === 70 && smsProbe?.unicode70?.segments === 1
+      && smsProbe?.unicode71?.encoding === "ucs2" && smsProbe?.unicode71?.units === 71 && smsProbe?.unicode71?.segments === 2
+      && smsProbe?.overflowInfo?.encoding === "gsm7" && smsProbe?.overflowInfo?.segments === 2
+      && !smsProbe?.overflowReceipt?.includes(" Review: "),
+    "eligible SMS review invitation is one GSM-7 segment; GSM-7 uses 160 septets, Unicode uses the 70-unit UCS-2 limit, and an overflow link is omitted"
+  );
   ok(smsProbe?.text?.includes(expectedUrl) && !/(reward|bonus|credit|discount|incentive)/i.test(smsProbe?.text || ""), "SMS invitation is a plain direct link with no incentive language");
 
   const whatsappProbe = runProbe(`

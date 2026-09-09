@@ -2,9 +2,8 @@
 /* run-tests.js — run every suite and report them all, even when one fails.
  *
  * `npm test` used to be `bash scripts/test.sh && node … && node …`, which meant
- * the API pipeline's pre-existing float-state failures (see README → Tested)
- * short-circuited the chain and the supplier, assistant and SEO suites never ran
- * at all. Nobody notices a broken suite that never executes.
+ * one API-pipeline failure short-circuited the supplier, assistant and SEO suites.
+ * Nobody notices a broken suite that never executes.
  *
  * So: run every suite, print a summary, exit non-zero if anything regressed.
  *
@@ -25,7 +24,7 @@ const { spawnSync } = require("child_process");
 const path = require("path");
 
 const ROOT = path.join(__dirname, "..");
-const API_BASELINE_PASSED = 158;   // current scripts/test.sh count, fresh unseeded server on :8787
+const API_BASELINE_PASSED = 158;   // fresh, UNSEEDED :8787 server only; test.sh funds float itself
 
 const suites = [
   { name: "api pipeline", cmd: "bash", args: ["scripts/test.sh"], baseline: API_BASELINE_PASSED },
@@ -74,7 +73,10 @@ for (const r of results) {
     // any reported failure is a regression even if the pass count still happens
     // to meet the historical floor.
     const okRun = r.status === 0 && r.passed !== null && r.passed >= r.suite.baseline && r.failed === 0;
-    console.log(`  ${okRun ? "✔" : "✘"} ${label} ${r.passed === null ? `exit ${r.status}` : `${r.passed} passed, ${r.failed} failed (baseline: ${r.suite.baseline} passed)`}`);
+    const seededServerHint = !okRun && r.passed === 152 && r.failed === 6
+      ? " — this is the seeded-demo result; restart plain npm run dev and run once"
+      : "";
+    console.log(`  ${okRun ? "✔" : "✘"} ${label} ${r.passed === null ? `exit ${r.status}` : `${r.passed} passed, ${r.failed} failed (baseline: ${r.suite.baseline} passed)`}${seededServerHint}`);
     if (!okRun) regressed++;
   } else {
     console.log(`  ${r.status === 0 ? "✔" : "✘"} ${label} ${r.status === 0 ? "passed" : "FAILED (exit " + r.status + ")"}`);
