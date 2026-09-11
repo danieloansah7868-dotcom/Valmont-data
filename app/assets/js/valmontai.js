@@ -29,7 +29,7 @@
     whatsapp: '0542451578',
     products: 'Mobile data bundles — MTN, Telecel, AirtelTigo',
     howToBuy: 'Choose network, tap bundle, enter recipient line, confirm, then pay',
-    delivery: 'Guaranteed 30-Second Instant Delivery — Auto-credited to your line',
+    delivery: 'Honest delivery — we don\u2019t promise instant. It takes 5 minutes to 3 hours, so timing can vary — you get updates until your bundle lands.',
     stockNotice: 'MTN, Telecel, AirtelTigo running low — some bundles paused while restocking',
     warning: 'Wrong numbers are not refundable.',
   };
@@ -177,7 +177,7 @@
     /* 4 — Delivery time */
     if (has(text, ' deliver', ' delivery', ' how fast', ' how long', ' how quickly', ' how soon', ' instant', ' arrive', ' receive', ' credited', ' wait')) {
       return {
-        text: config.delivery + ' immediately after payment.',
+        text: config.delivery + ' Delivery starts as soon as payment confirms.',
       };
     }
 
@@ -202,7 +202,7 @@
       const pricing = asksPrice;
       return {
         text: 'Choose your network (MTN, Telecel, etc.), tap your preferred bundle, enter the recipient line, confirm, then pay. ' +
-          'Delivery is guaranteed within 30 seconds and auto-credited to your line.' +
+          'Delivery is honest — we don\u2019t promise instant. It takes 5 minutes to 3 hours, so timing can vary, and you get updates until your bundle lands.' +
           (pricing ? '\nBundle prices are shown live in the Buy Data section on the homepage — tap a bundle to see its price.' : ''),
         actions: buyAction,
       };
@@ -219,7 +219,7 @@
     /* Thanks / goodbye */
     if (has(text, ' thank', ' thanks', ' thank you', ' appreciated', ' okay thanks', ' bye', ' good night', ' later')) {
       return {
-        text: 'You\'re welcome! Tap Buy Data whenever you need a bundle — delivery is within 30 seconds. Have a great day!',
+        text: 'You\'re welcome! Tap Buy Data whenever you need a bundle — you\'ll get honest updates until your data lands. Have a great day!',
       };
     }
 
@@ -360,7 +360,7 @@
     }
     return {
       text: 'All networks are in stock right now — MTN, Telecel and AirtelTigo bundles are available. ' +
-        'Open Buy Data, choose your network, and tap a bundle to order. Delivery is within 30 seconds.',
+        'Open Buy Data, choose your network, and tap a bundle to order. We don\'t promise instant — you\'ll get updates until your bundle lands.',
       actions: [{ label: 'Buy data →', href: '/#buy' }],
     };
   }

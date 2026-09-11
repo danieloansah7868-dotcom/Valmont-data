@@ -63,7 +63,7 @@ async function setStock(snapshot) {
 
   r = await ai.answerFor('How do I buy MTN data?');
   check('Rule 2 how-to-buy (prompt example)',
-    r.text.includes('Choose') && r.text.includes('network') && r.text.includes('30 seconds') && r.text.includes('auto-credited'), r.text);
+    r.text.includes('Choose') && r.text.includes('network') && r.text.includes('honest') && r.text.includes('updates until'), r.text);
 
   r = await ai.answerFor('Is MTN available?');
   check('Rule 3 live stock — MTN available shows live count',
@@ -77,7 +77,7 @@ async function setStock(snapshot) {
     r.text.includes('All networks are in stock'), r.text);
 
   r = await ai.answerFor('How long does delivery take?');
-  check('Rule 4 delivery', r.text.includes('30-Second Instant Delivery') && r.text.includes('after payment'), r.text);
+  check('Rule 4 delivery', r.text.includes('Honest delivery') && r.text.includes('payment confirms'), r.text);
 
   r = await ai.answerFor('I entered wrong number');
   check('Rule 5 wrong number (prompt example)',
@@ -140,7 +140,7 @@ async function setStock(snapshot) {
 
   r = await ai.answerFor('How do I buy data?');
   check('API down — how-to still answers fully',
-    r.text.includes('Choose your network') && r.text.includes('30 seconds'), r.text);
+    r.text.includes('Choose your network') && r.text.includes('updates until'), r.text);
 
   r = await ai.answerFor('refund please');
   check('Wrong-number/refund still answers with warning', r.text.includes('not refundable'), r.text);

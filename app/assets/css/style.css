@@ -204,6 +204,16 @@ section { padding: 48px 0; }
 .net-tab.on[data-net="airteltigo"] { background: rgba(0, 87, 184, 0.16); color: var(--airtel); border-color: rgba(77, 155, 245, 0.4); box-shadow: 0 4px 16px var(--airtel-glow); }
 
 /* ---------- Datamart-style vibrant solid bundle cards ---------- */
+.honesty-strip {
+  background: linear-gradient(90deg, rgba(217,119,42,0.14), rgba(255,203,5,0.10));
+  border-bottom: 1px solid rgba(217,119,42,0.28);
+}
+.honesty-strip-inner {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 40px; padding: 8px 20px;
+  font-size: 13.5px; color: var(--soft); text-align: center; line-height: 1.45;
+}
+.honesty-strip-inner b { color: var(--orange-2); }
 .delivery-guarantee-banner {
   display: flex; align-items: center; justify-content: center; gap: 8px;
   background: linear-gradient(90deg, rgba(217,119,42,0.15), rgba(255,203,5,0.12));

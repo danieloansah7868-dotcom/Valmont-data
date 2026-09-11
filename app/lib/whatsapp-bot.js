@@ -236,7 +236,7 @@ async function handleMessage({ from, text, buttonReply }) {
 async function sendWelcome(waId, customer) {
   await resetSession(waId);
   const name = customer ? customer.name?.split(" ")[0] || "there" : "there";
-  const greeting = `👋 Hey ${name}! Welcome to *Valmont Data*.\n\nBuy MTN, Telecel & AirtelTigo data bundles instantly.\n\nWhat would you like to do?`;
+  const greeting = `👋 Hey ${name}! Welcome to *Valmont Data*.\n\nBuy MTN, Telecel & AirtelTigo data bundles online — honest delivery with updates until your data lands.\n\nWhat would you like to do?`;
 
   return whatsapp.sendButtons(waId, greeting, [
     { id: "order", title: "📦 Buy Data" },

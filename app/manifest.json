@@ -21,7 +21,7 @@
       "purpose": "any"
     },
     {
-      "src": "/assets/img/valmont-data-favicon.png",
+      "src": "/assets/img/valmont-data-favicon-maskable.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
