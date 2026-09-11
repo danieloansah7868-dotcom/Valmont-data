@@ -214,7 +214,7 @@
     if (buySection && !buySection.querySelector(".delivery-guarantee-banner")) {
       const banner = document.createElement("div");
       banner.className = "delivery-guarantee-banner";
-      banner.innerHTML = "\u26A1 <b>Guaranteed 30-Second Instant Delivery</b> — Auto-credited to your line";
+      banner.innerHTML = "\uD83E\uDD1D <b>Honest delivery</b> — we don't promise instant. It takes 5 minutes to 3 hours — you get updates until your bundle lands.";
       const tabs = buySection.querySelector("#netTabs");
       if (tabs && tabs.parentElement) tabs.parentElement.insertBefore(banner, tabs.nextSibling);
       else buySection.insertBefore(banner, grid);
@@ -237,7 +237,7 @@
             <div class="bundle-size">${sizeLabel}</div>
             <span class="bundle-network-badge">${NETWORK_NAMES[b.network]}</span>
           </div>
-          <div class="bundle-delivery-badge">\u26A1 Delivers in 30 seconds</div>
+          <div class="bundle-delivery-badge">\uD83E\uDD1D Honest delivery — 5 min to 3 hours</div>
           <div class="bundle-details-grid">
             <div class="detail"><span class="label">PRICE</span><b class="value price-val">${fmt(b.price)}</b></div>
             <div class="detail"><span class="label">ROLLOVER</span><b class="value">Yes</b></div>

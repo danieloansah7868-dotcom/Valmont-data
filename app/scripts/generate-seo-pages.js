@@ -456,7 +456,7 @@ function layout(page) {
   <meta property="og:title" content="${esc(page.title)}">
   <meta property="og:description" content="${esc(page.description)}">
   <meta property="og:url" content="${esc(abs(canonical))}">
-  <meta property="og:image" content="${esc(abs("/assets/img/valmont-data-logo.png"))}">
+  <meta property="og:image" content="${esc(abs("/assets/img/valmont-data-logo-bg.png"))}">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="${esc(page.title)}">
   <meta name="twitter:description" content="${esc(page.description)}">
@@ -623,7 +623,7 @@ const FACTS = {
   payment:
     "Payment goes through <b>Valmont-Pay</b> — MTN MoMo, Telecel Cash, AT Money or card. We never see or store your MoMo PIN: you approve every charge on your own phone.",
   delivery:
-    "Delivery starts the moment payment confirms. Most bundles arrive within minutes; it depends on the network at the time. Every order gets a tracking reference and an SMS confirmation.",
+    "Delivery starts the moment payment confirms. Most bundles land in 5 minutes to 3 hours, so timing can vary. You get updates until your bundle lands. Every order gets a tracking reference and an SMS confirmation.",
   refunds:
     "If a delivery fails we retry it automatically (up to three attempts). If it still cannot complete after payment, we mark the order <b>Refund being arranged</b>, arrange a return of the payment to its original method, and confirm when that refund is completed. Wrong numbers are <b>not</b> refundable — check the line before you pay.",
   account:
@@ -1821,11 +1821,11 @@ function injectHomeHead(D) {
     '  <meta property="og:title" content="' + esc(ogTitle) + '">\n' +
     '  <meta property="og:description" content="' + esc(ogDescription) + '">\n' +
     '  <meta property="og:url" content="' + esc(K.SITE.origin + "/") + '">\n' +
-    '  <meta property="og:image" content="' + esc(K.SITE.origin + "/assets/img/valmont-data-logo.png") + '">\n' +
+    '  <meta property="og:image" content="' + esc(K.SITE.origin + "/assets/img/valmont-data-logo-bg.png") + '">\n' +
     '  <meta name="twitter:card" content="summary_large_image">\n' +
     '  <meta name="twitter:title" content="' + esc(ogTitle) + '">\n' +
     '  <meta name="twitter:description" content="' + esc(description) + '">\n' +
-    '  <meta name="twitter:image" content="' + esc(K.SITE.origin + "/assets/img/valmont-data-logo.png") + '">\n' +
+    '  <meta name="twitter:image" content="' + esc(K.SITE.origin + "/assets/img/valmont-data-logo-bg.png") + '">\n' +
     "  " + HEAD_END;
 
   html = html.slice(0, i) + head + html.slice(jEnd);

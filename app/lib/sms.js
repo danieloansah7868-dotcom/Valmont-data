@@ -186,12 +186,12 @@ const templates = {
   },
 
   lowData(phone, percent, network) {
-    return `📊 Valmont Data: Your ${network.toUpperCase()} data on ${phone} is ${percent}% used. Send "hi" on WhatsApp to top up instantly!`;
+    return `📊 Valmont Data: Your ${network.toUpperCase()} data on ${phone} is ${percent}% used. Send "hi" on WhatsApp to top up in a tap!`;
   },
 
   welcome(phone, name) {
     const n = name || "there";
-    return `👋 Hey ${n}! Welcome to Valmont Data. Buy MTN, Telecel & AirtelTigo data instantly. WhatsApp us: "hi" or visit valmontdata.com`;
+    return `👋 Hey ${n}! Welcome to Valmont Data. Buy MTN, Telecel & AirtelTigo data online, with honest delivery updates. WhatsApp us: "hi" or visit valmontdata.com`;
   },
 };
 
