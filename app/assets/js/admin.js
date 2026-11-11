@@ -103,13 +103,14 @@
       $$(".admin-tab").forEach((x) => x.classList.remove("on"));
       t.classList.add("on");
       const activeTab = t.dataset.tab;
-      ["float", "prices", "orders", "reviews", "pl", "smsleads", "webhooks", "overview"].forEach((k) => {
+      ["float", "prices", "orders", "website", "reviews", "pl", "smsleads", "webhooks", "overview"].forEach((k) => {
         const panel = $("#tab-" + k);
         if (panel) panel.style.display = k === activeTab ? "block" : "none";
       });
       if (activeTab === "float") loadFloat();
       else if (activeTab === "prices") loadCatalog();
       else if (activeTab === "orders") loadOrders();
+      else if (activeTab === "website") loadWebsiteRequests();
       else if (activeTab === "reviews") loadReviews();
       else if (activeTab === "pl") loadPl(activePlDays);
       else if (activeTab === "smsleads") loadSmsLeads();
@@ -117,6 +118,23 @@
       else if (activeTab === "overview") loadOverview();
     })
   );
+
+  async function loadWebsiteRequests() {
+    const host = $("#websiteRequests");
+    try {
+      const result = await api("/api/admin/website-requests");
+      host.innerHTML = result.requests.length ? result.requests.map((r) => `
+        <article style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:12px;overflow-wrap:anywhere">
+          <b>${escapeHtml(r.business)}</b> · ${escapeHtml(r.package)} · ${fmt(r.amount)} · <b>${escapeHtml(r.status)}</b>
+          <p>Reference: ${escapeHtml(r.reference)} · ${escapeHtml(r.created_at)}</p>
+          <p>Gateway reference: ${escapeHtml(r.provider_reference || "Not confirmed")} · Received: ${r.received_amount == null ? "Not confirmed" : fmt(r.received_amount)}</p>
+          <p>Contact: ${escapeHtml(r.customer_name)} · ${escapeHtml(r.phone)}</p>
+          <p>Colours: ${escapeHtml(r.colours)} · Domain: ${escapeHtml(r.domain || "Not provided")} · Networks: ${escapeHtml((r.networks || []).join(", "))}</p>
+          <p>Features: ${escapeHtml(r.features || "Not provided")}</p><p>Notes: ${escapeHtml(r.notes || "Not provided")}</p>
+        </article>`).join("") : '<p>No website requests yet.</p>';
+    } catch (err) { host.textContent = 'Could not load website requests: ' + err.message; }
+  }
+  $("#refreshWebsiteRequests")?.addEventListener("click", loadWebsiteRequests);
 
   /* ---------- float + supplier wallet ---------- */
   async function loadFloat() {

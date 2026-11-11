@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Request Your Data Website | Valmont Data</title>
+  <meta name="description" content="Tell Valmont Data about the data website you want to build and send your request on WhatsApp.">
+  <link rel="icon" type="image/png" href="assets/img/valmont-data-favicon.png">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="assets/css/website-request.css?v=5">
+</head>
+<body>
+  <header class="request-nav"><div class="request-wrap request-nav-inner"><a href="/" aria-label="Valmont Data home"><img src="assets/img/valmont-data-logo.png" alt="Valmont Data"></a><a href="/" class="back-link">← Back to Valmont Data</a></div></header>
+  <main class="request-wrap request-main">
+    <div class="request-intro"><p class="request-kicker">YOUR BRAND. YOUR DATA BUSINESS.</p><h1>Let's build your<br><span>data website.</span></h1><p>Tell us what you have in mind. Choose a package and tell us what you have in mind. Pay your deposit securely through Valmont-Pay to submit your request.</p></div>
+    <div class="request-layout">
+      <section class="request-card" aria-labelledby="form-title">
+        <div class="request-card-heading"><p class="request-kicker">THE DETAILS</p><h2 id="form-title">Tell us about your website</h2><p>Fields marked * are required.</p></div>
+        <form id="websiteRequest">
+          <fieldset class="package-fieldset">
+            <legend>Choose your package *</legend>
+            <div class="package-list">
+              <label class="package-option"><input type="radio" name="package" value="Starter" required><span class="package-body"><span class="package-name">Starter</span><strong class="package-price">GH₵3,500</strong><span class="package-deposit">GH₵1,750 deposit · balance on delivery</span><span class="package-features">Own .com domain + hosting · Branded website · Data + airtime price list · WhatsApp order</span></span></label>
+              <label class="package-option"><input type="radio" name="package" value="Popular"><span class="package-body"><span class="package-name">Popular</span><strong class="package-price">GH₵5,000</strong><span class="package-deposit">GH₵2,500 deposit · balance on delivery</span><span class="package-features">Everything in Starter · Prefilled WhatsApp Buy · Pay with MoMo on site · Admin dashboard</span></span></label>
+              <label class="package-option package-best"><input type="radio" name="package" value="Auto-Sell"><span class="package-body"><span class="package-name">Auto-Sell <span class="best-tag">BEST</span></span><strong class="package-price">GH₵6,500</strong><span class="package-deposit">GH₵3,250 deposit · balance on delivery</span><span class="package-features">Everything in Popular · Auto-delivery · Money to your MoMo · Supplier API + training</span></span></label>
+            </div>
+            <p class="package-terms">Quote valid for 14 days · Data stock is pay-as-you-go.</p>
+          </fieldset>
+
+          <div class="fields-two">
+            <label>Your name *<input name="name" required maxlength="100" autocomplete="name" placeholder="Your name"></label>
+            <label>Contact number *<input name="phone" required maxlength="25" autocomplete="tel" type="tel" placeholder="e.g. 024 123 4567"></label>
+          </div>
+          <div class="fields-two">
+            <label>Business or website name *<input name="business" required maxlength="100" placeholder="Your brand name"></label>
+            <label>Preferred domain <span class="optional">(optional)</span><input name="domain" maxlength="160" placeholder="e.g. yourbrand.com"></label>
+          </div>
+          <label>Brand colours *<input name="colours" required maxlength="120" placeholder="e.g. navy blue and orange"></label>
+          <fieldset><legend>Which networks would you like to sell? *</legend><div class="check-row"><label><input type="checkbox" name="networks" value="MTN"> MTN</label><label><input type="checkbox" name="networks" value="Telecel"> Telecel</label><label><input type="checkbox" name="networks" value="AirtelTigo"> AirtelTigo</label></div><p id="networkError" class="field-error" role="alert" hidden>Please choose at least one network.</p></fieldset>
+          <label>What would you like on your website? <span class="optional">(optional)</span><textarea name="features" rows="4" maxlength="1200" placeholder="For example: customer accounts, order tracking, reseller stores or other ideas."></textarea></label>
+          <label>Anything else we should know? <span class="optional">(optional)</span><textarea name="notes" rows="3" maxlength="800" placeholder="Tell us about your plans or questions."></textarea></label>
+          <div class="logo-note"><strong>Have a logo?</strong> After opening WhatsApp, attach your logo to the chat yourself. This form cannot send files automatically.</div>
+          <p class="privacy-note">Your details will be saved with your request so our team can contact you. Don’t include passwords or payment details.</p>
+          <label class="payment-consent"><input type="checkbox" name="consent" required> I understand the selected deposit is due now, and the remaining balance is due on delivery.</label>
+          <button type="submit" class="request-button" id="depositButton">Continue to deposit payment <span aria-hidden="true">→</span></button>
+          <p id="paymentError" class="field-error" role="alert" hidden></p>
+          <p id="pendingLink" class="privacy-note" hidden>Keep your reference: <strong id="pendingReference"></strong>. <a id="pendingStatus">Check this request</a> before trying again.</p>
+          <noscript><p class="field-error">Please enable JavaScript to prepare your message, or contact us on <a href="https://wa.me/233542451578">WhatsApp</a>.</p></noscript>
+        </form>
+      </section>
+      <aside class="request-aside"><p class="request-kicker">HOW IT WORKS</p><h2>From idea to your own website.</h2><ol><li><strong>Share your idea</strong><span>Fill in your brand and website details.</span></li><li><strong>Share your details</strong><span>Tell us about your brand and the website you need. Attach your logo on WhatsApp after checkout.</span></li><li><strong>Discuss the build</strong><span>Pay the package deposit with Valmont-Pay. The balance is due on delivery.</span></li></ol><p class="aside-note">Already want to sell through Valmont? <a href="store.html">Explore a reseller store →</a></p></aside>
+    </div>
+  </main>
+  <footer class="request-footer"><div class="request-wrap">© 2026 Valmont Data · Valmont Group Company</div></footer>
+  <script src="assets/js/website-request.js?v=3" defer></script>
+</body>
+</html>

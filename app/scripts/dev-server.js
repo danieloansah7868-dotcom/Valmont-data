@@ -57,6 +57,8 @@ const routes = {
   "POST /api/auth/customer/login": authRouter,
   "POST /api/auth/otp/send": authRouter,
   "POST /api/auth/otp/verify": authRouter,
+  "GET /api/website-deposits": accountRouter,
+  "POST /api/website-deposits": accountRouter,
   "GET /api/account": accountRouter,
   "POST /api/account": accountRouter,
   "DELETE /api/account": accountRouter,

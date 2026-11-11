@@ -207,6 +207,14 @@ async function handleMessage({ from, text, buttonReply }) {
     return showCreditBalance(waId, customer);
   }
 
+  // Pause new purchases without affecting tracking or support for existing orders.
+  const orderStates = ["pick_network", "pick_bundle", "pick_phone", "confirm"];
+  if (require("./data-sales").paused() &&
+      (orderStates.includes(session.state) || buttonReply === "order" || (detectNetworkFromText(input) && parseSizeFromText(input)))) {
+    await resetSession(waId);
+    return whatsapp.sendText(waId, "All data bundles are currently out of stock. Please check back later.");
+  }
+
   // ---- Quick order shortcuts ----
   if (!buttonReply) {
     const quickResult = await tryQuickOrder(waId, input, session, customer);

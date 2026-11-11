@@ -48,6 +48,7 @@ async function addFloatEntry(networkId, direction, amount, orderId, note) {
 
 /* ---------- create ---------- */
 async function createOrder(bundle, phone, networkId, customerId = null, opts = {}) {
+  require("./data-sales").assertOpen();
   // Refuse to create a paid order unless its delivery route is explicitly
   // configured. In production this excludes the local mock supplier.
   const network = await findNetworkById(networkId);

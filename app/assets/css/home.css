@@ -1,0 +1,210 @@
+/* Homepage: a quieter storefront, built around Valmont navy and orange. */
+.home-page { background: #0b1f3a; }
+.home-page .nav { background: #081a30; }
+.home-page .nav-inner { min-height: 76px; }
+.home-page .nav-links a { font-weight: 600; }
+.home-page .nav-links a.active { color: #f3a45e; }
+.home-page .btn { border-radius: 7px; box-shadow: none; }
+.home-page .home-intro { padding: 64px 0 46px; }
+.home-intro-inner { display: grid; grid-template-columns: 1fr 250px; align-items: end; gap: 48px; }
+.home-eyebrow { display: flex; align-items: center; gap: 9px; color: #ed9c56; font-size: 11px; font-weight: 750; letter-spacing: .13em; }
+.home-eyebrow span { width: 22px; height: 2px; background: #d9772a; }
+.home-intro h1 { color: #fff; font-size: clamp(38px, 5.2vw, 66px); line-height: 1.06; letter-spacing: -.045em; margin: 19px 0 16px; font-weight: 750; }
+.home-intro h1 em { color: #e89a4f; font-style: normal; }
+.home-intro-copy { max-width: 530px; color: #c3cfe0; font-size: 17px; line-height: 1.65; }
+/* A single, legible network name flips in the hero at a time. */
+.hero-networks { display: flex; align-items: center; gap: 12px; margin-top: 22px; }
+.hero-networks-label { color: #aebdd2; font-size: 10px; font-weight: 750; letter-spacing: .12em; }
+.hero-network-flip { display: grid; align-items: center; min-width: 115px; height: 32px; perspective: 400px; }
+.hero-network { grid-area: 1 / 1; width: fit-content; font-size: 18px; font-weight: 800; opacity: 0; transform-origin: 50% 50%; animation: network-flip 9s infinite both; }
+.hero-network-mtn { color: #ffcb05; }
+.hero-network-telecel { color: #ff7474; animation-delay: 3s; }
+.hero-network-tigo { color: #80bdff; animation-delay: 6s; }
+@keyframes network-flip {
+  0% { opacity: 0; transform: rotateX(-75deg) translateY(5px); }
+  5%, 29% { opacity: 1; transform: rotateX(0) translateY(0); }
+  33.33%, 100% { opacity: 0; transform: rotateX(75deg) translateY(-5px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-network-flip { display: flex; gap: 10px; flex-wrap: wrap; height: auto; }
+  .hero-network { animation: none; opacity: 1; transform: none; font-size: 14px; }
+}
+.home-text-link { display: inline-block; margin-top: 20px; color: #aebdd2; font-size: 13px; }
+.home-text-link span { color: #f1a461; font-weight: 700; }
+.home-intro-aside { border-left: 2px solid #d9772a; padding: 2px 0 2px 20px; margin-bottom: 3px; }
+.aside-label, .network-label { color: #9bacc4; font-size: 10px; font-weight: 750; letter-spacing: .12em; }
+.home-intro-aside p { font-size: 14px; line-height: 1.55; color: #c3cfe0; margin: 9px 0; }
+.home-intro-aside a { font-size: 12px; color: #f1a461; font-weight: 700; }
+.home-page .home-buy { background: #102946; color: #d1dceb; padding: 38px 0 42px; scroll-margin-top: 80px; }
+.buy-heading { display: flex; justify-content: space-between; align-items: end; gap: 20px; }
+.home-buy .home-eyebrow, .home-how .home-eyebrow { color: #e89a4f; }
+.home-buy h2, .home-how h2 { color: #f8fafc; font-size: clamp(28px, 3vw, 38px); letter-spacing: -.035em; line-height: 1.15; margin-top: 8px; }
+.buy-heading > p { font-size: 14px; color: #b6c6da; padding-bottom: 4px; }
+.home-buy .network-label { color: #a7bad0; margin-top: 28px; }
+.home-buy .net-tabs { max-width: none; width: fit-content; background: transparent; border-bottom: 1px solid rgba(255,255,255,.18); border-radius: 0; padding: 0; margin: 8px 0 0; gap: 24px; }
+.home-buy .net-tab, .home-buy .net-tab.on[data-net] { flex: initial; padding: 10px 2px 12px; background: transparent; border: 0; border-bottom: 3px solid transparent; border-radius: 0; color: #b6c6da; box-shadow: none; font-size: 14px; }
+.home-buy .net-tab.on[data-net] { color: #fff; border-bottom-color: #d9772a; }
+.home-buy .net-tab:hover:not(.on) { color: #fff; background: transparent; }
+.home-buy .bundle-grid { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; margin-top: 20px; }
+.home-buy .bundle.mtn, .home-buy .bundle.telecel, .home-buy .bundle.airteltigo { background: #0b1f3a; color: #f8fafc; border: 1px solid rgba(255,255,255,.14); border-radius: 8px; box-shadow: none; padding: 20px; gap: 0; }
+.home-buy .bundle:hover { transform: translateY(-2px); border-color: #d9772a; box-shadow: 0 6px 18px rgba(0,0,0,.2); }
+.home-buy .bundle .bundle-size { color: #f8fafc; font-size: 27px; font-weight: 750; }
+.home-buy .bundle .bundle-network-badge { background: rgba(255,255,255,.08); color: #c7d6e7; font-size: 10px; letter-spacing: .04em; border-radius: 4px; padding: 5px 8px; }
+.home-buy .bundle-validity { margin-top: 9px; color: #b1c0d2; font-size: 13px; }
+.home-buy .bundle-bottom { width: 100%; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,.12); margin-top: 23px; padding-top: 15px; }
+.home-buy .bundle-price { color: #f8fafc; font-size: 17px; font-weight: 750; }
+.home-buy .bundle-action { color: #f3a45e; font-size: 13px; font-weight: 700; }
+.home-buy .bundle .soldout { background: #263e59; color: #fff; border: 0; top: 53px; }
+.home-buy .bundle .restock-note { color: #c2d0e0; text-shadow: none; margin-top: 8px; }
+
+/* Network colours make bundles instantly recognisable against the navy page. */
+.home-buy .bundle.mtn { background: #ffcb05; color: #0b1f3a; border-color: #ffcb05; }
+.home-buy .bundle.telecel { background: #d90000; color: #fff; border-color: #d90000; }
+.home-buy .bundle.airteltigo { background: #0057b8; color: #fff; border-color: #0057b8; }
+.home-buy .bundle.mtn .bundle-size, .home-buy .bundle.mtn .bundle-price { color: #0b1f3a; }
+.home-buy .bundle.mtn .bundle-validity { color: #30445a; }
+.home-buy .bundle.mtn .bundle-network-badge { background: rgba(11,31,58,.12); color: #0b1f3a; }
+.home-buy .bundle.mtn .bundle-bottom { border-color: rgba(11,31,58,.22); }
+.home-buy .bundle.mtn .bundle-action { color: #0b1f3a; }
+.home-buy .bundle.telecel .bundle-validity, .home-buy .bundle.airteltigo .bundle-validity { color: #fff; }
+.home-buy .bundle.telecel .bundle-network-badge, .home-buy .bundle.airteltigo .bundle-network-badge { background: rgba(0,0,0,.22); color: #fff; }
+.home-buy .bundle.telecel .bundle-bottom, .home-buy .bundle.airteltigo .bundle-bottom { border-color: rgba(255,255,255,.35); }
+.home-buy .bundle.telecel .bundle-action, .home-buy .bundle.airteltigo .bundle-action { color: #fff; }
+.home-buy .bundle.mtn .restock-note { color: #0b1f3a; }
+.home-buy .bundle.telecel .restock-note, .home-buy .bundle.airteltigo .restock-note { color: #fff; }
+.home-buy .bundle:hover { border-color: #fff; }
+
+.purchase-note { display: flex; gap: 10px; align-items: flex-start; margin-top: 22px; color: #bdcddd; font-size: 13px; }
+.purchase-note strong { color: #fff; }
+.purchase-note-mark { display: grid; place-items: center; border: 1px solid #c57a40; color: #f3a45e; font-weight: 700; border-radius: 50%; width: 18px; height: 18px; flex: none; font-size: 12px; }
+.catalogue-link { margin-top: 18px; color: #b5c5d7; font-size: 13px; }
+.catalogue-link a { color: #f3a45e; font-weight: 700; }
+.home-page .home-how { background: #081a30; padding: 50px 0; }
+.home-how .steps { gap: 0; margin-top: 24px; }
+.home-how .step { background: transparent; border: 0; border-left: 1px solid rgba(255,255,255,.17); border-radius: 0; padding: 2px 22px; }
+.home-how .step::before { color: #e89a4f; }
+.home-how .step h4 { color: #f8fafc; }
+.home-how .step p { color: #b1c0d2; }
+.home-page #prices { padding-top: 60px; }
+.home-page .wa-float { width: 48px; height: 48px; box-shadow: 0 3px 12px rgba(0,0,0,.2); }
+.home-page .wa-float svg { width: 26px; height: 26px; }
+@media (max-width: 1024px) {
+  .home-page .nav-inner { min-height: 0; height: auto; flex-wrap: wrap; padding-top: 10px; padding-bottom: 10px; }
+  .home-page .nav-links { width: 100%; margin-left: 0; flex-wrap: nowrap; overflow-x: auto; padding-bottom: 3px; }
+  .home-page .nav-links a, .home-page #navAuthArea { flex: none; white-space: nowrap; }
+  .home-page .nav-links a[href^="/bundles/"]:not([href="/bundles/"]) { display: none; }
+  .home-page .nav-links { scrollbar-width: none; }
+  .home-page .nav-links::-webkit-scrollbar { display: none; }
+}
+@media (max-width: 600px) {
+  .home-page .home-intro { padding: 38px 0 32px; }
+  .home-intro-inner { grid-template-columns: 1fr; gap: 26px; }
+  .home-intro h1 { margin: 14px 0; }
+  .home-intro-copy { font-size: 15px; }
+  .home-intro-aside { padding-left: 14px; }
+  .home-page .home-buy { padding: 32px 0; scroll-margin-top: 120px; }
+  .buy-heading { display: block; }
+  .buy-heading > p { margin-top: 8px; }
+  .home-buy .bundle-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .home-buy .bundle.mtn, .home-buy .bundle.telecel, .home-buy .bundle.airteltigo { padding: 14px 12px; }
+  .home-buy .bundle .bundle-size { font-size: 22px; }
+  .home-buy .bundle .bundle-network-badge { font-size: 9px; padding: 4px 5px; }
+  .home-buy .bundle-top { gap: 4px; }
+  .home-buy .bundle-bottom { margin-top: 18px; }
+  .home-buy .bundle-price { font-size: 15px; }
+  .home-how .steps { grid-template-columns: 1fr 1fr; gap: 24px 0; }
+  .home-how .step { padding: 0 14px; }
+}
+@media (max-width: 350px) { .home-buy .bundle-grid { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .home-page *, .home-page *::before, .home-page *::after { scroll-behavior: auto; transition-duration: .01ms !important; } }
+
+/* Large network banners, with Valmont navy framing each promotion. */
+.home-page .home-hero { padding: 30px 0 32px; }
+.hero-heading { color: #f8fafc; font-size: clamp(19px, 2.4vw, 25px); letter-spacing: -.025em; margin-bottom: 16px; }
+.hero-heading span { color: #e89a4f; }
+.promo-carousel { position: relative; }
+.promo-slide { min-height: 260px; border-radius: 14px; overflow: hidden; position: relative; display: grid; grid-template-columns: 1.15fr .85fr; align-items: center; animation: promo-enter .55s ease both; }
+.promo-slide[hidden] { display: none; }
+.promo-mtn { background: #ffcb05; color: #0b1f3a; }
+.promo-telecel { background: #cf0b1b; color: #fff; }
+.promo-tigo { background: #0057b8; color: #fff; }
+.promo-copy { position: relative; z-index: 1; padding: 28px 30px 62px 42px; }
+.promo-kicker { font-size: 11px; font-weight: 800; letter-spacing: .14em; }
+.promo-copy h2 { color: inherit; font-size: clamp(30px, 4vw, 46px); line-height: 1.04; letter-spacing: -.045em; margin: 16px 0 12px; }
+.promo-copy p { font-size: 16px; margin-bottom: 23px; }
+.promo-button { display: inline-flex; gap: 22px; align-items: center; background: #0b1f3a; color: #fff; padding: 12px 17px; border-radius: 5px; font-size: 13px; font-weight: 750; }
+.promo-button:hover { background: #172f4e; color: #fff; }
+.promo-art { width: min(225px, 75%); aspect-ratio: 1; justify-self: center; display: grid; place-items: center; position: relative; }
+.promo-orbit { position: absolute; inset: 0; border: 1px solid currentColor; border-radius: 50%; opacity: .28; }
+.promo-orbit-one { transform: scale(.83); }
+.promo-orbit-two { transform: scale(1.05); }
+.promo-monogram { display: grid; place-items: center; width: 65%; aspect-ratio: 1; border-radius: 50%; background: #0b1f3a; color: #fff; font-size: clamp(32px, 4vw, 52px); font-weight: 900; letter-spacing: -.05em; box-shadow: 0 15px 30px rgba(0,0,0,.14); }
+.promo-mtn .promo-monogram { color: #ffcb05; }
+.promo-telecel .promo-monogram { color: #fff; font-size: clamp(27px, 3.5vw, 44px); }
+.promo-tigo .promo-monogram { color: #fff; }
+.promo-art-label { position: absolute; bottom: 5%; font-size: 10px; font-weight: 800; letter-spacing: .13em; }
+.promo-controls { display: flex; align-items: center; gap: 12px; position: absolute; z-index: 2; left: 42px; bottom: 19px; }
+.promo-arrow, .promo-pause { background: #0b1f3a; color: #fff; border: 0; cursor: pointer; font: inherit; }
+.promo-arrow { width: 30px; height: 30px; border-radius: 50%; font-size: 17px; line-height: 1; }
+.promo-dots { display: flex; align-items: center; gap: 7px; }
+.promo-dot { padding: 0; width: 9px; height: 9px; background: rgba(11,31,58,.35); border: 0; border-radius: 50%; cursor: pointer; }
+.promo-dot.is-active { width: 22px; border-radius: 5px; background: #0b1f3a; }
+.promo-pause { border-radius: 4px; padding: 5px 8px; font-size: 11px; }
+.hero-delivery { color: #bac9da; font-size: 13px; margin-top: 14px; }
+.hero-delivery a { color: #f1a461; font-weight: 700; margin-left: 5px; }
+@keyframes promo-enter { from { opacity: .35; transform: translateX(15px); } to { opacity: 1; transform: translateX(0); } }
+@media (max-width: 600px) {
+  .home-page .home-hero { padding: 22px 0 26px; }
+  .promo-slide { min-height: 235px; grid-template-columns: 1fr .65fr; }
+  .promo-copy { padding: 24px 0 60px 22px; }
+  .promo-copy h2 { font-size: clamp(26px, 7vw, 34px); margin: 10px 0; }
+  .promo-copy p { font-size: 14px; }
+  .promo-button { gap: 8px; font-size: 12px; padding: 11px 12px; }
+  .promo-art { width: 88%; }
+  .promo-monogram { font-size: 28px; }
+  .promo-telecel .promo-monogram { font-size: 22px; }
+  .promo-art-label { font-size: 8px; }
+  .promo-controls { left: 22px; bottom: 16px; }
+}
+@media (prefers-reduced-motion: reduce) { .promo-slide { animation: none; } }
+
+.website-promo { background: #102946; padding: 44px 0; }
+.website-promo-inner { display: flex; align-items: center; justify-content: space-between; gap: 25px; }
+.website-promo h2 { color: #fff; font-size: clamp(24px, 3vw, 34px); letter-spacing: -.03em; line-height: 1.15; margin: 10px 0; }
+.website-promo p:not(.home-eyebrow) { color: #c3cfe0; max-width: 590px; font-size: 15px; }
+.website-promo-link { background: #d9772a; color: #0b1f3a; padding: 13px 18px; border-radius: 6px; font-weight: 750; font-size: 14px; white-space: nowrap; }
+.website-promo-link:hover { color: #0b1f3a; background: #e89a4f; }
+@media (max-width: 600px) { .website-promo-inner { align-items: flex-start; flex-direction: column; } }
+/* Keep all primary links visible on a phone instead of hiding them in a scroller. */
+@media (max-width: 600px) {
+  .home-page .nav { position: relative; }
+  .home-page .nav-links { flex-wrap: wrap; overflow: visible; }
+  .home-page .nav-links a { padding: 7px 8px; font-size: 12px; }
+  .promo-arrow { width: 40px; height: 40px; }
+  .promo-dot { position: relative; width: 28px; height: 40px; background: transparent; border-radius: 0; }
+  .promo-dot.is-active { width: 28px; background: transparent; }
+  .promo-dot::after { content: ''; position: absolute; left: 9px; top: 16px; width: 9px; height: 9px; border-radius: 50%; background: rgba(11,31,58,.35); }
+  .promo-dot.is-active::after { left: 4px; width: 20px; border-radius: 5px; background: #0b1f3a; }
+  .promo-controls { gap: 6px; }
+}
+
+/* Place account actions in the header's top-right corner on compact screens. */
+.home-page #navAuthArea { display: flex; align-items: center; flex: none; white-space: nowrap; }
+.home-page #navAuthArea .btn { padding: 8px 12px; font-size: 13px; }
+@media (max-width: 1024px) {
+  .home-page .nav-inner { gap: 8px 12px; }
+  .home-page .brand { order: 1; }
+  .home-page #navAuthArea { order: 2; margin-left: auto; max-width: calc(100% - 145px); }
+  .home-page .nav-links { order: 3; }
+  .home-page #navAuthArea > div { max-width: 100%; }
+  .home-page .greeting-chip { max-width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+@media (max-width: 360px) {
+  .home-page .brand .brand-banner { height: 28px; }
+  .home-page #navAuthArea { max-width: calc(100% - 120px); }
+  .home-page #navAuthArea .btn { padding: 8px 9px; font-size: 12px; }
+}
+
+.home-buy .bundle.disabled, .home-buy .bundle.disabled:hover { opacity: 1; filter: none; transform: none; box-shadow: none; cursor: not-allowed; }
+.home-buy .bundle-stock { display: inline-flex; align-self: flex-start; margin-top: 10px; padding: 4px 8px; border-radius: 4px; background: #a80f20; border: 1px solid rgba(255,255,255,.6); color: #fff; font-size: 12px; font-weight: 800; line-height: 1.2; }
+.home-buy .bundle.disabled .bundle-action { display: none; }

@@ -49,6 +49,12 @@ async function handler(req, res) {
   // All other admin endpoints require admin token
   const admin = requireAdmin(req);
 
+  if (pathname.endsWith("/website-requests")) {
+    if (req.method !== "GET") return json(res, 405, { error: "GET only" });
+    const requests = await db.select({ from: "website_requests", order: "id.desc", limit: 100 });
+    return json(res, 200, { requests });
+  }
+
   // 2. /api/admin/float
   if (pathname.includes("/float/topup")) {
     if (req.method !== "POST") return json(res, 405, { error: "POST only" });

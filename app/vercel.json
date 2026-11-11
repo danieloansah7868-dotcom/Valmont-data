@@ -15,6 +15,7 @@
     }
   ],
   "rewrites": [
+    { "source": "/api/website-deposits", "destination": "/api/account?section=website-deposits" },
     { "source": "/api/admin/:path*", "destination": "/api/admin" },
     { "source": "/api/account/history", "destination": "/api/account?section=history" },
     { "source": "/api/account/:path*", "destination": "/api/account" },

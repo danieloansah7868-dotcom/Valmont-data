@@ -185,6 +185,7 @@ function simulateChargeWebhook(order) {
 
 /* ---------- trigger ---------- */
 async function triggerReload(rule) {
+  if (require("./data-sales").paused()) return { triggered: false, reason: "data bundles out of stock" };
   const bundle = await orders.findBundleById(rule.bundle_id);
   const network = await orders.findNetworkById(rule.network_id);
   if (!bundle || !network) return { triggered: false, reason: "bundle/network unavailable" };
