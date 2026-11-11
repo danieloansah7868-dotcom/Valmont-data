@@ -11,6 +11,7 @@
 
   function show(next) {
     index = (next + slides.length) % slides.length;
+    carousel.dataset.current = String(index);
     slides.forEach((slide, i) => { slide.hidden = i !== index; });
     dots.forEach((dot, i) => {
       dot.classList.toggle('is-active', i === index);
@@ -30,6 +31,7 @@
   carousel.addEventListener('mouseleave', schedule);
   carousel.addEventListener('focusin', schedule);
   carousel.addEventListener('focusout', () => setTimeout(schedule, 0));
+  show(0);
   reducedMotion.addEventListener?.('change', schedule);
   schedule();
 })();
