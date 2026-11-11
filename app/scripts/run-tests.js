@@ -30,6 +30,7 @@ const suites = [
   { name: "api pipeline", cmd: "bash", args: ["scripts/test.sh"], baseline: API_BASELINE_PASSED },
   { name: "data sales pause", cmd: "node", args: ["scripts/test-data-sales-pause.js"] },
   { name: "website deposits", cmd: "node", args: ["scripts/test-website-deposits.js"] },
+  { name: "website WhatsApp", cmd: "node", args: ["scripts/test-website-whatsapp.js"] },
   { name: "supplier router", cmd: "node", args: ["scripts/test-supplier-router.js"] },
   { name: "valmontai", cmd: "node", args: ["scripts/test-valmontai.js"] },
   { name: "seo", cmd: "node", args: ["scripts/test-seo.js"] },

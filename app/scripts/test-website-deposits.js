@@ -8,7 +8,7 @@ process.env.VALMONTPAY_MODE = 'live';
 const crypto = require('crypto');
 const vp = require('../lib/valmontpay');
 let calls = 0;
-vp.createCheckout = async ({ reference, amount }) => { calls++; assert.equal(amount, 2500); return { checkout_url: 'https://example.com/pay/' + reference }; };
+vp.createCheckout = async ({ reference, amount }) => { calls++; const expected = reference.endsWith('d'.repeat(32)) ? 1750 : reference.endsWith('e'.repeat(32)) ? 3250 : 2500; assert.equal(amount, expected); return { checkout_url: 'https://example.com/pay/' + reference }; };
 const deposits = require('../lib/website-deposits');
 const webhook = require('../api/valmontpay/webhook');
 function response() { return { statusCode: 200, setHeader() {}, end(data) { this.body = JSON.parse(data); } }; }
@@ -30,5 +30,7 @@ async function hook(reference, amount, signatureGood = true) {
   r = await hook(ref2, 1); assert.equal(r.body.outcome, 'payment_review'); assert.equal((await deposits.find(ref2)).status, 'payment_review');
   r = await api('GET', null, '/api/website-deposits?reference=' + ref2); assert.equal(r.body.request.status, 'payment_review'); assert.equal(r.body.request.phone, undefined);
   r = await api('POST', {...body, reference:'WD-' + 'c'.repeat(32), package:'Invalid'}); assert.equal(r.statusCode, 400);
+  r = await api('POST', {...body, reference:'WD-' + 'd'.repeat(32), package:'Starter', amount:1}); assert.equal(r.body.request.amount, 1750);
+  r = await api('POST', {...body, reference:'WD-' + 'e'.repeat(32), package:'Auto-Sell', amount:1}); assert.equal(r.body.request.amount, 3250);
   console.log('Website deposit checks passed');
 })().catch((e) => { console.error(e); process.exit(1); });
