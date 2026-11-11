@@ -1,0 +1,18 @@
+'use strict';
+const assert = require('assert');
+const fs = require('fs');
+const vm = require('vm');
+const html = fs.readFileSync('index.html', 'utf8');
+assert.equal((html.match(/data-slide role=/g) || []).length, 4);
+assert(html.includes('data-go="3"') && html.includes('href="build-your-website.html" class="promo-button promo-website-button"'));
+const slides = Array.from({length:4}, () => ({hidden:false}));
+const dots = Array.from({length:4}, () => ({addEventListener(event,fn) {this.click=fn;}, classList:{toggle(){}},setAttribute(){}}));
+const prev = {addEventListener(event,fn){this.click=fn;}}, next = {addEventListener(event,fn){this.click=fn;}};
+const carousel = {dataset:{},querySelectorAll(s){return s==='[data-slide]'?slides:dots;},querySelector(s){return s==='[data-prev]'?prev:next;},matches(){return false;},contains(){return false;},addEventListener(){}};
+let tick;
+const context = {document:{querySelector(){return carousel;},activeElement:null},window:{matchMedia(){return {matches:false,addEventListener(){}};}},setInterval(fn){tick=fn;return 1;},clearInterval(){},setTimeout};
+vm.runInNewContext(fs.readFileSync('assets/js/home-carousel.js','utf8'),context);
+assert.equal(carousel.dataset.current,'0'); assert.deepEqual(slides.map(s=>s.hidden),[false,true,true,true]);
+tick();tick();tick();assert.equal(carousel.dataset.current,'3');assert.deepEqual(slides.map(s=>s.hidden),[true,true,true,false]);
+tick();assert.equal(carousel.dataset.current,'0');dots[3].click();assert.equal(carousel.dataset.current,'3');next.click();assert.equal(carousel.dataset.current,'0');prev.click();assert.equal(carousel.dataset.current,'3');
+console.log('Four-slide hero carousel checks passed');

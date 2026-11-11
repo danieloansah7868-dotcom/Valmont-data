@@ -15,13 +15,13 @@
   "categories": ["shopping", "utilities"],
   "icons": [
     {
-      "src": "/assets/img/valmont-data-favicon.png",
+      "src": "/assets/img/valmont-data-favicon.png?v=2",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/assets/img/valmont-data-favicon-maskable.png",
+      "src": "/assets/img/valmont-data-favicon-maskable.png?v=2",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
@@ -33,21 +33,21 @@
       "short_name": "Buy",
       "description": "Buy MTN, Telecel or AirtelTigo data bundles",
       "url": "/",
-      "icons": [{ "src": "/assets/img/valmont-data-favicon.png", "sizes": "512x512", "type": "image/png" }]
+      "icons": [{ "src": "/assets/img/valmont-data-favicon.png?v=2", "sizes": "512x512", "type": "image/png" }]
     },
     {
       "name": "Track Order",
       "short_name": "Track",
       "description": "Check an order's status by reference",
       "url": "/status.html",
-      "icons": [{ "src": "/assets/img/valmont-data-favicon.png", "sizes": "512x512", "type": "image/png" }]
+      "icons": [{ "src": "/assets/img/valmont-data-favicon.png?v=2", "sizes": "512x512", "type": "image/png" }]
     },
     {
       "name": "My Account",
       "short_name": "Account",
       "description": "Saved numbers and order history",
       "url": "/dashboard.html",
-      "icons": [{ "src": "/assets/img/valmont-data-favicon.png", "sizes": "512x512", "type": "image/png" }]
+      "icons": [{ "src": "/assets/img/valmont-data-favicon.png?v=2", "sizes": "512x512", "type": "image/png" }]
     }
   ]
 }

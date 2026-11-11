@@ -208,3 +208,21 @@
 .home-buy .bundle.disabled, .home-buy .bundle.disabled:hover { opacity: 1; filter: none; transform: none; box-shadow: none; cursor: not-allowed; }
 .home-buy .bundle-stock { display: inline-flex; align-self: flex-start; margin-top: 10px; padding: 4px 8px; border-radius: 4px; background: #a80f20; border: 1px solid rgba(255,255,255,.6); color: #fff; font-size: 12px; font-weight: 800; line-height: 1.2; }
 .home-buy .bundle.disabled .bundle-action { display: none; }
+
+/* The selected website flyer supplies the art; real text and links stay readable. */
+.promo-website { background-color: #0b1a38; background-image: linear-gradient(90deg, #0b1a38 0%, #0b1a38 38%, rgba(11,26,56,.92) 52%, rgba(11,26,56,.12) 85%), url('/assets/img/website-hero-promo.webp'); background-size: cover; background-position: center; color: #fff; }
+.promo-website .promo-copy { max-width: 620px; }
+.promo-website .promo-kicker { color: #ff9c48; }
+.promo-website .promo-copy strong { color: #ff9c48; }
+.promo-website .promo-website-button { background: #ef801b; color: #101d2f; }
+.promo-website .promo-website-button:hover { background: #ffa24a; }
+.promo-carousel[data-current="3"] .promo-arrow { background: #e98225; color: #0b1a38; }
+.promo-carousel[data-current="3"] .promo-dot { background: rgba(255,255,255,.45); }
+.promo-carousel[data-current="3"] .promo-dot.is-active { background: #ff982e; }
+@media (max-width: 600px) {
+  .promo-website { grid-template-columns: 1fr; background-position: 58% center; background-image: linear-gradient(90deg, #0b1a38 0%, rgba(11,26,56,.98) 40%, rgba(11,26,56,.65) 72%, rgba(11,26,56,.2) 100%), url('/assets/img/website-hero-promo.webp'); }
+  .promo-website .promo-copy { padding-right: 24px; }
+  .promo-carousel[data-current="3"] .promo-dot, .promo-carousel[data-current="3"] .promo-dot.is-active { background: transparent; }
+  .promo-carousel[data-current="3"] .promo-dot::after { background: rgba(255,255,255,.5); }
+  .promo-carousel[data-current="3"] .promo-dot.is-active::after { background: #ff982e; }
+}

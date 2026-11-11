@@ -360,7 +360,7 @@ function navHtml(activePath) {
   return `  <header class="nav">
     <div class="wrap nav-inner">
       <a class="brand" href="/" title="Valmont Data — Home">
-        <img src="/assets/img/valmont-data-logo.png" alt="Valmont Data" class="brand-banner">
+        <img src="/assets/img/valmont-data-logo.svg" alt="Valmont Data" class="brand-banner">
       </a>
       <nav class="nav-links" aria-label="Main">
         ${links}
@@ -386,7 +386,7 @@ function footerHtml() {
     <div class="wrap">
       <div class="footer-grid">
         <div>
-          <a class="brand" href="/" title="Valmont Data"><img src="/assets/img/valmont-data-logo.png" alt="Valmont Data" class="brand-banner brand-banner-sm"></a>
+          <a class="brand" href="/" title="Valmont Data"><img src="/assets/img/valmont-data-logo.svg" alt="Valmont Data" class="brand-banner brand-banner-sm"></a>
           <p class="about-txt">Ghana's data bundle marketplace — MTN, Telecel &amp; AirtelTigo. Pay with Mobile Money or card, delivery starts the moment payment confirms. A subsidiary of Valmont Group of Companies, Accra.</p>
           <p class="about-txt"><a href="https://wa.me/${K.SITE.whatsappE164}" target="_blank" rel="noopener">WhatsApp ${esc(K.SITE.whatsapp)}</a> · <a href="mailto:${K.SITE.email}">${esc(K.SITE.email)}</a></p>
         </div>
@@ -460,8 +460,9 @@ function layout(page) {
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="${esc(page.title)}">
   <meta name="twitter:description" content="${esc(page.description)}">
-  <link rel="icon" type="image/png" sizes="512x512" href="/assets/img/valmont-data-favicon.png">
-  <link rel="apple-touch-icon" href="/assets/img/valmont-data-favicon.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="/assets/img/valmont-data-favicon.png?v=2">
+  <link rel="icon" type="image/svg+xml" href="/assets/img/valmont-data-mark.svg">
+  <link rel="apple-touch-icon" href="/assets/img/valmont-data-favicon.png?v=2">
   <meta name="theme-color" content="#0b1f3a">
   <link rel="stylesheet" href="/assets/css/style.css">
   <link rel="stylesheet" href="/assets/css/seo.css">
