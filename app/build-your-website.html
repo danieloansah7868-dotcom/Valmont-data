@@ -8,12 +8,12 @@
   <link rel="icon" type="image/png" href="assets/img/valmont-data-favicon.png?v=2">
   <link rel="icon" type="image/svg+xml" href="/assets/img/valmont-data-mark.svg">
   <link rel="stylesheet" href="assets/css/style.css">
-  <link rel="stylesheet" href="assets/css/website-request.css?v=5">
+  <link rel="stylesheet" href="assets/css/website-request.css?v=6">
 </head>
 <body>
   <header class="request-nav"><div class="request-wrap request-nav-inner"><a href="/" aria-label="Valmont Data home"><img src="assets/img/valmont-data-logo.svg" alt="Valmont Data"></a><a href="/" class="back-link">← Back to Valmont Data</a></div></header>
   <main class="request-wrap request-main">
-    <div class="request-intro"><p class="request-kicker">YOUR BRAND. YOUR DATA BUSINESS.</p><h1>Let's build your<br><span>data website.</span></h1><p>Tell us what you have in mind. Choose a package and tell us what you have in mind. Pay your deposit securely through Valmont-Pay to submit your request.</p></div>
+    <div class="request-intro"><p class="request-kicker">YOUR BRAND. YOUR DATA BUSINESS.</p><h1>Let's build your<br><span>data website.</span></h1><p>Choose a package and tell us about your website. Continue to send your details on WhatsApp and pay your deposit securely through Valmont-Pay.</p></div>
     <div class="request-layout">
       <section class="request-card" aria-labelledby="form-title">
         <div class="request-card-heading"><p class="request-kicker">THE DETAILS</p><h2 id="form-title">Tell us about your website</h2><p>Fields marked * are required.</p></div>
@@ -41,18 +41,23 @@
           <label>What would you like on your website? <span class="optional">(optional)</span><textarea name="features" rows="4" maxlength="1200" placeholder="For example: customer accounts, order tracking, reseller stores or other ideas."></textarea></label>
           <label>Anything else we should know? <span class="optional">(optional)</span><textarea name="notes" rows="3" maxlength="800" placeholder="Tell us about your plans or questions."></textarea></label>
           <div class="logo-note"><strong>Have a logo?</strong> After opening WhatsApp, attach your logo to the chat yourself. This form cannot send files automatically.</div>
-          <p class="privacy-note">Your details will be saved with your request so our team can contact you. Don’t include passwords or payment details.</p>
+          <p class="privacy-note">Don’t include passwords or payment details. The next step opens your request in WhatsApp and your deposit checkout in this tab. Tap Send in WhatsApp; attach your logo there if you have one.</p>
           <label class="payment-consent"><input type="checkbox" name="consent" required> I understand the selected deposit is due now, and the remaining balance is due on delivery.</label>
-          <button type="submit" class="request-button" id="depositButton">Continue to deposit payment <span aria-hidden="true">→</span></button>
+          <button type="submit" class="request-button" id="depositButton">Continue to WhatsApp &amp; deposit <span aria-hidden="true">→</span></button>
+          <div id="whatsappReady" class="request-ready" role="status" aria-live="polite" hidden>
+            <p>Tap Send in WhatsApp to share your request. If WhatsApp did not open, use the link below.</p>
+            <a id="whatsappLink" class="whatsapp-retry" target="_blank" rel="noopener noreferrer">Open request in WhatsApp ↗</a>
+            <p id="checkoutFallback" hidden>Then <a id="checkoutLink">continue to your deposit checkout →</a></p>
+          </div>
           <p id="paymentError" class="field-error" role="alert" hidden></p>
           <p id="pendingLink" class="privacy-note" hidden>Keep your reference: <strong id="pendingReference"></strong>. <a id="pendingStatus">Check this request</a> before trying again.</p>
           <noscript><p class="field-error">Please enable JavaScript to prepare your message, or contact us on <a href="https://wa.me/233542451578">WhatsApp</a>.</p></noscript>
         </form>
       </section>
-      <aside class="request-aside"><p class="request-kicker">HOW IT WORKS</p><h2>From idea to your own website.</h2><ol><li><strong>Share your idea</strong><span>Fill in your brand and website details.</span></li><li><strong>Share your details</strong><span>Tell us about your brand and the website you need. Attach your logo on WhatsApp after checkout.</span></li><li><strong>Discuss the build</strong><span>Pay the package deposit with Valmont-Pay. The balance is due on delivery.</span></li></ol><p class="aside-note">Already want to sell through Valmont? <a href="store.html">Explore a reseller store →</a></p></aside>
+      <aside class="request-aside"><p class="request-kicker">HOW IT WORKS</p><h2>From idea to your own website.</h2><ol><li><strong>Tell us your idea</strong><span>Fill in your brand and website details.</span></li><li><strong>Continue to WhatsApp and payment</strong><span>Tap Send on the prepared WhatsApp message and attach your logo there if you have one.</span></li><li><strong>Pay your deposit</strong><span>Use the Valmont-Pay checkout opened in the website tab. The balance is due on delivery.</span></li></ol><p class="aside-note">Already want to sell through Valmont? <a href="store.html">Explore a reseller store →</a></p></aside>
     </div>
   </main>
   <footer class="request-footer"><div class="request-wrap">© 2026 Valmont Data · Valmont Group Company</div></footer>
-  <script src="assets/js/website-request.js?v=3" defer></script>
+  <script src="assets/js/website-request.js?v=5" defer></script>
 </body>
 </html>

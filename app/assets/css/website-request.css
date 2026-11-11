@@ -73,3 +73,5 @@ body { background: #0b1f3a; }
   .request-button { min-height: 44px; }
 }
 @media (max-width: 360px) { .request-nav img { height: 28px; } .back-link { font-size: 11px; } }
+
+.whatsapp-retry { color: #81eaaa; font-weight: 700; }
