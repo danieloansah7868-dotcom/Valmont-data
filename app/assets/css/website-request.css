@@ -1,0 +1,75 @@
+body { background: #0b1f3a; }
+.request-wrap { width: min(1100px, 100% - 40px); margin: 0 auto; }
+.request-nav { border-bottom: 1px solid rgba(255,255,255,.1); background: #07182e; }
+.request-nav-inner { display: flex; align-items: center; justify-content: space-between; gap: 15px; min-height: 76px; }
+.request-nav img { height: 40px; width: auto; }
+.back-link { color: #c3cfe8; font-size: 13px; font-weight: 700; white-space: nowrap; }
+.request-main { padding: 56px 0 75px; }
+.request-intro { max-width: 700px; margin-bottom: 42px; }
+.request-kicker { color: #e89a4f; letter-spacing: .13em; font-size: 11px; font-weight: 800; }
+.request-intro h1 { color: #fff; font-size: clamp(36px, 5.5vw, 60px); letter-spacing: -.04em; line-height: 1.06; margin: 15px 0; }
+.request-intro h1 span { color: #e89a4f; }
+.request-intro > p:last-child { max-width: 620px; color: #c3cfe8; font-size: 16px; }
+.request-layout { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(250px, .8fr); gap: 24px; align-items: start; }
+.request-card, .request-aside { border: 1px solid rgba(255,255,255,.13); border-radius: 12px; background: #102946; padding: 30px; }
+.request-card-heading { margin-bottom: 25px; }
+.request-card h2, .request-aside h2 { color: #fff; font-size: 23px; margin: 7px 0; line-height: 1.25; }
+.request-card-heading > p:last-child { color: #aebfd3; font-size: 13px; }
+#websiteRequest > label, .fields-two > label { display: block; color: #f8fafc; font-size: 13px; font-weight: 700; margin-bottom: 19px; }
+.fields-two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.optional { color: #9aadc5; font-weight: 400; }
+#websiteRequest input:not([type=checkbox]):not([type=radio]), #websiteRequest textarea { display: block; width: 100%; border: 1px solid #415670; background: #091d34; border-radius: 6px; color: #fff; font: inherit; font-weight: 400; padding: 12px; margin-top: 7px; }
+#websiteRequest input::placeholder, #websiteRequest textarea::placeholder { color: #9caec4; }
+#websiteRequest textarea { resize: vertical; }
+#websiteRequest fieldset { border: 0; margin: 0 0 20px; }
+#websiteRequest legend { color: #f8fafc; font-size: 13px; font-weight: 700; margin-bottom: 9px; }
+.check-row { display: flex; flex-wrap: wrap; gap: 10px; }
+.check-row label { border: 1px solid #415670; border-radius: 6px; padding: 9px 12px; color: #e1e8f0; font-size: 13px; }
+.check-row input { accent-color: #d9772a; margin-right: 5px; }
+.logo-note { background: rgba(217,119,42,.12); border-left: 3px solid #d9772a; padding: 13px 15px; color: #d9e0e9; font-size: 13px; }
+.logo-note strong { color: #fff; }
+.privacy-note { color: #b5c5d8; font-size: 12px; margin: 17px 0; }
+.request-button { display: inline-flex; justify-content: center; align-items: center; gap: 20px; border: 0; border-radius: 6px; background: #d9772a; color: #101c2b; font: inherit; font-weight: 800; font-size: 14px; padding: 14px 20px; cursor: pointer; }
+.request-button:hover { background: #e89a4f; color: #101c2b; }
+.request-ready { border-top: 1px solid rgba(255,255,255,.13); margin-top: 22px; padding-top: 20px; font-size: 14px; }
+.request-ready p { margin: 5px 0 14px; }
+.whatsapp-button { background: #25d366; color: #052d18; }
+.field-error { color: #ffaaa2; font-size: 13px; margin-top: 8px; }
+.request-aside { background: #081a30; }
+.request-aside ol { list-style: none; counter-reset: request-step; margin: 22px 0; }
+.request-aside li { counter-increment: request-step; position: relative; padding: 0 0 23px 40px; }
+.request-aside li::before { content: counter(request-step, decimal-leading-zero); position: absolute; left: 0; top: 0; color: #e89a4f; font-size: 12px; font-weight: 800; }
+.request-aside li strong, .request-aside li span { display: block; }
+.request-aside li span { font-size: 13px; color: #b5c5d8; margin-top: 4px; }
+.aside-note { border-top: 1px solid rgba(255,255,255,.12); padding-top: 18px; color: #b5c5d8; font-size: 13px; }
+.aside-note a { display: block; margin-top: 6px; color: #f1a461; font-weight: 700; }
+.request-footer { background: #07182e; color: #aebfd3; padding: 25px 0; font-size: 13px; }
+@media(max-width: 720px) { .request-main { padding-top: 36px; } .request-layout { grid-template-columns: 1fr; } .request-card, .request-aside { padding: 22px; } .request-nav img { height: 32px; } }
+@media(max-width: 480px) { .fields-two { grid-template-columns: 1fr; gap: 0; } .request-wrap { width: min(100% - 32px, 1100px); } .back-link { font-size: 12px; } }
+
+#websiteRequest .package-fieldset { margin-bottom: 28px; }
+#websiteRequest .package-fieldset legend { font-size: 15px; margin-bottom: 12px; }
+.package-list { display: grid; gap: 10px; }
+.package-option { display: flex; gap: 12px; align-items: flex-start; border: 1px solid #415670; border-radius: 8px; background: #0b1f3a; padding: 16px; cursor: pointer; }
+.package-option:has(input:checked) { border-color: #e89a4f; background: #172e47; box-shadow: inset 0 0 0 1px #e89a4f; }
+.package-option input { accent-color: #d9772a; width: 16px; height: 16px; margin: 5px 0 0; flex: 0 0 16px; }
+.package-body { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.package-body, .package-name, .package-price, .package-deposit, .package-features { display: block; }
+.package-name { color: #fff; font-weight: 800; font-size: 14px; }
+.package-price { color: #fff; font-size: 23px; line-height: 1.2; margin-top: 5px; }
+.package-best .package-price, .best-tag { color: #f1a461; }
+.best-tag { margin-left: 7px; font-size: 10px; letter-spacing: .1em; }
+.package-deposit { color: #d9e2ee; font-size: 12px; margin-top: 4px; }
+.package-features { color: #b5c5d8; font-size: 12px; line-height: 1.6; margin-top: 8px; }
+.package-terms { color: #b5c5d8; font-size: 12px; margin-top: 10px; }
+
+[hidden] { display: none !important; }
+.payment-consent { display: flex !important; gap: 9px; align-items: flex-start; font-weight: 500 !important; color: #d9e2ee !important; }
+.payment-consent input { flex: none; margin-top: 4px; accent-color: #d9772a; }
+.request-button:disabled { opacity: .6; cursor: wait; }
+/* Prevent mobile browser zoom on focused fields and keep narrow screens tidy. */
+@media (max-width: 600px) {
+  #websiteRequest input:not([type=checkbox]):not([type=radio]), #websiteRequest textarea { font-size: 16px; }
+  .request-button { min-height: 44px; }
+}
+@media (max-width: 360px) { .request-nav img { height: 28px; } .back-link { font-size: 11px; } }

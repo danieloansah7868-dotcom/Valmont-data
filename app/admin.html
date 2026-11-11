@@ -58,11 +58,18 @@
             <button class="admin-tab on" data-tab="float">Float</button>
             <button class="admin-tab" data-tab="prices">Prices &amp; Sync</button>
             <button class="admin-tab" data-tab="orders">Orders</button>
+            <button class="admin-tab" data-tab="website">Website Requests</button>
             <button class="admin-tab" data-tab="reviews">Reviews</button>
             <button class="admin-tab" data-tab="pl">P&amp;L</button>
             <button class="admin-tab" data-tab="smsleads">SMS Leads</button>
             <button class="admin-tab" data-tab="webhooks">Webhook log</button>
             <button class="admin-tab" data-tab="overview">Overview</button>
+          </div>
+
+          <div id="tab-website" style="display:none">
+            <div class="toolbar"><h3>Website build requests</h3><button class="btn btn-ghost btn-sm" id="refreshWebsiteRequests" type="button">Refresh</button></div>
+            <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Only signed, amount-matched payments are marked paid. Review uncertain payments in Valmont-Pay before taking action.</p>
+            <div id="websiteRequests"></div>
           </div>
 
           <!-- FLOAT -->
@@ -276,7 +283,7 @@
     </section>
   </main>
 
-  <script src="assets/js/admin.js"></script>
+  <script src="assets/js/admin.js?v=2"></script>
   <script src="assets/js/pwa.js"></script>
 </body>
 </html>

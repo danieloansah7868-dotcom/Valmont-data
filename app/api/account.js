@@ -858,6 +858,8 @@ module.exports = wrap(async (req, res) => {
   const hint = routeHint(req);
   const { path, section, haystack } = hint;
 
+  if (section === "website-deposits" || path === "/api/website-deposits") return require("../lib/website-deposits").api(req, res);
+
   // Server-rendered active reseller storefront. This is intentionally before
   // the generic /store API matcher below; /s/:slug rewrites here on Vercel.
   if (section === "storefront" || path.startsWith("/s/")) return handleStorefront(req, res, hint);

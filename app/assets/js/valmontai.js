@@ -326,6 +326,11 @@
       } : fallback;
     }
 
+    if (stock.sales_paused) return {
+      text: 'All MTN, Telecel and AirtelTigo data bundles are currently out of stock. Please check back later.',
+      actions: [{ label: 'Check bundles →', href: '/#buy' }],
+    };
+
     if (net) {
       const s = networkSummary(net);
       if (!s) return { ...fallback, text: fallback.text };

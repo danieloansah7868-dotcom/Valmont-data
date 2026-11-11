@@ -31,6 +31,9 @@ async function post(req, res) {
   });
   if (!body) return json(res, 400, { error: "Invalid JSON" });
 
+  if (require("../lib/data-sales").paused()) return json(res, 503, {
+    error: "All data bundles are currently out of stock. Please check back later.", code: "DATA_OUT_OF_STOCK"
+  });
   const { bundle_id, phone, use_credit, store_slug } = body;
 
   // Phone validation — Ghana format + known prefix.

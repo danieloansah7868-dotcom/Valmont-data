@@ -66,6 +66,7 @@ const mockState = {
   resellers: [],
   reseller_earnings: [],
   product_reviews: [],
+  website_requests: [],
   _seq: { bundles: 0, customers: 0, customer_otps: 0, saved_numbers: 0, sms_leads: 0, orders: 0, bundle_usage: 0, auto_reload: 0, float_ledger: 0, webhook_log: 0, whatsapp_sessions: 0, whatsapp_log: 0, referrals: 0, referral_credits: 0, resellers: 0, reseller_earnings: 0, product_reviews: 0 },
 };
 

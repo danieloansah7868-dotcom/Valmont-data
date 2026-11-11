@@ -7,6 +7,7 @@
 const { json, wrap } = require("../lib/http");
 const { db } = require("../lib/supabase");
 const orders = require("../lib/orders");
+const dataSales = require("../lib/data-sales");
 
 async function handler(req, res) {
   if (req.method !== "GET") return json(res, 405, { error: "GET only" });
@@ -39,10 +40,11 @@ async function handler(req, res) {
     size_mb: b.size_mb,
     validity_days: b.validity_days,
     price: Number(b.sell_price),
-    available: floats[networks.find((n) => n.id === b.network_id)?.code] >= Number(b.cost_price),
+    available: !dataSales.paused() && floats[networks.find((n) => n.id === b.network_id)?.code] >= Number(b.cost_price),
   }));
 
   return json(res, 200, {
+    sales_paused: dataSales.paused(),
     networks: networks.map((n) => ({ code: n.code, name: n.name })),
     bundles: out,
     floats,

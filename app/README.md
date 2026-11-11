@@ -507,3 +507,33 @@ state, so restart the server before re-running it. `scripts/sim-webhook.js` defa
 therefore run the suite against a server on that port.
 
 © 2026 Valmont Group of Companies.
+
+### Website-build deposits
+
+Website requests have a separate `website_requests` ledger; they never enter the
+bundle supplier/float pipeline. Apply `supabase/migrations/2026-11-10_website_deposits.sql`
+to the production database before enabling this checkout. The same table is
+included in `schema.sql` for fresh installations. Existing live Valmont-Pay
+configuration and the signed webhook (`/api/valmontpay/webhook`) must be active,
+and `SITE_URL` must point at the public website. No simulated deposit checkout
+is offered if Valmont-Pay is unconfigured. Local preview does not take payments.
+
+The server determines deposit amounts, stores the request before checkout and
+marks a deposit paid only after a signed, amount-matching `charge.success` event.
+The request reference is an idempotency key; an uncertain checkout or payment
+must be checked with the gateway rather than automatically retried. Admins can
+review requests under **Website Requests**. Amount mismatches are marked
+`payment_review` and must be reconciled manually; no refund is claimed or issued
+by this feature. A customer can attach a logo manually on WhatsApp after payment.
+Run `node scripts/test-website-deposits.js` for isolated payment-safety checks.
+
+### Data bundles temporarily out of stock
+
+Data sales are paused by default. `/api/bundles` reports every bundle out of
+stock, and new data checkout and auto-reload purchases are blocked. Existing
+orders and signed payment webhooks continue to be processed and tracked. Website
+build deposits are separate. To reopen data sales, set `DATA_SALES_PAUSED=0`
+in the deployment environment and redeploy; availability then depends on float
+and the usual supplier/payment checks. For the normal API test baseline, start
+a fresh unseeded dev server with `DATA_SALES_PAUSED=0 npm run dev`, then run
+`npm test`. The pause itself has an isolated test in `scripts/test-data-sales-pause.js`.

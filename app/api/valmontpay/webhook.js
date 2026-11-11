@@ -65,6 +65,14 @@ async function handler(req, res) {
     return json(res, 200, { received: true, error: "missing fields" });
   }
 
+  // Website deposits must never enter the data bundle delivery pipeline.
+  const websiteDeposits = require("../../lib/website-deposits");
+  if (websiteDeposits.REF.test(String(reference))) {
+    const result = await websiteDeposits.handleWebhook(reference, provider_reference, amount);
+    if (logId) await db.update("webhook_log", { handled: true, error: result.unknown ? "unknown website deposit" : (result.outcome === "payment_review" ? "website deposit amount mismatch — manual review required" : null) }, { id: `eq.${logId}` });
+    return json(res, 200, { received: true, ...result });
+  }
+
   const order = await orders.findOrderByReference(reference);
   if (!order) {
     // Don't 4xx — the gateway would retry forever. Log for manual reconciliation.

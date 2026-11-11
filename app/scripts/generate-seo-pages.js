@@ -474,12 +474,14 @@ ${navHtml(page.canonicalPath)}
 ${breadcrumbHtml(page.crumbs)}
 
 <main>
+  <div id="catalogueStockNotice" class="wrap" hidden><div class="notice warn" role="status"><b>Out of stock:</b> All data bundles are currently unavailable. Please check back later.</div></div>
 ${page.body}
 </main>
 
 ${footerHtml()}
 
   <script src="/lib/keywords.js"></script>
+  <script src="/assets/js/stock-status.js" defer></script>
 ${page.search ? '  <script src="/assets/js/catalogue-search.js" defer></script>\n' : ""}${page.reviews ? '  <script src="/assets/js/reviews.js" defer></script>\n' : ""}  <script src="/assets/js/valmontai.js" defer></script>
 </body>
 </html>
@@ -1699,7 +1701,7 @@ function homepageCatalogueBlock(D) {
             <td>${esc(it.validity_label)}</td>
             <td><b>${money(it.price)}</b></td>
             <td>${perGb(it.per_gb)}</td>
-            <td><a class="btn btn-sm btn-orange" href="/?net=${it.network}&size=${it.size_mb}#buy">Buy</a></td>
+            <td><a class="btn btn-sm btn-ghost" href="/?net=${it.network}&size=${it.size_mb}#buy">Check availability</a></td>
           </tr>`
     )
     .join("\n");

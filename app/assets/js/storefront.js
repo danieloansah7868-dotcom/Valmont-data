@@ -24,6 +24,7 @@
     networks: [],
     floats: {},
     lowFloat: {},
+    salesPaused: false,
     currentNet: "mtn",
     selected: null,
     customerToken: localStorage.getItem("vd_token") || localStorage.getItem("vd_customer_token") || null,
@@ -83,6 +84,7 @@
     state.networks = data.networks;
     state.floats = data.floats;
     state.lowFloat = data.low_float;
+    state.salesPaused = !!data.sales_paused;
     renderTabs();
     renderGrid();
     renderHeroPrices();
@@ -194,12 +196,20 @@
     $$(".net-tab", host).forEach((b) =>
       b.addEventListener("click", () => {
         state.currentNet = b.dataset.net;
-        $$(".net-tab", host).forEach((x) => x.classList.remove("on"));
+        $$(".net-tab", host).forEach((x) => {
+          x.classList.remove("on");
+          x.setAttribute("aria-pressed", "false");
+        });
         b.classList.add("on");
+        b.setAttribute("aria-pressed", "true");
         renderGrid();
       })
     );
-    $(".net-tab[data-net='" + state.currentNet + "']", host)?.classList.add("on");
+    $$(".net-tab", host).forEach((button) => {
+      const selected = button.dataset.net === state.currentNet;
+      button.classList.toggle("on", selected);
+      button.setAttribute("aria-pressed", String(selected));
+    });
   }
 
   function validityLabel(v) {
@@ -209,17 +219,6 @@
   function renderGrid() {
     const grid = $("#bundleGrid");
     if (!grid) return;
-    // Datamart-style guarantee banner above grid
-    const buySection = grid.closest("section") || grid.parentElement;
-    if (buySection && !buySection.querySelector(".delivery-guarantee-banner")) {
-      const banner = document.createElement("div");
-      banner.className = "delivery-guarantee-banner";
-      banner.innerHTML = "\uD83E\uDD1D <b>Honest delivery</b> — we don't promise instant. It takes 5 minutes to 3 hours — you get updates until your bundle lands.";
-      const tabs = buySection.querySelector("#netTabs");
-      if (tabs && tabs.parentElement) tabs.parentElement.insertBefore(banner, tabs.nextSibling);
-      else buySection.insertBefore(banner, grid);
-    }
-
     const list = state.bundles.filter((b) => b.network === state.currentNet);
     if (!list.length) {
       grid.innerHTML = '<p style="color:var(--muted);padding:20px">No bundles for this network yet.</p>';
@@ -228,22 +227,18 @@
     grid.innerHTML = list
       .map((b) => {
         const disabled = !b.available ? "disabled" : "";
-        const tag = b.available ? "" : '<span class="soldout soft">Back soon</span>';
+        const tag = b.available ? "" : '<span class="bundle-stock">Out of stock</span>';
         const sizeLabel = `${(b.size_mb / 1024)}${b.size_mb >= 1024 ? " GB" : " MB"}`;
         const durationLabel = b.validity_days ? `${b.validity_days} Days` : "No Expiry";
         return `<button class="bundle ${b.network} ${disabled}" data-bundle="${b.id}" ${disabled ? "disabled" : ""}>
-          ${tag}
           <div class="bundle-top">
             <div class="bundle-size">${sizeLabel}</div>
             <span class="bundle-network-badge">${NETWORK_NAMES[b.network]}</span>
           </div>
-          <div class="bundle-delivery-badge">\uD83E\uDD1D Honest delivery — 5 min to 3 hours</div>
-          <div class="bundle-details-grid">
-            <div class="detail"><span class="label">PRICE</span><b class="value price-val">${fmt(b.price)}</b></div>
-            <div class="detail"><span class="label">ROLLOVER</span><b class="value">Yes</b></div>
-            <div class="detail"><span class="label">DURATION</span><b class="value">${durationLabel}</b></div>
-          </div>
-          ${b.available ? "" : '<div class="restock-note">Restocking — check back shortly</div>'}
+          <div class="bundle-validity">${durationLabel}</div>
+          ${tag}
+          <div class="bundle-bottom"><span class="bundle-price">${fmt(b.price)}</span><span class="bundle-action">Select <span aria-hidden="true">↗</span></span></div>
+
         </button>`;
       })
       .join("");
@@ -265,6 +260,10 @@
   function renderFloatNotice() {
     const host = $("#floatNotice");
     if (!host) return;
+    if (state.salesPaused) {
+      host.innerHTML = '<div class="notice warn"><b>Out of stock:</b> All data bundles are currently unavailable. Please check back later.</div>';
+      return;
+    }
     const low = Object.entries(state.lowFloat).filter(([, v]) => v);
     if (!low.length) { host.innerHTML = ""; return; }
     host.innerHTML = `<div class="notice warn"><b>Heads up:</b> ${low.map(([n]) => NETWORK_NAMES[n]).join(", ")} is running low on stock — some bundles are paused while we restock. Other networks are unaffected.</div>`;
@@ -1039,7 +1038,7 @@
       const name = NETWORK_NAMES[bundle.network] || bundle.network;
       notice.innerHTML =
         '<div class="notice ok"><b>' + name + " " + sizeLabel + "</b> — the bundle you came for is highlighted below." +
-        (bundle.available ? " Tap it to buy." : " It is paused while we restock; the other sizes are live.") +
+        (bundle.available ? " Tap it to buy." : " This bundle is currently out of stock.") +
         "</div>" + notice.innerHTML;
     }
   }

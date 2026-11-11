@@ -28,6 +28,8 @@ const API_BASELINE_PASSED = 158;   // fresh, UNSEEDED :8787 server only; test.sh
 
 const suites = [
   { name: "api pipeline", cmd: "bash", args: ["scripts/test.sh"], baseline: API_BASELINE_PASSED },
+  { name: "data sales pause", cmd: "node", args: ["scripts/test-data-sales-pause.js"] },
+  { name: "website deposits", cmd: "node", args: ["scripts/test-website-deposits.js"] },
   { name: "supplier router", cmd: "node", args: ["scripts/test-supplier-router.js"] },
   { name: "valmontai", cmd: "node", args: ["scripts/test-valmontai.js"] },
   { name: "seo", cmd: "node", args: ["scripts/test-seo.js"] },
@@ -47,7 +49,7 @@ for (const s of suites) {
     cwd: ROOT,
     encoding: "utf8",
     maxBuffer: 64 * 1024 * 1024,
-    env: Object.assign({}, process.env, { FORCE_COLOR: "0" }),
+    env: Object.assign({}, process.env, { FORCE_COLOR: "0", DATA_SALES_PAUSED: "0" }),
   });
   if (run.stdout) process.stdout.write(run.stdout);
   if (run.stderr) process.stderr.write(run.stderr);
